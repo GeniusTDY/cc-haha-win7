@@ -1,0 +1,153 @@
+=== round23 v2-final-offline Tue 08/18/2026 23:43:46.73 === 
+[OK] elevated 
+The operation completed successfully.
+--- uninstall previous --- 
+uninstall-exit=2 
+C:\cc-haha\RESOUR~1\runtime\python\Lib\SITE-P~1\WIN32C~1\ifilter\demo - The directory is not empty.
+[WARN] dir still exists  
+--- wipe user state (first-run scenario) --- 
+[OK] runtime wiped 
+[OK] state wiped 
+--- GO OFFLINE (delete default route) --- 
+
+Pinging 8.8.8.8 with 32 bytes of data:
+PING: transmit failed. General failure. 
+
+Ping statistics for 8.8.8.8:
+    Packets: Sent = 1, Received = 0, Lost = 1 (100% loss),
+ping88-exit=1 
+Ping request could not find host github.com. Please check the name and try again.
+pingdns-exit=1 
+[OK] SMB still reachable  
+--- INSTALL v2 package (silent, elevated, OFFLINE) --- 
+install-exit=0 
+--- install integrity --- 
+[OK] exe present  
+[OK] dist\server.mjs  
+[OK] dist\adapters.mjs  
+[OK] dist\cli.mjs  
+[OK] dist\recovery-cli.mjs  
+[OK] adapters-chunks  
+[OK] sidecar removed  
+[OK] rg.exe present  
+[OK] node.exe present  
+[OK] python.exe present  
+[OK] pip wheel present  
+[OK] python38._pth fixed  
+[OK] _pth import site  
+[OK] setup-vxkex KexCfg edition  
+[OK] CSS shim in index.html  
+[OK] main.cjs node-fallback in asar  
+[OK] v2 server.mjs (bundledCandidateMatch)  
+--- bundled runtimes run (VxKex proof) --- 
+v22.17.0
+node-ver-exit=0 
+Python 3.8.10
+python-ver-exit=0 
+ripgrep 15.1.0 (rev af60c2de9d)
+
+features:+pcre2
+simd(compile):+SSE2,-SSSE3,-AVX2
+simd(runtime):+SSE2,+SSSE3,-AVX2
+
+PCRE2 10.45 is available (JIT is available)
+rg-ver-exit=0 
+--- launch GUI (first run, CDP on, OFFLINE) --- 
+launched, waiting 90s 
+--- run full E2E (OFFLINE) --- 
+PORT-FOUND 60927 attempt 0
+PASS [server] port-discovery :: 60927
+PASS [api-get] GET /health :: HTTP 200 | {"status":"ok","timestamp":"2026-08-19T06:49:13.685Z"}
+PASS [api-get] GET /api/status :: HTTP 200 | {"status":"ok","version":"999.0.0-local","uptime":108350}
+PASS [api-get] GET /api/sessions :: HTTP 200 | {"total":0,"sessions":[],"index":{"mode":"on","state":"degraded","discovered":0,"indexed":0,"degradedSources":0,"databaseBytes":0,"walBytes":0,"lastU
+PASS [api-get] GET /api/settings :: HTTP 200 | {}
+PASS [api-get] GET /api/settings/user :: HTTP 200 | {}
+PASS [api-get] GET /api/permissions/mode :: HTTP 200 | {"mode":"default"}
+PASS [api-get] GET /api/models :: HTTP 200 | {"models":[{"id":"claude-fable-5","name":"Fable 5","description":"Highest capability for long-running tasks","context":"1m"},{"id":"claude-opus-4-8",
+PASS [api-get] GET /api/effort :: HTTP 200 | {"level":"max","available":["low","medium","high","max"]}
+PASS [api-get] GET /api/providers :: HTTP 200 | {"providers":[],"activeId":null}
+PASS [api-get] GET /api/scheduled-tasks :: HTTP 200 | {"tasks":[]}
+PASS [api-get] GET /api/agents :: HTTP 200 | {"availableTools":["Edit","EnterWorktree","ExitWorktree","Glob","Grep","NotebookEdit","PowerShell","Read","Skill","TodoWrite","ToolSearch","WebFetch"
+PASS [api-get] GET /api/tasks :: HTTP 200 | {"tasks":[]}
+PASS [api-get] GET /api/teams :: HTTP 200 | {"teams":[]}
+PASS [api-get] GET /api/workflows :: HTTP 200 | {"workflows":[{"name":"deep-research","description":"Research a question across many sources and return a cited, cross-checked report","whenToUse":"U
+PASS [api-get] GET /api/skills :: HTTP 200 | {"skills":[]}
+PASS [api-get] GET /api/mcp :: HTTP 200 | {"servers":[]}
+PASS [api-get] GET /api/plugins :: HTTP 200 | {"plugins":[],"marketplaces":[],"summary":{"total":0,"enabled":0,"errorCount":0,"marketplaceCount":0}}
+PASS [api-get] GET /api/computer-use/status :: HTTP 200 | {"platform":"win32","supported":true,"python":{"installed":true,"version":"3.8.10","path":"C:\\cc-haha\\resources\\runtime\\python\\python.exe","sour
+PASS [api-get] GET /api/doctor :: HTTP 200 | {"report":{"generatedAt":"2026-08-19T06:49:15.448Z","items":[{"id":"user-settings","label":"User settings","kind":"json","scope":"user","path":"~/.cl
+PASS [api-get] GET /api/activity-stats :: HTTP 200 | {"stats":{"totalSessions":0,"totalMessages":0,"totalDays":0,"activeDays":0,"streaks":{"currentStreak":0,"longestStreak":0,"currentStreakStart":null,"
+PASS [api-get] GET /api/open-targets :: HTTP 200 | {"platform":"win32","targets":[{"id":"explorer","kind":"file_manager","label":"Explorer","icon":"folder","iconUrl":"/api/open-targets/icons/explorer"
+PASS [api-get] GET /api/desktop-ui/preferences/pet :: HTTP 200 | {"exists":false,"pet":{"enabled":false,"selectedPetId":"dada-code","size":144,"showTaskPanel":false,"collapsed":false,"motionEnabled":true,"lastSessi
+PASS [api-get] GET /api/traces :: HTTP 200 | {"traces":[],"total":0,"storageDir":"C:\\Users\\test\\.claude\\cc-haha\\traces","settings":{"enabled":true,"storageDir":"C:\\Users\\test\\.claude\\cc
+PASS [api-get] GET /api/traces/settings :: HTTP 200 | {"enabled":true,"storageDir":"C:\\Users\\test\\.claude\\cc-haha\\traces"}
+PASS [api-get] GET /api/filesystem/browse?path=C%3A%5CUsers%5Ctest :: HTTP 200 | {"currentPath":"C:\\Users\\test","parentPath":"C:\\Users","entries":[{"name":".claude","path":"C:\\Users\\test\\.claude","isDirectory":true,"relative
+PASS [api-get] GET /api/memory/projects :: HTTP 200 | {"projects":[]}
+PASS [api-get] GET /api/diagnostics/status :: HTTP 200 | {"logDir":"C:\\Users\\test\\.claude\\cc-haha\\diagnostics","diagnosticsPath":"C:\\Users\\test\\.claude\\cc-haha\\diagnostics\\diagnostics.jsonl","cli
+PASS [api-get] GET /api/diagnostics/events?limit=5 :: HTTP 200 | {"events":[{"id":"f714961e-81a1-4906-936e-aae6c0f715f3","timestamp":"2026-08-19T06:47:25.647Z","type":"console_error","severity":"error","summary":"(
+PASS [api-get] GET /api/memory :: HTTP 404 | {"error":"NOT_FOUND","message":"Unknown memory endpoint: undefined"}
+PASS [api-get] GET /api/diagnostics :: HTTP 404 | {"error":"NOT_FOUND","message":"Unknown diagnostics endpoint: (root)"}
+PASS [api-get] GET /api/nonexistent-resource :: HTTP 404 | {"error":"Not Found","message":"Unknown API resource: nonexistent-resource"}
+PASS [api-sec] GET /api/h5-access (local-only gate) :: HTTP 403 | {"error":"Forbidden","message":"H5 access settings can only be changed from the local desktop app."}
+PASS [api-get] GET /api/conversations/:id/status :: HTTP 200 | sid=undefined | {"state":"idle","activityState":"idle"}
+PASS [api-post] POST /api/search (needle found) :: HTTP 200 | found=true | {"results":[{"file":"C:\\Users\\test\\e2e-needle.txt","line":1,"text":"e2e needle token ZX81QWERTY for workspace search"}],"total":1}
+PASS [api-post] POST /api/search (default cwd) :: HTTP 200 | {"results":[{"file":"C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local\\Microsoft\\Windows\\Temporary Internet Files\\Content.IE5\\TTFHMJ6
+PASS [api-post] POST /api/market :: HTTP 405 | {"error":"METHOD_NOT_ALLOWED","message":"Method POST not allowed on /api/market"}
+PASS [api-post] POST /api/diagnostics/local-index/rebuild :: HTTP 200 | {"mode":"on","state":"degraded","discovered":0,"indexed":0,"degradedSources":0,"databaseBytes":0,"walBytes":0,"lastUpdatedAt":"2026-08-19T06:50:40.20
+PASS [api-post] POST /api/filesystem/browse :: HTTP 200 | {"currentPath":"C:\\Users\\test","parentPath":"C:\\Users","entries":[{"name":".claude","path":"C:\\Users\\test\\.claude","isDirectory":true,"relative
+PASS [api-put] PUT /api/settings/user roundtrip :: HTTP 200 | {"ok":true}
+PASS [api-put] PUT /api/desktop-ui/preferences/pet roundtrip :: HTTP 200 | {"ok":true,"preferences":{"schemaVersion":5,"sidebar":{"projectOrder":[],"pinnedProjects":[],"hiddenProjects":[],"projectOrganization":"recentProject
+PASS [api-post] POST /api/computer-use/setup :: HTTP 200 | {"success":true,"steps":[{"name":"python_check","ok":true,"message":"Python 3.8.10"},{"name":"runtime_files","ok":true,"message":"运行时文件已就绪"},{"name":
+PASS [python] deps imports :: imports-ok
+PASS [python] win_helper check_permissions :: {"ok": true, "result": {"accessibility": true, "screenRecording": true}}
+
+PASS [python] win_helper screenshot :: shot-len 58856
+PASS [gui] CDP connect :: 9222
+PASS [screenshot] 00-main-window :: \\10.0.2.4\qemu\e2e-shots\00-main-window.png
+PASS [style] computed styles + stylesheets :: {"fonts":"Inter, -apple-system, \"PingFang SC\", \"Microsoft YaHei\", sans-serif","color":"rgb(31, 28, 23)","bg":"rgb(255, 255, 255)","sheets":3,"rules":663,"bt
+PASS [style] no unstyled controls :: []
+PASS [gui] nav enumeration :: ["New session","Scheduled","Skills Market","Search chats⌘K","delete_sweep","settingsSettings","close","dnsProviders","tuneGeneral","qr_code_2H5 Access","chatIM 
+PASS [screenshot] 10-page-providers :: \\10.0.2.4\qemu\e2e-shots\10-page-providers.png
+PASS [gui] page Providers :: dnsProviders
+PASS [screenshot] 10-page-scheduled :: \\10.0.2.4\qemu\e2e-shots\10-page-scheduled.png
+PASS [gui] page Scheduled :: Scheduled
+PASS [gui] page Settings :: settingsSettings
+PASS [screenshot] 20-settings-default :: \\10.0.2.4\qemu\e2e-shots\20-settings-default.png
+PASS [gui] settings tabs enumeration :: ["New session","Scheduled","Skills Market","Search chats⌘K","delete_sweep","settingsSettings","close","dnsProviders","tuneGeneral","qr_code_2H5 Access","chatIM 
+PASS [screenshot] 21-settings-dnsproviders :: \\10.0.2.4\qemu\e2e-shots\21-settings-dnsproviders.png
+PASS [gui] settings tab dnsProviders :: 
+PASS [screenshot] 21-settings-tunegeneral :: \\10.0.2.4\qemu\e2e-shots\21-settings-tunegeneral.png
+PASS [gui] settings tab tuneGeneral :: 
+PASS [screenshot] 21-settings-mousecomputer-use :: \\10.0.2.4\qemu\e2e-shots\21-settings-mousecomputer-use.png
+PASS [gui] settings tab mouseComputer Use :: 
+PASS [screenshot] 21-settings-infoabout :: \\10.0.2.4\qemu\e2e-shots\21-settings-infoabout.png
+PASS [gui] settings tab infoAbout :: 
+PASS [screenshot] 30-computer-use :: \\10.0.2.4\qemu\e2e-shots\30-computer-use.png
+PASS [gui] Computer Use page :: essibility permissions are also needed.
+
+check_circle
+Python 3Installed — 3.8.10 (C:\cc-haha\resources\runtime\python\python.exe)
+check_circle
+Virtual Environme
+PASS [form] CU page form enumeration :: {"count":5,"types":["INPUT:checkbox:","INPUT:text:Auto-detect, or choo","INPUT:checkbox:","INPUT:checkbox:","INPUT:text:Search apps..."]}
+PASS [form] fill python path :: {"ok":true}
+PASS [screenshot] 31-computer-use-applied :: \\10.0.2.4\qemu\e2e-shots\31-computer-use-applied.png
+PASS [form] click Apply :: 
+PASS [screenshot] 32-computer-use-rechecked :: \\10.0.2.4\qemu\e2e-shots\32-computer-use-rechecked.png
+PASS [form] click Recheck Status :: 
+PASS [form] modal open + Esc close :: no add button on this page (skipped by design)
+PASS [screenshot] 99-final-state :: \\10.0.2.4\qemu\e2e-shots\99-final-state.png
+E2E-DONE results=77
+e2e-exit=0 
+--- CU setup probe: custom python path - (OFFLINE) --- 
+PORT 60927
+STATUS {"platform":"win32","supported":true,"python":{"installed":true,"version":"3.8.10","path":"C:\\cc-haha\\resources\\runtime\\python\\python.exe","source":"custom","error":null},"venv":{"created":true,"path":"C:\\Users\\test\\.claude\\.runtime\\venv"},"dependencies":{"installed":true,"requirementsFound":true},"permissions":{"accessibility":null,"screenRecording":null}}
+SETUP HTTP 200
+SETUP success=true
+venv step: {"name":"venv","ok":true,"message":"嵌入式 Python 无 venv 模块，直接使用内置解释器: C:\\cc-haha\\resources\\runtime\\python\\python.exe: No module named venv"}
+RESULT: PASS
+cu-probe-exit=0 
+--- post-E2E node --- 
+node.exe                       164 Console                    1    140,352 K
+route-restore-exit=0 
+=== Finished Tue 08/18/2026 23:53:35.75 === 

@@ -13,6 +13,7 @@ the QEMU test toolkit (qvm.sh / vncclick.py / scr.py — see the
 | `round20.bat` | v1 rebuilt installer, fully offline (default route deleted, ping-proven) → full e2e-full.mjs |
 | `round21c.bat` | CU setup probe offline against server-v2: custom python path resolving to the bundled interpreter → `success:true` (bundledCandidateMatch fix) |
 | `round22.bat` | **v2 installer full offline regression**: kill app → delete default route → relaunch GUI with CDP → full e2e-full.mjs → restore route |
+| `round23.bat` | **final v2 acceptance (offline)**: uninstall + wipe → go offline (ping-proven) → silent-install the **v2 exe itself** → 18 integrity asserts (incl. `bundledCandidateMatch` marker proving v2 server deployed) → bundled node/python/rg run → GUI launch → full e2e-full.mjs → cu-setup-probe.mjs → restore route. Log: `round23.txt`; results: `e2e-results-round23-offline.json` |
 | `cu-setup-probe.mjs` | Computer Use setup/status API probe (netstat port discovery fallback when state file is absent) |
 | `round17.bat` | historical fresh-install round (same shape, original package) |
 | `round18.bat` | historical rerun against live GUI |
@@ -51,5 +52,6 @@ Expected: install-integrity block all `[OK]`, then `77 checks, 77 passed`.
 | 19g | v1 rebuilt | online | 76/77 (page Providers nav flake) |
 | 20 | v1 rebuilt | **offline** | **77/77** |
 | 22 | **v2 rebuilt** (CU custom-path fix) | **offline** | **77/77** |
+| 23 | **v2 exe, fresh offline install** (uninstall+wipe first) | **offline** | **77/77 + CU probe PASS, 0 FAIL** |
 
 Full analysis in `docs/VERIFICATION-REPORT.md` §15.

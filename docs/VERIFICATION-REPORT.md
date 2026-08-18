@@ -295,7 +295,8 @@ CLI / Server / 桌面壳 / IM 桥接四条产品线均已完成 Bun → Node 迁
 |---|---|---|---|---|
 | round19g | v1 重建包 | 在线 | **76/77** | 唯一失败为 `page Providers` 导航点击偶发（后续轮次均过，判定 flaky） |
 | round20 | v1 重建包 | **全程离线** | **77/77** | 首次全离线全绿 |
-| round22 | **v2 改进包** | **全程离线** | **77/77** | 含 15.3 修复的 CU 场景复验 |
+| round22 | **v2 改进包**（server 热替换部署） | **全程离线** | **77/77** | 含 15.3 修复的 CU 场景复验 |
+| round23 | **v2 安装包本体，全新离线安装** | **全程离线** | **77/77 + CU PASS，0 FAIL** | 最终验收：卸载旧版→清用户态→断网（ping 实证）→静默安装 v2 exe→18 项完整性断言（含 `bundledCandidateMatch` 标记，证明部署的即 v2 server）→E2E 77 项→CU 自定义路径探针 `RESULT: PASS`（`e2e/round23.txt`） |
 
 77 项检查覆盖：GUI 冷启动（CDP 9222 连接、主窗口截图、computed styles + 3 stylesheets/663 规则、无未样式控件、导航枚举）；渲染层 CSS shim（Chromium 108 下字体/配色/背景正确）；server HTTP API（/health、/api/status、/api/sessions、/api/settings、/api/models、/api/providers 等）；WebSocket 会话链路；工作区搜索（rg.exe 经 VxKex 运行）；**Computer Use 完整链路**（内置 Python 3.8.10 检出、venv 回退、离线 wheel 安装、`win_helper.py` 截图 83KB 实证）；设置四页（Providers/Scheduled/Settings/Computer Use）逐页截图与表单填充（Apply/Recheck）；adapters 与 recovery CLI 冒烟。
 
@@ -303,4 +304,9 @@ CLI / Server / 桌面壳 / IM 桥接四条产品线均已完成 Bun → Node 迁
 
 重建 v2 与 v1 的差异仅为 `resources/app.asar.unpacked/dist/server.mjs` 一个文件（bundledCandidateMatch 增强）；NSIS 结构、文件集、安装逻辑逐字节一致（除 NSIS 固化 mtime 外）。v2 sha256：`971df9d518f0d567c4a6a759835d99882cac1fc5abeabac51abce91dbe766ae1`。
 
-**真机冒烟收口结论**：第十一轮"剩余事项仅为真机 Win7 冒烟"已完成——离线 Win7 上安装、GUI 全样式、server 全 API、搜索、Computer Use、设置交互全部通过，无已知功能或样式缺陷。
+### 15.6 round23 附带观察（非缺陷）
+
+- 卸载器在"CU 依赖曾装入内置 Python site-packages"的场景下遗留 `win32com\ifilter\demo` 空目录（`uninstall-exit=2`、`[WARN] dir still exists`）——NSIS rmdir 既有行为，v1/v2 卸载段相同（还原保真），且不影响后续重装（install-exit=0、全部断言与 E2E 通过）
+- 沙箱侧产物复验同步通过：v2 `server.mjs` 语法检查 OK；`cli.mjs --version` L2 OK；CSS shim 数学断言（对安装包内 `dist/index.html`）ALL PASSED；mock Anthropic API 单轮 L3 `MOCK-OK` EXIT=0；v2 `server.mjs` 起服 `/health`+`/api/status` 200
+
+**真机冒烟收口结论**：第十一轮"剩余事项仅为真机 Win7 冒烟"已完成——离线 Win7 上安装、GUI 全样式、server 全 API、搜索、Computer Use、设置交互全部通过，无已知功能或样式缺陷。round23 以 v2 安装包本体在全新离线安装下复验通过，最终交付定版。
