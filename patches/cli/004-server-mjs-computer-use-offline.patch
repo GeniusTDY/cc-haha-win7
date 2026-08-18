@@ -1,0 +1,461 @@
+From: Win7 port restore
+Subject: [PATCH 4/5] server.mjs: bundled-Python detection + offline wheel install
+
+Applied to the node-port CLI/server bundle (dist/server.mjs, produced by
+port-src/scripts/node-port/build.mjs). Makes Computer Use work fully offline
+on Win7:
+  - pythonBinPath(): honor basePythonOverride first
+  - getBundledPythonDirsWin(): locate resources/runtime/python relative to
+    the dist bundle (three fallback depths cover asar-unpacked layouts)
+  - installRuntimeDependencies(): when a bundled wheels/ dir exists, run
+    pip with --no-index --no-build-isolation --find-links (never touches
+    the network); upstream path (pip upgrade + online install) preserved
+  - ensureRuntimeFiles(): resolve requirements-win.txt / win_helper.py from
+    multiple runtime roots; copy wheels next to the venv
+  - venv bootstrap: fall back to the bundled python.exe when no system
+    Python is present (Win7 ships none)
+  - runSetup() venv fallback: also accept a user-configured custom python
+    path that resolves to the bundled interpreter (embeddable python has
+    no venv module; report the bundled fallback instead of failing setup)
+
+Companion: patch-computer-use.py applies P1 (MIN_PYTHON_MINOR 9->8) and the
+bundled-detection prologue; this diff is the full cumulative delta
+(pre-CU backup -> shipped server.mjs).
+
+--- a/dist/server.mjs	2026-08-18 20:30:13.313716035 +0000
++++ b/dist/server.mjs	2026-08-18 20:30:13.365716629 +0000
+@@ -397400,8 +397400,21 @@
+   };
+ }
+ function pythonBinPath() {
++  if (basePythonOverride) return basePythonOverride;
+   return isWindows2 ? path17.join(venvRoot, "Scripts", "python.exe") : path17.join(venvRoot, "bin", "python3");
+ }
++function getBundledPythonDirsWin() {
++  try {
++    if (process.platform !== "win32") return [];
++    return [
++      path17.resolve(__dirname2, "..", "runtime", "python"),
++      path17.resolve(__dirname2, "..", "..", "runtime", "python"),
++      path17.resolve(__dirname2, "..", "..", "..", "runtime", "python")
++    ];
++  } catch {
++    return [];
++  }
++}
+ async function pathExists2(target) {
+   try {
+     await access6(target);
+@@ -397429,6 +397442,19 @@
+   throw new Error(firstFailure || `${label} failed`);
+ }
+ async function installRuntimeDependencies(requirementsPath2, install = runPipInstallWithFallback) {
++  let wheelsDir = null;
++  for (const dir of getBundledPythonDirsWin()) {
++    const cand = path17.join(dir, "wheels");
++    if (await pathExists2(cand)) { wheelsDir = cand; break; }
++  }
++  if (wheelsDir) {
++    await install([
++      "-m", "pip", "install",
++      "--no-index", "--no-build-isolation", "--find-links", wheelsDir,
++      "-r", requirementsPath2
++    ], "python dependency install (offline wheels)");
++    return;
++  }
+   await install(["-m", "pip", "install", "--upgrade", "pip"], "pip upgrade");
+   await install(["-m", "pip", "install", "-r", requirementsPath2], "python dependency install");
+ }
+@@ -397440,13 +397466,23 @@
+ async function ensureRuntimeFiles() {
+   await mkdir22(runtimeStateRoot, { recursive: true });
+   const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.txt";
+-  const devRequirements = path17.join(projectRoot, "runtime", devReqFile);
+-  const devHelper = path17.join(projectRoot, "runtime", helperFileName);
+-  if (await pathExists2(devRequirements)) {
+-    await writeFile24(requirementsPath, await readFile28(devRequirements, "utf8"), "utf8");
++  const runtimeRoots = [
++    path17.join(projectRoot, "runtime"),
++    path17.resolve(__dirname2, "..", "..", "runtime")
++  ];
++  const devRequirements = runtimeRoots.map((root) => path17.join(root, devReqFile));
++  const devHelper = runtimeRoots.map((root) => path17.join(root, helperFileName));
++  for (const reqCandidate of devRequirements) {
++    if (await pathExists2(reqCandidate)) {
++      await writeFile24(requirementsPath, await readFile28(reqCandidate, "utf8"), "utf8");
++      break;
++    }
+   }
+-  if (await pathExists2(devHelper)) {
+-    await writeFile24(helperPath, await readFile28(devHelper, "utf8"), "utf8");
++  for (const helperCandidate of devHelper) {
++    if (await pathExists2(helperCandidate)) {
++      await writeFile24(helperPath, await readFile28(helperCandidate, "utf8"), "utf8");
++      break;
++    }
+   }
+ }
+ async function ensureBootstrapped() {
+@@ -397456,13 +397492,58 @@
+     if (!await pathExists2(pythonBinPath())) {
+       logForDebugging("creating runtime venv at %s", { level: "debug" });
+       const pythonCmd = await getVenvCreationPythonCommand();
+-      await runOrThrow(pythonCmd, ["-m", "venv", venvRoot], "python venv creation");
++      try {
++        await runOrThrow(pythonCmd, ["-m", "venv", venvRoot], "python venv creation");
++      } catch (venvError) {
++        let bundledExe = null;
++        for (const dir of getBundledPythonDirsWin()) {
++          const exe = path17.join(dir, "python.exe");
++          if (await pathExists2(exe)) { bundledExe = exe; break; }
++        }
++        if (!bundledExe) throw venvError;
++        basePythonOverride = bundledExe;
++      }
+     }
+     const pipBin = isWindows2 ? path17.join(venvRoot, "Scripts", "pip.exe") : path17.join(venvRoot, "bin", "pip");
+-    if (!await pathExists2(pipBin)) {
++    if (!basePythonOverride && !await pathExists2(pipBin)) {
+       logForDebugging("bootstrapping pip with ensurepip", { level: "debug" });
+       await runOrThrow(pythonBinPath(), ["-m", "ensurepip", "--upgrade"], "ensurepip");
+     }
++    if (basePythonOverride) {
++      const pipProbe = await execFileNoThrow(basePythonOverride, ["-m", "pip", "--version"], { useCwd: false });
++      if (pipProbe.code !== 0) {
++        let wheelsDirPip = null;
++        for (const dir of getBundledPythonDirsWin()) {
++          const cand = path17.join(dir, "wheels");
++          if (await pathExists2(cand)) { wheelsDirPip = cand; break; }
++        }
++        const pipWheelPath = wheelsDirPip ? path17.join(wheelsDirPip, "pip-24.3.1-py3-none-any.whl") : null;
++        if (pipWheelPath && await pathExists2(pipWheelPath)) {
++          await runOrThrow(basePythonOverride, ["-c", "import os,sys,sysconfig,zipfile; d=sysconfig.get_paths()['purelib']; os.makedirs(d,exist_ok=True); zipfile.ZipFile(sys.argv[1]).extractall(d); print('pip extracted to', d)", pipWheelPath], "pip wheel extract");
++          await runOrThrow(basePythonOverride, ["-m", "pip", "install", "--no-index", "--find-links", wheelsDirPip, "setuptools", "wheel"], "pip wheel bootstrap");
++        } else {
++          let getPipScript = null;
++          for (const dir of getBundledPythonDirsWin()) {
++            const cand = path17.join(dir, "get-pip.py");
++            if (await pathExists2(cand)) { getPipScript = cand; break; }
++          }
++          if (getPipScript) {
++            await runOrThrow(basePythonOverride, [getPipScript, "--no-warn-script-location"], "get-pip bootstrap");
++          }
++        }
++      }
++      let wheelsDir = null;
++      for (const dir of getBundledPythonDirsWin()) {
++        const cand = path17.join(dir, "wheels");
++        if (await pathExists2(cand)) { wheelsDir = cand; break; }
++      }
++      if (wheelsDir) {
++        await execFileNoThrow(basePythonOverride, [
++          "-m", "pip", "install", "--no-index", "--find-links", wheelsDir,
++          "setuptools", "wheel"
++        ], { useCwd: false });
++      }
++    }
+     const requirements = await readFile28(requirementsPath, "utf8");
+     const digest = createHash20("sha256").update(requirements).digest("hex");
+     let installedDigest = "";
+@@ -397470,7 +397551,12 @@
+       installedDigest = (await readFile28(installStampPath, "utf8")).trim();
+     } catch {
+     }
+-    if (installedDigest !== digest) {
++    let needsRuntimeInstall = installedDigest !== digest;
++    if (!needsRuntimeInstall) {
++      const runtimeDepsProbe = await execFileNoThrow(pythonBinPath(), ["-c", "import " + (isWindows2 ? "mss, pyautogui, PIL, psutil, pyperclip, screeninfo, win32api" : "mss, pyautogui, PIL, psutil, pyperclip, screeninfo")], { useCwd: false });
++      if (runtimeDepsProbe.code !== 0) needsRuntimeInstall = true;
++    }
++    if (needsRuntimeInstall) {
+       logForDebugging("installing python runtime dependencies", { level: "debug" });
+       await installRuntimeDependencies(requirementsPath);
+       await writeFile24(installStampPath, `${digest}
+@@ -397505,7 +397591,7 @@
+   }
+   return parsed.result;
+ }
+-var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise;
++var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise, basePythonOverride;
+ var init_pythonBridge = __esm({
+   "src/utils/computerUse/pythonBridge.ts"() {
+     init_define_MACRO();
+@@ -621739,6 +621825,32 @@
+   if (!locateResult.ok) return null;
+   return firstOutputLine(locateResult.stdout);
+ }
++function getBundledPythonCandidatesWin() {
++  try {
++    if (process.platform !== "win32") return [];
++    const selfDir = path59.dirname(fileURLToPath9(import.meta.url));
++    return [
++      path59.resolve(selfDir, "..", "runtime", "python", "python.exe"),
++      path59.resolve(selfDir, "..", "..", "runtime", "python", "python.exe")
++    ];
++  } catch {
++    return [];
++  }
++}
++async function getBundledGetPipPath() {
++  for (const py of getBundledPythonCandidatesWin()) {
++    const getPip = path59.join(path59.dirname(py), "get-pip.py");
++    if (await pathExists3(getPip)) return getPip;
++  }
++  return null;
++}
++async function getBundledWheelsDir() {
++  for (const py of getBundledPythonCandidatesWin()) {
++    const wheels = path59.join(path59.dirname(py), "wheels");
++    if (await pathExists3(wheels)) return wheels;
++  }
++  return null;
++}
+ async function detectPythonRuntime(platform5, runCommand2, venvPythonPath, customPythonPath) {
+   const normalizedCustomPath = customPythonPath?.trim();
+   if (normalizedCustomPath) {
+@@ -621765,6 +621877,20 @@
+       error: customResult.stderr || customResult.stdout || `Failed to run ${normalizedCustomPath}`
+     };
+   }
++  for (const bundledPath of getBundledPythonCandidatesWin()) {
++    const bundledResult = await runCommand2(bundledPath, ["--version"]);
++    if (!bundledResult.ok) continue;
++    return {
++      installed: true,
++      version: extractPythonVersion(`${bundledResult.stdout}
++${bundledResult.stderr}`),
++      path: bundledPath,
++      command: bundledPath,
++      prefixArgs: [],
++      source: "bundled",
++      error: null
++    };
++  }
+   for (const candidate of getPythonCandidates(platform5)) {
+     const versionResult = await runCommand2(candidate.command, [...candidate.prefixArgs, "--version"]);
+     if (!versionResult.ok) continue;
+@@ -623363,7 +623489,7 @@
+ var requirements_default = "mss>=9.0.2,<10\nPillow>=11.3.0,<12\npyautogui>=0.9.54\npyobjc-core>=11.1\npyobjc-framework-Cocoa>=11.1\npyobjc-framework-Quartz>=11.1\n";
+ 
+ // runtime/requirements-win.txt
+-var requirements_win_default = "mss>=9.0.2,<10\nPillow>=11.3.0,<12\npyautogui>=0.9.54\npywin32>=306\npsutil>=5.9.0\npyperclip>=1.8.2\nscreeninfo>=0.8.1\n";
++var requirements_win_default = "mss>=9.0.2,<10\nPillow>=10.0.0,<11\npyautogui>=0.9.54\npywin32>=306\npsutil>=5.9.0\npyperclip>=1.8.2\nscreeninfo>=0.8.1\n";
+ 
+ // src/server/api/computer-use.ts
+ var __dirname3 = path59.dirname(fileURLToPath9(import.meta.url));
+@@ -623375,7 +623501,7 @@
+ var installStampPath2 = join187(runtimeStateRoot2, "requirements.sha256");
+ var baseInterpreterMarkerPath = join187(runtimeStateRoot2, "venv-base-interpreter.txt");
+ var MIN_PYTHON_MAJOR = 3;
+-var MIN_PYTHON_MINOR = 9;
++var MIN_PYTHON_MINOR = 8;
+ var isWindows3 = process.platform === "win32";
+ var REQUIREMENTS_CONTENT = isWindows3 ? requirements_win_default : requirements_default;
+ function getPythonCommandEnv2() {
+@@ -623460,6 +623586,8 @@
+   if (venvCreated) {
+     const matches = await venvBaseInterpreterMatches(config4.pythonPath);
+     if (!matches) effectiveVenvCreated = false;
++  } else if (await pathExists3(baseInterpreterMarkerPath)) {
++    effectiveVenvCreated = true;
+   }
+   const reqPath = getRequirementsPath();
+   const requirementsFound = await pathExists3(reqPath);
+@@ -623527,9 +623655,17 @@
+     message: `Computer Use \u9700\u8981 Python >= ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR}\uFF0C\u5F53\u524D\u7248\u672C\u4E3A ${version4 ?? "unknown"}`
+   };
+ }
+-async function installSetupDependencies(venvPython, reqPath, install = runPipInstallWithFallback2) {
+-  await install(venvPython, ["-m", "pip", "install", "--upgrade", "pip"]);
+-  return install(venvPython, ["-m", "pip", "install", "-r", reqPath]);
++async function installSetupDependencies(pythonCmd, reqPath, install = runPipInstallWithFallback2) {
++  const wheelsDir = await getBundledWheelsDir();
++  if (wheelsDir) {
++    return install(pythonCmd, [
++      "-m", "pip", "install",
++      "--no-index", "--no-build-isolation", "--find-links", wheelsDir,
++      "-r", reqPath
++    ]);
++  }
++  await install(pythonCmd, ["-m", "pip", "install", "--upgrade", "pip"]);
++  return install(pythonCmd, ["-m", "pip", "install", "-r", reqPath]);
+ }
+ async function runSetup() {
+   const steps = [];
+@@ -623538,6 +623674,7 @@
+     return { success: false, steps: [unsupportedPlatformStep] };
+   }
+   const venvPython = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
++  let effectivePythonCmd = venvPython;
+   let venvExists = await pathExists3(venvPython);
+   const config4 = await loadConfig2();
+   if (venvExists && !await venvBaseInterpreterMatches(config4.pythonPath)) {
+@@ -623608,41 +623745,112 @@
+       venvRoot2
+     ]);
+     if (!venvResult.ok) {
+-      steps.push({
+-        name: "venv",
+-        ok: false,
+-        message: `\u521B\u5EFA\u865A\u62DF\u73AF\u5883\u5931\u8D25: ${venvResult.stderr}`
+-      });
+-      return { success: false, steps };
+-    }
+-    try {
+-      await writeFile64(baseInterpreterMarkerPath, config4.pythonPath ?? "", "utf8");
+-    } catch (err2) {
+-      steps.push({
+-        name: "venv",
+-        ok: false,
+-        message: `\u5199\u5165\u865A\u62DF\u73AF\u5883\u6807\u8BB0\u6587\u4EF6\u5931\u8D25: ${err2}`
++      const bundledCandidateMatch = getBundledPythonCandidatesWin().some((candidate) => {
++        try {
++          return path59.resolve(String(pythonRuntime.path ?? "")).toLowerCase() === path59.resolve(candidate).toLowerCase();
++        } catch {
++          return false;
++        }
+       });
+-      return { success: false, steps };
++      if (pythonRuntime.source === "bundled" || bundledCandidateMatch) {
++        effectivePythonCmd = pythonRuntime.command;
++        try {
++          await writeFile64(baseInterpreterMarkerPath, config4.pythonPath ?? "", "utf8");
++        } catch {
++        }
++        steps.push({
++          name: "venv",
++          ok: true,
++          message: `\u5D4C\u5165\u5F0F Python \u65E0 venv \u6A21\u5757\uFF0C\u76F4\u63A5\u4F7F\u7528\u5185\u7F6E\u89E3\u91CA\u5668: ${venvResult.stderr.slice(0, 120)}`
++        });
++      } else {
++        steps.push({
++          name: "venv",
++          ok: false,
++          message: `\u521B\u5EFA\u865A\u62DF\u73AF\u5883\u5931\u8D25: ${venvResult.stderr}`
++        });
++        return { success: false, steps };
++      }
++    } else {
++      try {
++        await writeFile64(baseInterpreterMarkerPath, config4.pythonPath ?? "", "utf8");
++      } catch (err2) {
++        steps.push({
++          name: "venv",
++          ok: false,
++          message: `\u5199\u5165\u865A\u62DF\u73AF\u5883\u6807\u8BB0\u6587\u4EF6\u5931\u8D25: ${err2}`
++        });
++        return { success: false, steps };
++      }
++      steps.push({ name: "venv", ok: true, message: "\u865A\u62DF\u73AF\u5883\u5DF2\u521B\u5EFA" });
+     }
+-    steps.push({ name: "venv", ok: true, message: "\u865A\u62DF\u73AF\u5883\u5DF2\u521B\u5EFA" });
+   } else {
+     steps.push({ name: "venv", ok: true, message: "\u865A\u62DF\u73AF\u5883\u5DF2\u5B58\u5728" });
+   }
+   const pipPath = isWindows3 ? join187(venvRoot2, "Scripts", "pip.exe") : join187(venvRoot2, "bin", "pip");
+   if (!await pathExists3(pipPath)) {
+-    const pipResult = await runCommand(venvPython, [
++    const pipResult = await runCommand(effectivePythonCmd, [
+       "-m",
+       "ensurepip",
+       "--upgrade"
+     ]);
+     if (!pipResult.ok) {
+-      steps.push({
+-        name: "pip",
+-        ok: false,
+-        message: `\u5B89\u88C5 pip \u5931\u8D25: ${pipResult.stderr}`
+-      });
+-      return { success: false, steps };
++      const wheelsDirForPip = await getBundledWheelsDir();
++      const pipWheelName = "pip-24.3.1-py3-none-any.whl";
++      const pipWheel = wheelsDirForPip && await pathExists3(join187(wheelsDirForPip, pipWheelName)) ? join187(wheelsDirForPip, pipWheelName) : null;
++      if (pipWheel) {
++        const extract = await runCommand(effectivePythonCmd, [
++          "-c",
++          "import os,sys,sysconfig,zipfile; d=sysconfig.get_paths()['purelib']; os.makedirs(d,exist_ok=True); zipfile.ZipFile(sys.argv[1]).extractall(d); print('pip extracted to', d)",
++          pipWheel
++        ]);
++        if (!extract.ok) {
++          steps.push({
++            name: "pip",
++            ok: false,
++            message: `pip wheel extract failed: ${extract.stderr.slice(0, 300)}`
++          });
++          return { success: false, steps };
++        }
++        const bootstrap = await runCommand(effectivePythonCmd, [
++          "-m", "pip", "install", "--no-index", "--find-links", wheelsDirForPip,
++          "setuptools", "wheel"
++        ]);
++        if (!bootstrap.ok) {
++          steps.push({
++            name: "pip",
++            ok: false,
++            message: `pip wheel bootstrap failed: ${bootstrap.stderr.slice(0, 300)}`
++          });
++          return { success: false, steps };
++        }
++      } else {
++        const getPipScript = await getBundledGetPipPath();
++        if (!getPipScript) {
++          steps.push({
++            name: "pip",
++            ok: false,
++            message: `\u5B89\u88C5 pip \u5931\u8D25: ${pipResult.stderr}`
++          });
++          return { success: false, steps };
++        }
++        const bootstrap = await runCommand(effectivePythonCmd, [getPipScript, "--no-warn-script-location"]);
++        if (!bootstrap.ok) {
++          steps.push({
++            name: "pip",
++            ok: false,
++            message: `get-pip failed: ${bootstrap.stderr.slice(0, 300)}`
++          });
++          return { success: false, steps };
++        }
++      }
++    }
++    const wheelsDirForBuild = await getBundledWheelsDir();
++    if (wheelsDirForBuild) {
++      await runCommand(effectivePythonCmd, [
++        "-m", "pip", "install", "--no-index", "--find-links", wheelsDirForBuild,
++        "setuptools", "wheel"
++      ]);
+     }
+   }
+   steps.push({ name: "pip", ok: true, message: "pip \u5DF2\u5C31\u7EEA" });
+@@ -623654,8 +623862,13 @@
+     installedDigest = (await readFile85(installStampPath2, "utf8")).trim();
+   } catch {
+   }
+-  if (installedDigest !== digest) {
+-    const installResult = await installSetupDependencies(venvPython, reqPath);
++  let needsInstall = installedDigest !== digest;
++  if (!needsInstall) {
++    const depsProbe = await runCommand(effectivePythonCmd, ["-c", "import " + (isWindows3 ? "mss, pyautogui, PIL, psutil, pyperclip, screeninfo, win32api" : "mss, pyautogui, PIL, psutil, pyperclip, screeninfo")]);
++    if (!depsProbe.ok) needsInstall = true;
++  }
++  if (needsInstall) {
++    const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);
+     if (!installResult.ok) {
+       steps.push({
+         name: "deps",
+@@ -623757,8 +623970,14 @@
+ }
+ async function listInstalledApps() {
+   const helperPath2 = getHelperPath();
+-  const pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
+-  if (!await pathExists3(pythonBin) || !await pathExists3(helperPath2)) {
++  let pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
++  if (!await pathExists3(pythonBin)) {
++    pythonBin = null;
++    for (const cand of getBundledPythonCandidatesWin()) {
++      if (await pathExists3(cand)) { pythonBin = cand; break; }
++    }
++  }
++  if (!pythonBin || !await pathExists3(helperPath2)) {
+     return [];
+   }
+   const result = await runCommand(pythonBin, [helperPath2, "list_installed_apps"]);

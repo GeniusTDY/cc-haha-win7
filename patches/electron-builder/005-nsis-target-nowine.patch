@@ -1,0 +1,30 @@
+From: Win7 port restore
+Subject: [PATCH 5/5] NsisTarget: extract uninstaller without wine on Linux
+
+Stock electron-builder 26.8.1 runs the intermediate installer under wine on
+non-Windows hosts to slice out the embedded uninstaller (`execWine` in the
+else branch below). That is the only hard wine dependency when building a
+Windows NSIS package on Linux.
+
+electron-builder already ships a pure-Node extractor (UninstallerReader:
+parses the PE + NSIS byte stream), but enables it only on macOS Catalina+.
+Loosen that condition to every non-Windows host: the two-pass makensis flow
+is preserved and no exe is executed during uninstaller extraction.
+
+Location after `npm install`/`bun install` (any reinstall overwrites it —
+build scripts must re-apply and verify, see repack/build-repack.sh):
+  desktop/node_modules/app-builder-lib/out/targets/nsis/NsisTarget.js
+
+Verify: grep -q 'process.platform !== "win32"' <file>
+
+--- a/desktop/node_modules/app-builder-lib/out/targets/nsis/NsisTarget.js
++++ b/desktop/node_modules/app-builder-lib/out/targets/nsis/NsisTarget.js
+@@ -350,7 +350,7 @@ class NsisTarget extends builder_util_1.Archiver {
+         defines.UNINSTALLER_OUT_FILE = isWin ? uninstallerPath : path.win32.join("Z:", uninstallerPath);
+         await this.executeMakensis(defines, commands, sharedHeader + (await this.computeFinalScript(script, false, archs)));
+         // http://forums.winamp.com/showthread.php?p=3078545
+-        if ((0, macosVersion_1.isMacOsCatalina)()) {
++        if (process.platform !== "win32") {
+             try {
+                 await nsisUtil_1.UninstallerReader.exec(installerPath, uninstallerPath);
+             }

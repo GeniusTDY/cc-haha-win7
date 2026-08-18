@@ -1,0 +1,27 @@
+From: Win7 port restore
+Subject: [PATCH 1/5] desktop: pin Electron 22.3.27 (last Win7-capable major)
+
+Electron 23+ drops Windows 7/8/8.1 support. 22.3.27 is the final 22.x
+release (Chromium 108 / Node 16.17) and the GUI runtime used by the Win7
+build. Pin it exactly (no caret) so electronDist resolution and the
+renderer baseline (Chromium 108 CSS support, see patch 002) stay stable.
+
+electron-builder is pinned to 26.8.1 because patch 005 patches
+app-builder-lib code paths whose line positions differ between versions.
+
+`npmRebuild: false` is already present upstream (desktop builds never
+rebuild node-pty on Linux); no change needed there.
+
+--- a/desktop/package.json
++++ b/desktop/package.json
+@@ -145,8 +145,8 @@
+     "@typescript-eslint/parser": "^8",
+     "@vitejs/plugin-react": "^6.0.1",
+     "@vitest/coverage-v8": "3.2.4",
+-    "electron": "^42.4.0",
+-    "electron-builder": "^26.8.1",
++    "electron": "22.3.27",
++    "electron-builder": "26.8.1",
+     "eslint": "^9",
+     "eslint-plugin-react-hooks": "^5",
+     "jsdom": "^25.0.1",

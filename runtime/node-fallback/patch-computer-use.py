@@ -104,7 +104,14 @@ rep("""    if (!venvResult.ok) {
     }
     steps.push({ name: "venv", ok: true, message: "\\u865A\\u62DF\\u73AF\\u5883\\u5DF2\\u521B\\u5EFA" });""",
 """    if (!venvResult.ok) {
-      if (pythonRuntime.source === "bundled") {
+      const bundledCandidateMatch = getBundledPythonCandidatesWin().some((candidate) => {
+        try {
+          return path59.resolve(String(pythonRuntime.path ?? "")).toLowerCase() === path59.resolve(candidate).toLowerCase();
+        } catch {
+          return false;
+        }
+      });
+      if (pythonRuntime.source === "bundled" || bundledCandidateMatch) {
         effectivePythonCmd = pythonRuntime.command;
         try {
           await writeFile64(baseInterpreterMarkerPath, config4.pythonPath ?? "", "utf8");
@@ -160,23 +167,54 @@ rep("""  if (!await pathExists3(pipPath)) {
       "--upgrade"
     ]);
     if (!pipResult.ok) {
-      const getPipScript = await getBundledGetPipPath();
-      if (!getPipScript) {
-        steps.push({
-          name: "pip",
-          ok: false,
-          message: `\\u5B89\\u88C5 pip \\u5931\\u8D25: ${pipResult.stderr}`
-        });
-        return { success: false, steps };
-      }
-      const bootstrap = await runCommand(effectivePythonCmd, [getPipScript, "--no-warn-script-location"]);
-      if (!bootstrap.ok) {
-        steps.push({
-          name: "pip",
-          ok: false,
-          message: `get-pip \\u5931\\u8D25: ${bootstrap.stderr.slice(0, 300)}`
-        });
-        return { success: false, steps };
+      const wheelsDirForPip = await getBundledWheelsDir();
+      const pipWheelName = "pip-24.3.1-py3-none-any.whl";
+      const pipWheel = wheelsDirForPip && await pathExists3(join187(wheelsDirForPip, pipWheelName)) ? join187(wheelsDirForPip, pipWheelName) : null;
+      if (pipWheel) {
+        const extract = await runCommand(effectivePythonCmd, [
+          "-c",
+          "import os,sys,sysconfig,zipfile; d=sysconfig.get_paths()['purelib']; os.makedirs(d,exist_ok=True); zipfile.ZipFile(sys.argv[1]).extractall(d); print('pip extracted to', d)",
+          pipWheel
+        ]);
+        if (!extract.ok) {
+          steps.push({
+            name: "pip",
+            ok: false,
+            message: `pip wheel extract failed: ${extract.stderr.slice(0, 300)}`
+          });
+          return { success: false, steps };
+        }
+        const bootstrap = await runCommand(effectivePythonCmd, [
+          "-m", "pip", "install", "--no-index", "--find-links", wheelsDirForPip,
+          "setuptools", "wheel"
+        ]);
+        if (!bootstrap.ok) {
+          steps.push({
+            name: "pip",
+            ok: false,
+            message: `pip wheel bootstrap failed: ${bootstrap.stderr.slice(0, 300)}`
+          });
+          return { success: false, steps };
+        }
+      } else {
+        const getPipScript = await getBundledGetPipPath();
+        if (!getPipScript) {
+          steps.push({
+            name: "pip",
+            ok: false,
+            message: `\\u5B89\\u88C5 pip \\u5931\\u8D25: ${pipResult.stderr}`
+          });
+          return { success: false, steps };
+        }
+        const bootstrap = await runCommand(effectivePythonCmd, [getPipScript, "--no-warn-script-location"]);
+        if (!bootstrap.ok) {
+          steps.push({
+            name: "pip",
+            ok: false,
+            message: `get-pip failed: ${bootstrap.stderr.slice(0, 300)}`
+          });
+          return { success: false, steps };
+        }
       }
     }
     const wheelsDirForBuild = await getBundledWheelsDir();
@@ -191,6 +229,24 @@ rep("""  if (!await pathExists3(pipPath)) {
 # ---------------------------------------------------------------- P3d: deps install with effective python
 rep("""    const installResult = await installSetupDependencies(venvPython, reqPath);""",
 """    const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""", "P3d installSetupDependencies effective")
+# ---------------------------------------------------------------- P3e: runSetup deps self-heal probe
+rep("""  try {
+    installedDigest = (await readFile85(installStampPath2, "utf8")).trim();
+  } catch {
+  }
+  if (installedDigest !== digest) {
+    const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""",
+"""  try {
+    installedDigest = (await readFile85(installStampPath2, "utf8")).trim();
+  } catch {
+  }
+  let needsInstall = installedDigest !== digest;
+  if (!needsInstall) {
+    const depsProbe = await runCommand(effectivePythonCmd, ["-c", "import " + (isWindows3 ? "mss, pyautogui, PIL, psutil, pyperclip, screeninfo, win32api" : "mss, pyautogui, PIL, psutil, pyperclip, screeninfo")]);
+    if (!depsProbe.ok) needsInstall = true;
+  }
+  if (needsInstall) {
+    const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""", "P3e setup deps self-heal probe")
 
 # ---------------------------------------------------------------- P4: installSetupDependencies offline wheels
 rep("""async function installSetupDependencies(venvPython, reqPath, install = runPipInstallWithFallback2) {
@@ -331,13 +387,24 @@ rep("""    const pipBin = isWindows2 ? path17.join(venvRoot, "Scripts", "pip.exe
     if (basePythonOverride) {
       const pipProbe = await execFileNoThrow(basePythonOverride, ["-m", "pip", "--version"], { useCwd: false });
       if (pipProbe.code !== 0) {
-        let getPipScript = null;
+        let wheelsDirPip = null;
         for (const dir of getBundledPythonDirsWin()) {
-          const cand = path17.join(dir, "get-pip.py");
-          if (await pathExists2(cand)) { getPipScript = cand; break; }
+          const cand = path17.join(dir, "wheels");
+          if (await pathExists2(cand)) { wheelsDirPip = cand; break; }
         }
-        if (getPipScript) {
-          await runOrThrow(basePythonOverride, [getPipScript, "--no-warn-script-location"], "get-pip bootstrap");
+        const pipWheelPath = wheelsDirPip ? path17.join(wheelsDirPip, "pip-24.3.1-py3-none-any.whl") : null;
+        if (pipWheelPath && await pathExists2(pipWheelPath)) {
+          await runOrThrow(basePythonOverride, ["-c", "import os,sys,sysconfig,zipfile; d=sysconfig.get_paths()['purelib']; os.makedirs(d,exist_ok=True); zipfile.ZipFile(sys.argv[1]).extractall(d); print('pip extracted to', d)", pipWheelPath], "pip wheel extract");
+          await runOrThrow(basePythonOverride, ["-m", "pip", "install", "--no-index", "--find-links", wheelsDirPip, "setuptools", "wheel"], "pip wheel bootstrap");
+        } else {
+          let getPipScript = null;
+          for (const dir of getBundledPythonDirsWin()) {
+            const cand = path17.join(dir, "get-pip.py");
+            if (await pathExists2(cand)) { getPipScript = cand; break; }
+          }
+          if (getPipScript) {
+            await runOrThrow(basePythonOverride, [getPipScript, "--no-warn-script-location"], "get-pip bootstrap");
+          }
         }
       }
       let wheelsDir = null;
@@ -375,6 +442,24 @@ rep("""async function installRuntimeDependencies(requirementsPath2, install = ru
   await install(["-m", "pip", "install", "--upgrade", "pip"], "pip upgrade");
   await install(["-m", "pip", "install", "-r", requirementsPath2], "python dependency install");
 }""", "P7f installRuntimeDependencies offline")
+# ---------------------------------------------------------------- P7g: runtime deps self-heal probe
+rep("""    try {
+      installedDigest = (await readFile28(installStampPath, "utf8")).trim();
+    } catch {
+    }
+    if (installedDigest !== digest) {
+      logForDebugging("installing python runtime dependencies", { level: "debug" });""",
+"""    try {
+      installedDigest = (await readFile28(installStampPath, "utf8")).trim();
+    } catch {
+    }
+    let needsRuntimeInstall = installedDigest !== digest;
+    if (!needsRuntimeInstall) {
+      const runtimeDepsProbe = await execFileNoThrow(pythonBinPath(), ["-c", "import " + (isWindows2 ? "mss, pyautogui, PIL, psutil, pyperclip, screeninfo, win32api" : "mss, pyautogui, PIL, psutil, pyperclip, screeninfo")], { useCwd: false });
+      if (runtimeDepsProbe.code !== 0) needsRuntimeInstall = true;
+    }
+    if (needsRuntimeInstall) {
+      logForDebugging("installing python runtime dependencies", { level: "debug" });""", "P7g runtime deps self-heal probe")
 
 
 # ---------------------------------------------------------------- P8: Pillow py38-compatible range (win)
