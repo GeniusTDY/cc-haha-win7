@@ -34,7 +34,7 @@ port-src/      Bun→Node port sources (compat layer, build scripts,
 runtime/       offline runtime payloads (node-fallback bundles in git;
                node/python/vxkex binaries = release attachments)
 repack/        Stage B: build-repack.sh + installer.nsi → Offline.exe
-docs/          Technical-Support.md (development log) ·
+docs/          Technical-Support.md (technical porting solution) ·
                VERIFICATION-REPORT.md (L1–L4 + 15 review rounds + QEMU E2E) ·
                BUILD-AND-VERIFY.md · WIN7-DEPLOY.md
 ```

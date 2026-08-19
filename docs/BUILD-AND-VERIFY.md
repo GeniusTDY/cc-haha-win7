@@ -38,7 +38,7 @@ git apply ../patches/electron-builder/005-nsis-target-nowine.patch
 export ELECTRON_BUILDER_CACHE="$PWD/../vendor/electron-builder-cache"
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 # requires vendor/electron (Electron 22.3.27 win-x64 dist) — see
-# Technical-Support.md §4/§7; rg.exe + sidecar come from src-tauri/binaries
+# Technical-Support.md §10; rg.exe + sidecar come from src-tauri/binaries
 ```
 
 Stage A output provenance note: the shipped Setup.exe (225,684,328 bytes)
