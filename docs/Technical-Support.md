@@ -608,7 +608,7 @@ round27 = **37/37 PASS**（phase1 18 + batch 卸载 4 + phase3 重装 7 + WS 控
 - **NSIS 卸载残留是锁竞态**：杀进程后等待 ≥9s 再触发卸载即全清；
   偶发残留目录不代表卸载器缺陷。
 
-### 19.2 最终汇总（round23–27）
+### 19.2 最终汇总（round23–28）
 
 | 套件 | 覆盖 | 结果 |
 |---|---|---|
@@ -617,10 +617,35 @@ round27 = **37/37 PASS**（phase1 18 + batch 卸载 4 + phase3 重装 7 + WS 控
 | round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权） | 33/33 PASS |
 | round26 | API 32 路由组 sweep + GUI 全 20 导航条目 | 49/49 PASS |
 | round27 | 类型学盲区（负向/中断/失败终态/自卸载/WS 控制面） | 37/37 PASS |
+| round28 | 交互时序与状态机盲区（权限审批/拒绝、多轮上下文、断线恢复） | 29/29 PASS |
 
-累计 **216 项断言，0 失败**，25 个维度。覆盖完备性经三层对账：源码级
+累计 **245 项断言，0 失败**，26 个维度。覆盖完备性经四层对账：源码级
 （32 个 handle*Api + WS 11 种入站帧 + GUI 侧边栏运行时枚举）、测试
-类型学级（happy/负向/边界/中断/失败/生命周期）、mock 场景矩阵
-（file-tools/text-only/bash/slow-stream/fail）。矩阵明细见
-`e2e/TEST-COVERAGE.md`。豁免项不变（离线物理不可达：真实外网 API、
-真实 OAuth 回调、Telegram/微信/WhatsApp 真实推送、自动更新、在线市场）。
+类型学级（happy/负向/边界/中断/失败/生命周期）、交互时序与状态机级
+（权限审批/拒绝全链路、同会话多轮上下文、挂起权限断线重连重放、活动轮
+并发）、mock 场景矩阵（file-tools/text-only/bash/slow-stream/fail）。
+矩阵明细见 `e2e/TEST-COVERAGE.md`。豁免项不变（离线物理不可达：真实
+外网 API、真实 OAuth 回调、Telegram/微信/WhatsApp 真实推送、自动更新、
+在线市场）。
+
+## 20. 交互时序与状态机盲区闭合（round28）
+
+round27 之后按**交互时序与状态机**视角第四次审计，发现最关键的一类
+盲区：此前所有 WS/cron 测试**全程 bypassPermissions**——真实权限审批
+的线上路径从未跑过。round28 用 `default` 模式会话补齐，**产品零缺陷**：
+
+| 时序场景 | 验证结论 |
+|---|---|
+| 权限审批流 | default 模式下 Write 触发 `permission_request`（input 含 file_path+content）→ 客户端 `permission_response allowed:true` → 广播 `permission_resolved` → 回合完成且 hi.txt=="ok"（Read 只读工具自动放行，符合设计） |
+| 权限拒绝流 | 回 `allowed:false` → `permission_resolved(allowed:false)` → 回合**受控结束**（message_complete 无挂起）→ 文件未创建 → turnState 回 idle |
+| 多轮上下文 | 同一 WS 会话 3 轮 TEXT-ONLY，mock 回显 `[seen-assistant:0/1/2]` 递增——CLI 会话历史跨轮累积，非每轮新建进程 |
+| 断线重连恢复 | 权限挂起时断开 WS → 重连收 `permission_requests_snapshot`（pending id + turnActive=true）→ 服务端**重放同一 requestId** → 批准后回合完成、文件落地 |
+| 活动轮并发 | 流式回合中再发 user_message 受控接受，stop_generation 仍生效，连接存活 |
+
+### 20.1 本轮沉淀的复现要点
+
+- **mock 上下文回显**：text-only 场景回 `[seen-assistant:N]`（N=请求中
+  历史助手消息数），使"会话上下文是否累积"从推断变为可断言。
+- **UAC 与 VNC 合成输入**：secure desktop 下鼠标点击不可靠（11 连击
+  失败），键盘 `Alt+Y` 稳定；`vm/r28-launch.sh` 固化了"启动→检测
+  UAC→Alt+Y→验证提权副本开跑"的反馈闭环。

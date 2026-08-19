@@ -125,14 +125,33 @@ round27 记录的两条**测试基建铁律**（复现必读）：
 - cron 失败终态断言的轮询窗口必须 > SDK 重试梯队长度（实测 218s），
   否则误报"卡死"。
 
-## 7. 修复回归对照（v2 上一版 → 本版）
+## 7. round28-probe — 交互时序与状态机盲区闭合（29/29 PASS）
+
+按"交互时序与状态机"视角对账，发现此前**所有** WS/cron 测试均全程
+bypassPermissions——真实的权限审批线上路径、同会话多轮上下文、断线时
+挂起权限的恢复路径从未被触达。round28 全部闭合（mock 扩展
+`[seen-assistant:N]` 回显作为上下文累积断言依据）：
+
+| 时序/状态机盲区 | 检查 | 结果 |
+|---|---|---|
+| 权限审批流 (7) | 会话以 `default` 模式创建（非 bypass）：user_message FILE-TOOLS → 服务端下发 `permission_request`(tool=Write, input 含 file_path+content) → 回 `permission_response allowed:true` → 广播 `permission_resolved(allowed:true)` → message_complete → hi.txt=="ok" 且最终回复 FILE-TOOLS-OK（Read 在 default 模式下自动放行，符合预期） | PASS |
+| 权限拒绝流 (5) | 同场景对 Write 回 `allowed:false`（含 denyMessage）→ `permission_resolved(allowed:false)` → 回合受控结束（message_complete，无挂起）→ 目标目录**未**创建文件 → sync_state 确认 turnState 回到 idle | PASS |
+| 多轮上下文 (5) | 同一 WS 会话连发 3 轮 TEXT-ONLY：mock 回显 `[seen-assistant:0/1/2]` 递增——证明 CLI 会话历史跨轮累积（非每轮新建 CLI）；每轮均 message_complete | PASS |
+| 断线重连恢复 (6) | 权限请求挂起时**直接断开 WS** → 重连同一会话：`permission_requests_snapshot` 列出 pending requestId 且 turnActive=true → 服务端**重放同一 requestId 的 permission_request** → 批准后回合完成、hi.txt=="ok"（真实恢复路径，非重开会话） | PASS |
+| 活动轮并发消息 (4) | SLOW-STREAM 流式中再发 user_message：受控接受（无错误帧/无崩溃）→ stop_generation 仍可中断 → WS 存活（pong 增长） | PASS |
+| 收尾健康 (2) | 全部时序场景后端口发现 + /health 200 | PASS |
+
+round28 附带结论：UAC 提权确认在 VNC 合成输入下鼠标点击不可靠，
+键盘 `Alt+Y` 是稳定通道（启动脚本 r28-launch.sh 固化该流程）。
+
+## 8. 修复回归对照（v2 上一版 → 本版）
 
 | 问题 | 症状 | 修复 | 验证 |
 |---|---|---|---|
 | 服务端 spawn CLI 用了 Bun 专属 `--preload` | node.exe 报 bad option，WS/cron 全挂 | win32 分支改为直接执行 cli.mjs，保留 .cmd 启动器与 preload 兜底 | WS ended=complete frames=34；cron status=completed |
 | 继承环境变量被过度剥离 | CLI 拿不到 ANTHROPIC_* | 仅显式选择 provider id 时才剥离 | agent turn / WS / cron 全通过 |
 
-## 8. 历史脚本归类（迭代遗留，结论已收敛进 round23–27，无需再跑）
+## 9. 历史脚本归类（迭代遗留，结论已收敛进 round23–28，无需再跑）
 
 | 组 | 脚本 | 用途（已被取代） |
 |---|---|---|
@@ -141,8 +160,8 @@ round27 记录的两条**测试基建铁律**（复现必读）：
 | 迭代验收 | func1–10.bat, crash14*.bat, probe14.bat, retry14.bat, retry-sidecar.bat, cuverify3–15.bat, cudiag*.bat, cupip.bat, cusetup2.bat, cuquick1.bat, cu9recheck.bat, round17–22*.bat, e2erun*.bat, srvwatch.bat, node-fallback.bat, deploy-node-fallback.bat | 各轮功能/崩溃/CU/回退验证，断言已并入 round23/24 |
 | 驱动辅助 | auto-trigger.py, run-launch.py, vncclick.py, vncshot.py, vnccap.py, uac-click.py, uac-watch.py, scr.py, screen-check.py, slowtype.py, cdp.mjs, cdp2.mjs, mock-anthropic.mjs, server-v2.mjs, postsetup.mjs, gap-probe.mjs, cu-setup-probe.mjs, e2e-full.mjs, diag24.bat | 套件基础设施（VNC/UAC/CDP/mock），仍在用 |
 
-## 9. 结论
+## 10. 结论
 
-- 安装、离线、完整性、运行时、API（32 路由组全覆盖 + 负向矩阵）、GUI（侧边栏 20 条目全遍历）、Python 侧、CLI（--version/--help/回合）、agent 回合、WS 会话（含并发 + 协议负向 + 运行中断）、cron 调度（真实 tick + 失败终态）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行、卸载/重装生命周期闭环、边界路径（空格+中文）—— **25 个维度全覆盖，216 项断言 0 失败**。
-- 覆盖完备性由三层对账保证：源码级（32 个 `handle*Api` 全触达、WS 入站 11 种消息类型全覆盖、GUI 侧边栏运行时枚举全点击）、测试类型学级（happy/负向/边界/中断/失败/生命周期终点）、以及 mock 场景矩阵（file-tools/text-only/bash/slow-stream/fail）。
+- 安装、离线、完整性、运行时、API（32 路由组全覆盖 + 负向矩阵）、GUI（侧边栏 20 条目全遍历）、Python 侧、CLI（--version/--help/回合）、agent 回合、WS 会话（含并发 + 协议负向 + 运行中断 + 权限审批/拒绝 + 多轮上下文 + 断线重连重放）、cron 调度（真实 tick + 失败终态）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行、卸载/重装生命周期闭环、边界路径（空格+中文）—— **26 个维度全覆盖，245 项断言 0 失败**。
+- 覆盖完备性由四层对账保证：源码级（32 个 `handle*Api` 全触达、WS 入站 11 种消息类型全覆盖、GUI 侧边栏运行时枚举全点击）、测试类型学级（happy/负向/边界/中断/失败/生命周期终点）、交互时序与状态机级（权限审批/拒绝全链路、同会话多轮上下文、挂起权限断线恢复、活动轮并发）、以及 mock 场景矩阵（file-tools/text-only/bash/slow-stream/fail）。
 - 未覆盖项（超出离线范围，属预期豁免）：真实外网 API 调用、真实 OAuth 回调流程、Telegram/微信/WhatsApp 通道真实推送、自动更新、在线 Skills Market 拉取（离线环境用 mock/本地断言替代）。
