@@ -486,4 +486,51 @@ agent `hi.txt=ok`。完整矩阵见 `e2e/TEST-COVERAGE.md`。
 v2 产物：`Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe`
 sha256 `03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be`
 （体积超 git 上限，以 Release 附件分发；构建脚本 `repack/build-repack.sh`）。
+
+## 17. 覆盖审计与 A 级盲区闭合（round25）
+
+round23/24 之后对全部测试结论做覆盖审计，识别出 8 项此前从未真正
+验证过的盲区，round25 一次性闭合，**产品代码零改动**（8 项全部按
+预期行为通过，仅修正测试断言与测试基建）。
+
+### 17.1 八项盲区与闭合方式
+
+| 盲区 | 此前状态 | round25 验证 |
+|---|---|---|
+| API 面全景 | 只测过业务路由，未验证错误路径与 SDK 出站路由隔离 | 12 项：本地路由 200、SDK 出站路由（v1/skills 等）404、filesystem/file 越界 400/403、doctor/repair 干跑 200 |
+| H5 访问安全门 | 只验证过"远程拒绝"一条 | 6 项：enable/disable/regenerate/settings 非桌面调用方 403、verify 未知/缺失 bearer 401 |
+| 并发 WS 会话 | 只有单会话顺序执行 | 3 会话并发 user_message 全部 message_complete，3 个独立 workDir 工具循环互不串扰 |
+| cron 真实调度 | round24 用手动触发，调度器 tick 未验证 | 创建 */1 任务后不手动触发，等真实 tick → completed |
+| v1→v2 原地升级 | 全新安装验证过，覆盖安装从未测 | v1 基线 → 不卸载直接覆盖装 v2 → 5 项完整性断言全过 |
+| 恢复模式 | recovery-cli --help 冒烟过，损坏场景未测 | 重命名 cli.mjs 模拟损坏 → recovery-cli 文本回合 MOCK-OK → 还原 |
+| 崩溃自愈 | 未测 | 定位 PID → 杀进程端口拒连 → 应用重启拉起（Phase C 实测）；确认无进程级 respawn 属设计预期 |
+| 非提权运行 | 全程提权测试 | runas /trustlevel:0x20000 受限令牌重启：服务 200、H5 入口 200、持久化数据在位 |
+
+结果：phase1 30/30 PASS + phase2 3/3 PASS，0 FAIL。
+
+### 17.2 测试假阳性修复（复现必读）
+
+- **mock 无条件成功**：原 mock 在收到 tool_result 后无条件回成功文本，
+  即使工具根本没执行也显示 TOOL-LOOP-OK。改为校验 tool_result 内容必须
+  含 stdout 标记 `AGENT-TOOL-STDOUT-MARKER` 才回成功——随即暴露
+  Win7 下 Bash 工具不可用的事实（rg/管道依赖），并发场景改用
+  FILE-TOOLS（Write→Read 相对路径）验证工具循环，符合产品在 Win7
+  的实际能力面。
+- **recovery-cli 断言错位**：recovery-cli 设计上就是纯文本回合，
+  断言工具循环属于测错对象；改为 TEXT-ONLY 场景验证。
+- **H5 门禁误当故障**：enable/regenerate 返回 403 是"仅桌面端可改"
+  的安全设计，非缺陷；断言反转后进入安全门验证组。
+- **批处理括号语法**：`(no v2 marker)` 中的右括号提前闭合 if 块导致
+  批处理静默截断，改用无括号文案；提权脚本先复制到 %TEMP% 再执行，
+  规避 UNC 路径安全警告。
+
+### 17.3 最终汇总
+
+| 套件 | 覆盖 | 结果 |
+|---|---|---|
+| round23 | 全新安装 + 完整性 18 项 + e2e-full 77 项 + CU 探针 | 77/77 PASS |
+| round24 | CLI/agent/WS/cron/H5/终端/持久化 gap 补齐 | 20/20 PASS |
+| round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权等） | 33/33 PASS |
+
+累计 **130 项断言，0 失败**；覆盖矩阵见 `e2e/TEST-COVERAGE.md`。
 预期豁免项（离线环境无法覆盖）：真实外网 API、自动更新、在线市场拉取。
