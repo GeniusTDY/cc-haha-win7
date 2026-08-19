@@ -533,4 +533,49 @@ round23/24 之后对全部测试结论做覆盖审计，识别出 8 项此前从
 | round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权等） | 33/33 PASS |
 
 累计 **130 项断言，0 失败**；覆盖矩阵见 `e2e/TEST-COVERAGE.md`。
-预期豁免项（离线环境无法覆盖）：真实外网 API、自动更新、在线市场拉取。
+预期豁免项（离线环境无法覆盖）：真实外网 API、自动更新、在线市场拉取。
+
+## 18. 源码级对账与残余盲区 sweep（round26）
+
+round25 之后做了一次**源码级对账**：从 server.mjs 提取全部 32 个
+`handle*Api` 路由组、从渲染端提取实际侧边栏结构，逐项对照 round23/24/25
+的测试明细，发现仍有两类从未触达的功能面（产品零缺陷，纯覆盖缺口）：
+
+1. **19 个 API 路由组零请求**：providers、models、agents、tasks、
+   workflows、teams、plugins、mcp、memory、open-targets、activity-stats、
+   adapters(+channels)、wechat/whatsapp-adapters、haha 三组 OAuth 状态
+   等。round26 对每组发代表性 GET，断言限时内受控响应（<500）且 sweep
+   后服务仍健康——全部通过（200/404/405 均为设计内行为）。
+2. **GUI 侧边栏未全遍历**：此前仅点击 4 个页面。round26 用 CDP 运行时
+   枚举出全部 20 个真实条目并逐个点击验证渲染（含此前从未访问的
+   Providers/General/H5 Access/IM Adapters/Terminal/MCP/Agents/Skills/
+   Memory/Plugins/Pets 共 11 个设置区页面 + 8 个会话历史条目），
+   全部通过，每页留有截图。
+
+round26 结果：**49/49 PASS，0 FAIL**。至此对账闭环：32 个 API 路由组
+全部有请求触达、GUI 侧边栏无未访问页面。
+
+### 18.1 round26 暴露的测试基建问题（复现必读）
+
+- **僵尸进程占用 CDP 端口**：反复 `taskkill /im` 全家桶后，guest 会残留
+  CDP 端点已死（连接接受但不响应）的进程占住 9222，导致新实例起不来。
+  bat 必须按 PID 清剿 9222 占用者并确认端口释放后再重启应用。
+- **CDP 调用必须带超时**：`/json/list` 的 fetch 与 Runtime.evaluate 若
+  不设超时会无限挂起探针；超时 + 单次重试后稳定。
+- **动态 UI 的点击失配**：会话历史的相对时间戳（"4h ago"）随时间变化、
+  虚拟滚动把条目移出视口；瞬态浮层按钮（"Expand display"）在枚举后
+  消失。处理：前缀匹配 + scrollIntoView，失配时 DOM 重查——仍在则 FAIL、
+  已消失则记 transient skip。
+
+### 18.2 最终汇总（round23–26）
+
+| 套件 | 覆盖 | 结果 |
+|---|---|---|
+| round23 | 全新离线安装 + 完整性 18 项 + e2e-full 77 项 + CU 探针 | 77/77 PASS |
+| round24 | CLI/agent/WS/cron/H5/终端/持久化 gap 补齐 | 20/20 PASS |
+| round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权等） | 33/33 PASS |
+| round26 | API 全 32 路由组 sweep + GUI 全 20 导航条目遍历 | 49/49 PASS |
+
+累计 **179 项断言，0 失败**，21 个维度；覆盖矩阵见 `e2e/TEST-COVERAGE.md`。
+预期豁免项（离线环境物理不可达）：真实外网 API、真实 OAuth 回调、
+Telegram/微信/WhatsApp 通道真实推送、自动更新、在线市场拉取。

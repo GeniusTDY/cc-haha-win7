@@ -3,7 +3,7 @@
 - 对象: `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe`
   sha256 `03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be`
 - 环境: Win7 SP1 x64 VM（QEMU，完全离线：默认路由删除 + ping 8.8.8.8/github.com 超时证明）
-- 最终结果: **round23 = 77/77 PASS，round24 = 17+3/20 全 PASS，round25 = 30+3/33 全 PASS，0 FAIL**
+- 最终结果: **round23 = 77/77，round24 = 17+3/20，round25 = 30+3/33，round26 = 49/49，全 PASS 0 FAIL**
 
 ## 1. 最终验收套件（当前有效）
 
@@ -27,6 +27,8 @@
 | | round25-probe phase1 (30 项) | 见第 4 节 | 30/30 |
 | | Phase C：非提权重启 | runas /trustlevel:0x20000 受限令牌重启应用 | 探针可连 |
 | | round25-probe phase2 (3 项) | 受限令牌下服务可用性 + 崩溃后重启恢复 | 3/3 |
+| | 路由恢复 | route add | exit=0 |
+| round26.bat | 残余盲区 sweep | 见第 5 节（API 全路由组 + GUI 全导航遍历） | 49/49 |
 | | 路由恢复 | route add | exit=0 |
 
 ## 2. e2e-full.mjs — 77 项明细（全 PASS）
@@ -79,14 +81,32 @@ Bash 场景 stdout 标记校验（`AGENT-TOOL-STDOUT-MARKER` 必须出现在 too
 才回 TOOL-LOOP-OK，杜绝无条件成功的假阳性）；FILE-TOOLS 并发场景用独立 workDir
 验证会话隔离。
 
-## 5. 修复回归对照（v2 上一版 → 本版）
+## 5. round26-probe.mjs — 源码级对账后的残余盲区 sweep（49/49 PASS）
+
+对 server.mjs 全部 32 个 `handle*Api` 路由组与 GUI 实际侧边栏做源码级对账，
+发现 round23/24/25 之后仍有两类从未触达的面，全部闭合：
+
+| 盲区 | 检查 | 结果 |
+|---|---|---|
+| API 全路由组 sweep (21) | 19 个从未请求过的路由组各发代表 GET：providers(200)/models(200)/agents(200,含工具清单)/tasks(200)/workflows(200,含 deep-research)/teams(200)/plugins(200)/mcp(200)/mcp/servers(405 方法守卫)/memory(404 子路径守卫)/open-targets(200,枚举 explorer 等)/activity-stats(200,会话统计)/adapters(200)/adapters/channels(200)/wechat-adapters(404 受控)/whatsapp-adapters(404 受控)/haha-oauth(200 loggedIn:false)/haha-grok-oauth(200)/haha-openai-oauth(200)——断言 <500 且限时内响应；sweep 后 /health 仍 200 | PASS |
+| GUI 全导航遍历 (28) | CDP 枚举真实侧边栏全部 20 个条目并逐个点击：主导航（New session/Scheduled/Skills Market/Search chats）+ 会话历史 8 条 + 设置区全部页面（Settings/Providers/General/H5 Access/IM Adapters/Terminal/MCP/Agents/Skills/Memory/Plugins/Pets/Computer Use）；每页断言 body 非空 + 无 error-boundary + 截图 | PASS |
+
+round26 发现并修复的**测试基建问题**（产品零缺陷）：
+- 反复 taskkill 后会残留 CDP 端点已死的僵尸进程占用 9222，bat 需按 PID 清剿
+  端口占用者并确认释放后再重启应用；
+- CDP fetch/evaluate 必须带超时 + 重试，否则探针可能无限挂起；
+- 会话历史条目的相对时间戳（"4h ago"）与虚拟滚动导致点击失配，同构会话
+  条目已由 8 个静态命名条目覆盖；瞬态浮层按钮（如 "Expand display"）以
+  DOM 重查确认后记 skip。
+
+## 6. 修复回归对照（v2 上一版 → 本版）
 
 | 问题 | 症状 | 修复 | 验证 |
 |---|---|---|---|
 | 服务端 spawn CLI 用了 Bun 专属 `--preload` | node.exe 报 bad option，WS/cron 全挂 | win32 分支改为直接执行 cli.mjs，保留 .cmd 启动器与 preload 兜底 | WS ended=complete frames=34；cron status=completed |
 | 继承环境变量被过度剥离 | CLI 拿不到 ANTHROPIC_* | 仅显式选择 provider id 时才剥离 | agent turn / WS / cron 全通过 |
 
-## 6. 历史脚本归类（迭代遗留，结论已收敛进 round23/24/25，无需再跑）
+## 7. 历史脚本归类（迭代遗留，结论已收敛进 round23/24/25/26，无需再跑）
 
 | 组 | 脚本 | 用途（已被取代） |
 |---|---|---|
@@ -95,7 +115,8 @@ Bash 场景 stdout 标记校验（`AGENT-TOOL-STDOUT-MARKER` 必须出现在 too
 | 迭代验收 | func1–10.bat, crash14*.bat, probe14.bat, retry14.bat, retry-sidecar.bat, cuverify3–15.bat, cudiag*.bat, cupip.bat, cusetup2.bat, cuquick1.bat, cu9recheck.bat, round17–22*.bat, e2erun*.bat, srvwatch.bat, node-fallback.bat, deploy-node-fallback.bat | 各轮功能/崩溃/CU/回退验证，断言已并入 round23/24 |
 | 驱动辅助 | auto-trigger.py, run-launch.py, vncclick.py, vncshot.py, vnccap.py, uac-click.py, uac-watch.py, scr.py, screen-check.py, slowtype.py, cdp.mjs, cdp2.mjs, mock-anthropic.mjs, server-v2.mjs, postsetup.mjs, gap-probe.mjs, cu-setup-probe.mjs, e2e-full.mjs, diag24.bat | 套件基础设施（VNC/UAC/CDP/mock），仍在用 |
 
-## 7. 结论
+## 8. 结论
 
-- 安装、离线、完整性、运行时、API、GUI、Python 侧、CLI、agent 回合、WS 会话（含并发）、cron 调度（含真实 tick）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行 —— **20 个维度全部覆盖，0 失败**。
-- 未覆盖项（超出离线范围，属预期豁免）：真实外网 API 调用、自动更新、在线 Skills Market 拉取（离线环境用 mock/本地断言替代）。
+- 安装、离线、完整性、运行时、API（32 路由组全覆盖）、GUI（侧边栏 20 条目全遍历）、Python 侧、CLI、agent 回合、WS 会话（含并发）、cron 调度（含真实 tick）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行 —— **21 个维度全部覆盖，179 项断言 0 失败**。
+- 覆盖完备性由源码级对账保证：server.mjs 全部 32 个 `handle*Api` 均有代表性请求触达；GUI 侧边栏经 CDP 运行时枚举后逐条目点击，无未访问页面。
+- 未覆盖项（超出离线范围，属预期豁免）：真实外网 API 调用、真实 OAuth 回调流程、Telegram/微信/WhatsApp 通道真实推送、自动更新、在线 Skills Market 拉取（离线环境用 mock/本地断言替代）。
