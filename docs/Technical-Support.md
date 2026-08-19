@@ -419,4 +419,71 @@ setup 触发重装、随后 imports-ok + 截图 ok。
 
 验证自动化要点（复现时参考）：UAC 由宿主机经 QEMU VNC 发送
 Alt+Y 审批（OCR 轮询安全桌面）；安装器被拒绝提权时以 exit code 5
-退出且不产生任何更改——属预期行为。
+退出且不产生任何更改——属预期行为。
+
+## 16. v2 会话链路修复 + 覆盖盲区补齐（round24）
+
+v1 验收（第 15 节）覆盖安装/卸载/CU/GUI/API，但 WS 会话、cron 调度、
+CLI 入口与 agent 工具循环从未在离线 guest 内真正闭环。round24 用
+guest 本地回环 mock API 补齐这些盲区，暴露并修复了两处致命缺陷。
+
+### 16.1 server.mjs 两处修复（v2 核心 delta）
+
+**修复 A — Win32 CLI spawn 路径**：服务端启动 CLI 子进程时使用了
+Bun 专属 `--preload` 参数，Node 22 直接报 `bad option` 退出（exit 9），
+导致 WS 会话与 cron 任务全部启动失败。win32 分支改为三级解析：
+优先直接执行 `dist/cli.mjs` → 兜底 `bin/claude-haha.cmd` 启动器 →
+仅非 win32 保留 preload 路径。
+
+**修复 B — 继承环境变量过度剥离**：`shouldStripInheritedProviderEnv`
+原无条件剥离继承的 `ANTHROPIC_*`，官方/默认模式下 CLI 拿不到
+base_url / api_key / model。改为仅显式选择 provider id 字符串时才剥离，
+默认模式放行继承变量。
+
+### 16.2 离线 mock 测试方法（e2e/mock-anthropic.mjs）
+
+guest 内 `127.0.0.1:8787` 起最小 Anthropic 兼容服务（默认路由已删、
+真实外网不可达，回环不受影响）：按 prompt 关键词分流——
+`REPLY_WITH_TEXT_ONLY` 回纯文本；`FILE-TOOLS` 回 Write→Read 工具调用
+链（相对路径）再回终文本 `FILE-TOOLS-OK`。应用以
+`ANTHROPIC_BASE_URL=http://127.0.0.1:8787` 重启后，WS 会话、cron
+执行、agent 完整回合均可在离线环境走通真实 spawn 链路。
+
+### 16.3 gap-probe 套件（e2e/gap-probe.mjs，两阶段）
+
+phase1（mock 环境，17 项）：CLI 冒烟 ×3（--version / recovery-cli
+--help / adapters --telegram 无 token 路径）、agent 完整回合（工具
+循环后验证 hi.txt 内容=ok）、WS ×4（REST 建会话、connected 帧、
+user_message→message_complete、消息持久化 messageCount=8）、
+cron ×3（建任务/手动触发/达到 completed 终态）、H5 静态入口、
+终端 tab + xterm DOM（pipe-PTY 回退）、端口发现、截图。
+
+phase2（无 mock 重启，3 项）：CJK 设置跨重启 sqlite 回环
+（「中文持久化探针-✓」）、WS 会话跨重启存活、端口复发现。
+
+### 16.4 测试基础设施修复（复现必读）
+
+- **UAC 自动审批**：OCR 找 "Yes" 按钮坐标不可靠（缩放/抗锯齿导致
+  not-found，提权脚本无限挂起）。`e2e/auto-trigger.py` 改为识别
+  UAC 文案后直接发送 Alt+Y，一次通过。
+- **host smbd 看门狗**：QEMU 内建 smbd 曾无故退出（guest 共享
+  \\10.0.2.4\qemu 不可达，测试输出文件全部丢失）。长跑脚本需
+  轮询 `pgrep smbd` 并以 `/tmp/qemu-smb.*/smb.conf` 自动重启。
+- **安装包-测试时序**：修复必须打进安装包并**重新安装**才生效——
+  本轮曾因 guest 内仍是修复前构建，WS/cron 三项误报 FAIL。
+
+### 16.5 v2 最终验收（round23 + round24，全离线）
+
+| 套件 | 结果 |
+|---|---|
+| round23：全新安装 + 完整性 18 项 + e2e-full 77 项 + CU 探针 | 77/77 PASS，0 FAIL |
+| round24：gap-probe phase1 17 项 + phase2 3 项 | 20/20 PASS，0 FAIL |
+
+关键回归点：WS `ended=complete frames=34`（原 timeout + exit 9）、
+`messageCount=8`（原 0）、cron `status=completed runs=1`（原空）、
+agent `hi.txt=ok`。完整矩阵见 `e2e/TEST-COVERAGE.md`。
+
+v2 产物：`Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe`
+sha256 `03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be`
+（体积超 git 上限，以 Release 附件分发；构建脚本 `repack/build-repack.sh`）。
+预期豁免项（离线环境无法覆盖）：真实外网 API、自动更新、在线市场拉取。

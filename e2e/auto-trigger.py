@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Trigger a bat via Run dialog; auto-dismiss security warning (Alt+R) and UAC (click Yes)."""
-import subprocess, sys, time, csv, socket
+import os, subprocess, sys, time, csv, socket
 
 VM = '/workspace/cc-haha/vm'
 CMD = sys.argv[1]
@@ -8,7 +8,7 @@ OUTFILE = sys.argv[2] if len(sys.argv) > 2 else None
 HEADER = sys.argv[3] if len(sys.argv) > 3 else None
 
 def mon(cmd, wait=0.8):
-    s = socket.socket(socket.AF_UNIX); s.connect('/tmp/qemu-win7-monitor.sock')
+    s = socket.socket(socket.AF_UNIX); s.connect(os.environ.get('QEMU_MON', '/tmp/qemu.sock'))
     time.sleep(0.1)
     try: s.recv(4096)
     except Exception: pass
@@ -48,12 +48,10 @@ while time.time() < deadline:
     words = ocr_words(png)
     txt = ' '.join(w[0].lower() for w in words)
     if 'allow' in txt or 'publisher' in txt or 'command' in txt:
-        yes = [w for w in words if w[0].strip().lower() == 'yes']
-        if yes:
-            _, x, y, ww, hh = yes[0]
-            v.click(x + ww // 2, y + hh // 2)
-            print(f'clicked Yes at {x + ww // 2},{y + hh // 2}', flush=True)
-            break
+        # Alt+Y = "Yes" accelerator on the Win7 UAC dialog (more reliable than OCR coords)
+        v.key(0xffe9, True); time.sleep(0.08); v.tap(ord('y')); time.sleep(0.08); v.key(0xffe9, False)
+        print('UAC confirmed via Alt+Y', flush=True)
+        break
     time.sleep(3)
 
 # 4) wait for output file header
