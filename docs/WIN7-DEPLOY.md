@@ -31,7 +31,7 @@ cc-haha-win7-port/
 │   └── package.json
 ├── port-src/                    ← 移植源码（兼容层 + 构建脚本，可复现构建）
 │   ├── scripts/node-port/       build.mjs（CLI/Server）、build-electron.mjs（桌面壳）、
-│   │                            mock-anthropic.mjs 与 e2e-desktop.mjs（验证工具）
+│   │                            build-preview-agent.mjs、cli-entry-wrapper.mjs
 │   └── src/compat/              Bun API 兼容层：bunSpawn / bunServe / bunFile /
 │                                bunSqlite / bunBundle
 ├── WIN7-DEPLOY.md               本手册

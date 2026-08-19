@@ -34,7 +34,6 @@ port-src/      Bun→Node port sources (compat layer, build scripts,
 runtime/       offline runtime payloads (node-fallback bundles in git;
                node/python/vxkex binaries = release attachments)
 repack/        Stage B: build-repack.sh + installer.nsi → Offline.exe
-e2e/           QEMU Win7 guest-side verification suite (round17–22)
 docs/          Technical-Support.md (development log) ·
                VERIFICATION-REPORT.md (L1–L4 + 15 review rounds + QEMU E2E) ·
                BUILD-AND-VERIFY.md · WIN7-DEPLOY.md

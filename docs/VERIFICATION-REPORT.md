@@ -264,7 +264,7 @@ CLI / Server / 桌面壳 / IM 桥接四条产品线均已完成 Bun → Node 迁
 - 缺陷：Node 移植在 `src/server/proxy/standaloneProviderProxy.ts` 模块加载时 eager 绑定 `net.Server`（为补偿 node:http 下一 tick 才有端口、供 managedEnv 同步读 `.port`），但该 server 处于 ref 状态——CLI 在 REPL 挂载前发生任何启动错误（rejection 被上游 `unhandledRejection` 监听器按设计吞掉）后进程**永久挂起**而非退出。上游 Bun 版无此问题（`Bun.serve` 同步绑定且只在 `activeProviderNeedsProxy()` 为真时才创建）。
 - 修复：保留 eager 绑定（`.port` 同步可读语义不变），创建后立即 `nodeServer.unref()`——代理不再单独保活；有活跃代理连接时 socket 句柄自然保活，与 Bun 生命周期语义对齐。
 - 验证：CLI 快速失败路径（CI 环境无凭据）由"无限挂起"变为按上游语义退出；快乐路径 7 项全过。
-- 测试基建说明：诊断中发现本地 mock Anthropic 服务器的 SSE 帧缺少 `event:` 行，导致 SDK 0.80 `fromSSEResponse`（按 `sse.event` 键过滤）解析出 0 事件——此为**测试工具缺陷非产品缺陷**，已在 `/workspace/mock-anthropic.mjs` 修正（补 `event:` 行 + 非流式 JSON 分支）。
+- 测试基建说明：诊断中发现本地 mock Anthropic 服务器的 SSE 帧缺少 `event:` 行，导致 SDK 0.80 `fromSSEResponse`（按 `sse.event` 键过滤）解析出 0 事件——此为**测试工具缺陷非产品缺陷**，已在开发环境的 mock 服务器脚本中修正（补 `event:` 行 + 非流式 JSON 分支）。
 
 **最终结论**：渲染层"唯一已知降级"（var 型 color-mix）已由运行时求值器消除；Node 22.5 全链路（CLI/server/cron/adapters/launcher/recovery）实机通过；CLI 早退挂起缺陷已修复。代码与交付物层面无已知 Win7 不兼容项，剩余事项仅为真机 Win7 冒烟。
 
@@ -296,7 +296,7 @@ CLI / Server / 桌面壳 / IM 桥接四条产品线均已完成 Bun → Node 迁
 | round19g | v1 重建包 | 在线 | **76/77** | 唯一失败为 `page Providers` 导航点击偶发（后续轮次均过，判定 flaky） |
 | round20 | v1 重建包 | **全程离线** | **77/77** | 首次全离线全绿 |
 | round22 | **v2 改进包**（server 热替换部署） | **全程离线** | **77/77** | 含 15.3 修复的 CU 场景复验 |
-| round23 | **v2 安装包本体，全新离线安装** | **全程离线** | **77/77 + CU PASS，0 FAIL** | 最终验收：卸载旧版→清用户态→断网（ping 实证）→静默安装 v2 exe→18 项完整性断言（含 `bundledCandidateMatch` 标记，证明部署的即 v2 server）→E2E 77 项→CU 自定义路径探针 `RESULT: PASS`（`e2e/round23.txt`） |
+| round23 | **v2 安装包本体，全新离线安装** | **全程离线** | **77/77 + CU PASS，0 FAIL** | 最终验收：卸载旧版→清用户态→断网（ping 实证）→静默安装 v2 exe→18 项完整性断言（含 `bundledCandidateMatch` 标记，证明部署的即 v2 server）→E2E 77 项→CU 自定义路径探针 `RESULT: PASS` |
 
 77 项检查覆盖：GUI 冷启动（CDP 9222 连接、主窗口截图、computed styles + 3 stylesheets/663 规则、无未样式控件、导航枚举）；渲染层 CSS shim（Chromium 108 下字体/配色/背景正确）；server HTTP API（/health、/api/status、/api/sessions、/api/settings、/api/models、/api/providers 等）；WebSocket 会话链路；工作区搜索（rg.exe 经 VxKex 运行）；**Computer Use 完整链路**（内置 Python 3.8.10 检出、venv 回退、离线 wheel 安装、`win_helper.py` 截图 83KB 实证）；设置四页（Providers/Scheduled/Settings/Computer Use）逐页截图与表单填充（Apply/Recheck）；adapters 与 recovery CLI 冒烟。
 

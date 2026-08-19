@@ -11,9 +11,7 @@ port-src/
 │   │                          Bun APIs aliased to src/compat shims
 │   ├── build-electron.mjs     desktop electron build helper (Stage A)
 │   ├── build-preview-agent.mjs
-│   ├── cli-entry-wrapper.mjs
-│   ├── e2e-desktop.mjs        host-side desktop E2E driver
-│   └── mock-anthropic.mjs     offline Anthropic-API mock for E2E
+│   └── cli-entry-wrapper.mjs
 ├── src/compat/               Bun runtime-API shims (node:child_process based)
 │   ├── bunSpawn.ts            Bun.spawn subset: hybrid ReadableStream w/
 │   │                          .text()/.json(), exited promise, onExit

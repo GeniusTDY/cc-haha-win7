@@ -15,7 +15,7 @@ Stage B  repack/build-repack.sh (this repo)
          sidecar -> overlay runtime payloads (node/python/vxkex) -> makensis
         │  -> Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe
         ▼
-Verify   QEMU Win7 SP1 x64 (offline guest): e2e/round19.bat
+Verify   QEMU Win7 SP1 x64 (offline guest)
          fresh install + 77-check E2E suite
 ```
 
@@ -66,7 +66,7 @@ additionally requires matching input timestamps — structural identity
 
 ## Verify (QEMU Win7, guest offline)
 
-See `e2e/README.md`. Summary of round19 (restored-pipeline verification):
+Summary of round19 (restored-pipeline verification):
 
 1. guest: uninstall previous build, wipe `%APPDATA%\cc-haha`,
    `~/.claude/.runtime`, `~/.claude/cc-haha`
@@ -77,6 +77,6 @@ See `e2e/README.md`. Summary of round19 (restored-pipeline verification):
    setup-vxkex.bat, CSS shim marker, main.cjs fallback marker in asar
 4. bundled `node --version` / `python --version` / `rg --version`
    (proves installer's VxKex registration on a clean profile)
-5. GUI launch with CDP + 77-check e2e-full.mjs
+5. GUI launch with CDP + 77-check E2E suite
 
 Results are appended to `docs/VERIFICATION-REPORT.md`.

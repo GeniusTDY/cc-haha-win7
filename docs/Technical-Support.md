@@ -440,7 +440,7 @@ Bun 专属 `--preload` 参数，Node 22 直接报 `bad option` 退出（exit 9�
 base_url / api_key / model。改为仅显式选择 provider id 字符串时才剥离，
 默认模式放行继承变量。
 
-### 16.2 离线 mock 测试方法（e2e/mock-anthropic.mjs）
+### 16.2 离线 mock 测试方法
 
 guest 内 `127.0.0.1:8787` 起最小 Anthropic 兼容服务（默认路由已删、
 真实外网不可达，回环不受影响）：按 prompt 关键词分流——
@@ -449,7 +449,7 @@ guest 内 `127.0.0.1:8787` 起最小 Anthropic 兼容服务（默认路由已删
 `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` 重启后，WS 会话、cron
 执行、agent 完整回合均可在离线环境走通真实 spawn 链路。
 
-### 16.3 gap-probe 套件（e2e/gap-probe.mjs，两阶段）
+### 16.3 gap-probe 套件（两阶段）
 
 phase1（mock 环境，17 项）：CLI 冒烟 ×3（--version / recovery-cli
 --help / adapters --telegram 无 token 路径）、agent 完整回合（工具
@@ -464,7 +464,7 @@ phase2（无 mock 重启，3 项）：CJK 设置跨重启 sqlite 回环
 ### 16.4 测试基础设施修复（复现必读）
 
 - **UAC 自动审批**：OCR 找 "Yes" 按钮坐标不可靠（缩放/抗锯齿导致
-  not-found，提权脚本无限挂起）。`e2e/auto-trigger.py` 改为识别
+  not-found，提权脚本无限挂起）。auto-trigger 脚本改为识别
   UAC 文案后直接发送 Alt+Y，一次通过。
 - **host smbd 看门狗**：QEMU 内建 smbd 曾无故退出（guest 共享
   \\10.0.2.4\qemu 不可达，测试输出文件全部丢失）。长跑脚本需
@@ -476,12 +476,12 @@ phase2（无 mock 重启，3 项）：CJK 设置跨重启 sqlite 回环
 
 | 套件 | 结果 |
 |---|---|
-| round23：全新安装 + 完整性 18 项 + e2e-full 77 项 + CU 探针 | 77/77 PASS，0 FAIL |
+| round23：全新安装 + 完整性 18 项 + E2E 77 项 + CU 探针 | 77/77 PASS，0 FAIL |
 | round24：gap-probe phase1 17 项 + phase2 3 项 | 20/20 PASS，0 FAIL |
 
 关键回归点：WS `ended=complete frames=34`（原 timeout + exit 9）、
 `messageCount=8`（原 0）、cron `status=completed runs=1`（原空）、
-agent `hi.txt=ok`。完整矩阵见 `e2e/TEST-COVERAGE.md`。
+agent `hi.txt=ok`。
 
 v2 产物：`Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe`
 sha256 `03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be`
@@ -528,11 +528,11 @@ round23/24 之后对全部测试结论做覆盖审计，识别出 8 项此前从
 
 | 套件 | 覆盖 | 结果 |
 |---|---|---|
-| round23 | 全新安装 + 完整性 18 项 + e2e-full 77 项 + CU 探针 | 77/77 PASS |
+| round23 | 全新安装 + 完整性 18 项 + E2E 77 项 + CU 探针 | 77/77 PASS |
 | round24 | CLI/agent/WS/cron/H5/终端/持久化 gap 补齐 | 20/20 PASS |
 | round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权等） | 33/33 PASS |
 
-累计 **130 项断言，0 失败**；覆盖矩阵见 `e2e/TEST-COVERAGE.md`。
+累计 **130 项断言，0 失败**。
 预期豁免项（离线环境无法覆盖）：真实外网 API、自动更新、在线市场拉取。
 
 ## 18. 源码级对账与残余盲区 sweep（round26）
@@ -571,12 +571,12 @@ round26 结果：**49/49 PASS，0 FAIL**。至此对账闭环：32 个 API 路�
 
 | 套件 | 覆盖 | 结果 |
 |---|---|---|
-| round23 | 全新离线安装 + 完整性 18 项 + e2e-full 77 项 + CU 探针 | 77/77 PASS |
+| round23 | 全新离线安装 + 完整性 18 项 + E2E 77 项 + CU 探针 | 77/77 PASS |
 | round24 | CLI/agent/WS/cron/H5/终端/持久化 gap 补齐 | 20/20 PASS |
 | round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权等） | 33/33 PASS |
 | round26 | API 全 32 路由组 sweep + GUI 全 20 导航条目遍历 | 49/49 PASS |
 
-累计 **179 项断言，0 失败**，21 个维度；覆盖矩阵见 `e2e/TEST-COVERAGE.md`。
+累计 **179 项断言，0 失败**，21 个维度。
 预期豁免项（离线环境物理不可达）：真实外网 API、真实 OAuth 回调、
 Telegram/微信/WhatsApp 通道真实推送、自动更新、在线市场拉取。
 
@@ -612,7 +612,7 @@ round27 = **37/37 PASS**（phase1 18 + batch 卸载 4 + phase3 重装 7 + WS 控
 
 | 套件 | 覆盖 | 结果 |
 |---|---|---|
-| round23 | 全新离线安装 + 完整性 + e2e-full 77 项 + CU | 77/77 PASS |
+| round23 | 全新离线安装 + 完整性 + E2E 77 项 + CU | 77/77 PASS |
 | round24 | CLI/agent/WS/cron/H5/终端/持久化 | 20/20 PASS |
 | round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权） | 33/33 PASS |
 | round26 | API 32 路由组 sweep + GUI 全 20 导航条目 | 49/49 PASS |
@@ -628,8 +628,7 @@ round27 = **37/37 PASS**（phase1 18 + batch 卸载 4 + phase3 重装 7 + WS 控
 并发）、资源与实例级（进程/内存/二次启动）、mock 场景矩阵
 （file-tools/text-only/bash/slow-stream/fail）、GUI 控件与样式级
 （6 设置表单页控件操作还原、22 页 + 12 标签页逐页样式计算证明、
-Provider 表单闭环、GUI↔API 双向一致性）。矩阵明细见
-`e2e/TEST-COVERAGE.md`。豁免项不变（离线物理不可达：真实外网 API、
+Provider 表单闭环、GUI↔API 双向一致性）。豁免项不变（离线物理不可达：真实外网 API、
 真实 OAuth 回调、Telegram/微信/WhatsApp 真实推送、自动更新、在线市场）。
 
 ## 20. 交互时序与状态机盲区闭合（round28）
