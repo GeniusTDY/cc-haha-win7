@@ -32,9 +32,10 @@ Linux 上 node-gyp 不支持为 Windows 交叉编译原生模块（如 node-pty�
 
 ## 3. 渲染入口 CSS 降级
 
-若上游项目原本针对较新版本 Electron 开发，其渲染入口页面可能使用了超出 Chromium 108 支持范围的 CSS 特性（常见于较新的 flexbox 取值、`scrollbar-width` / `scrollbar-color` 等滚动条属性）。这些特性并非"Win7 不支持"，而是 Chromium 108 本身不支持，在任何 OS 上均不可用。
+上游渲染层含超出 Chromium 108 支持范围的 CSS（Tailwind v4 的 oklch 调色板/嵌套、`color-mix()`、`scrollbar-color` 等）。这些是 Chromium 108 的能力边界，与 OS 无关。最终落地为两段式（patch 002，运行时细节见 13.8）：
 
-需排查渲染入口页面，对超出 Chromium 108 范围的样式在 `<head>` 中追加内联 `<style>` 块降级。具体规则取决于上游实际样式，需逐项排查。
+1. **构建期**：Vite `css.transformer: lightningcss` + `targets: chrome 108`——可静态转译的部分（oklch、嵌套）直接降级，复检产物 oklch=0；
+2. **运行期**：`desktop/index.html` 注入求值器（`CSS.supports` 探测，仅 108 触发）——补齐无法静态转译的 var() 型 `color-mix()`、自定义属性内 `lab()/oklch()` 调色板（运行时求值为等价 `rgb()`）、`scrollbar-color` 降级、`overlay` 过渡词剔除，并注入 Set 七方法 polyfill（cytoscape/mermaid 依赖）。现代引擎自动跳过，零开销。
 
 ---
 
@@ -164,6 +165,8 @@ set "NODE=C:\cc-haha\resources\runtime\node\node.exe"
 |---|---|---|
 | `Claude Code Haha.exe`（GUI 主进程） | **不注册** | Electron 22 / Chromium 108 装好 KB2533623 + KB2670838 后原生兼容 Win7 SP1，注册反而引入变量 |
 | `resources\runtime\node\node.exe` | **注册，WINVERSPOOF:NONE** | ① VxKex 需 shim Node 22 导入的 Win8+ API（`EventSetInformation` 等），不注册则 node.exe 以 0xC0000139 退出；② 版本伪装必须关闭——开启 WIN10 伪装时 V8 走 ThreadIsolation 路径，在 `OS::SetPermissions` 中使用 Win10 专有的 `PAGE_TARGETS_INVALID` 标志，触发 `Check failed: 1455L == error`（ERROR_COMMITMENT_LIMIT）崩溃；关闭伪装后 V8 走 Win7 传统内存路径，实测稳定运行 |
+| `resources\runtime\python\python.exe` | **注册，WINVERSPOOF:NONE** | UCRT api-set shim；不注册则 Computer Use 的 Python 依赖链不可用（第 14 节依赖此注册） |
+| `app.asar.unpacked\src-tauri\binaries\rg.exe` | **注册，WINVERSPOOF:NONE** | 静态导入 `WaitOnAddress`（api-ms-win-core-synch-l1-2-0，Win8+）；不注册则工作区搜索挂起（第 1 节） |
 | `claude-sidecar-x86_64-pc-windows-msvc.exe` | **不注册（第 13 节直接删除）** | Bun 编译产物存在打包缺陷（`Cannot find package 'bundle'`），在 Win10 上同样崩溃；删除后走 node.exe 回退 |
 
 原理（VxKex 1.2.x 架构）：KexCfg 在
@@ -177,8 +180,8 @@ set "NODE=C:\cc-haha\resources\runtime\node\node.exe"
 | KEX_DisableForChild = 0 | 子进程继承 VxKex（node 拉起子进程时必需） |
 | GlobalFlag = 0x100 / VerifierFlags = 0x80000000 / VerifierDlls = kexdll.dll | Application Verifier 注入机制，由 KexCfg 自动写入 |
 
-捆绑的 python.exe（3.8.10）与 rg.exe（Rust 原生）兼容 Win7，无需注册。管理员运行一次即可。
-完整脚本见发行包 `runtime\VxKex\reg-vxkex.bat`（含安装检测、自定义路径参数与运行验证）。
+捆绑的 python.exe（UCRT api-set shim）与 rg.exe（`WaitOnAddress`，Win8+ API）同样**必须注册**（ENABLE + WINVERSPOOF:NONE，与第 1 节一致）——安装器（`repack/installer.nsi`）与 `runtime\setup-vxkex.bat` 均按 node/python/rg 三者注册并逐一验证运行。管理员运行一次即可。
+完整脚本 `runtime\setup-vxkex.bat`（含安装检测、自定义路径参数与运行验证）。
 
 ---
 
@@ -224,7 +227,7 @@ set "NODE=C:\cc-haha\resources\runtime\node\node.exe"
 
 ---
 
-## 13. Sidecar 打包缺陷与 Node 回退（最终方案）
+## 13. Sidecar 打包缺陷与 Bun→Node 全量移植（最终方案）
 
 ### 13.1 缺陷定性
 
@@ -282,6 +285,79 @@ recovery-cli.mjs、adapters-chunks\ 共 152MB），并由
 | GUI 启动 | 4 个 `Claude Code Haha.exe` 进程，主界面正常渲染 |
 | Node 服务器 | 监听 `0.0.0.0:49276`，`GET /` → **HTTP 200 OK**（返回前端页面） |
 
+### 13.5 Bun→Node 兼容层与构建链（dist 产物线的技术基座）
+
+sidecar 删除后后端改走 Node 的前提，是上游源码全部 Bun 依赖可在 Node 下运行——为此完成全量 Bun→Node 移植（兼容层 `port-src/src/compat/`，构建脚本 `port-src/scripts/node-port/`）。API 映射：
+
+| Bun 依赖 | Node 方案 | 落点 |
+|---|---|---|
+| `bun:sqlite` | `node:sqlite`（DatabaseSync，布尔参数归一化） | `compat/bunSqlite.ts` |
+| `Bun.spawn` | `node:child_process`，复刻 `exited` promise 语义（exit + error 双路 settle） | `compat/bunSpawn.ts` |
+| `Bun.serve`（含 WS 升级） | `node:http` + `ws`：路径路由（`/ws/`、`/sdk/`）、升级后禁写 HTTP 响应、ECONNRESET/请求级错误兜底 | `compat/bunServe.ts` |
+| `Bun.file` | `node:fs` 流式实现 | `compat/bunFile.ts` |
+| `bun:bundle` / `feature()` | shim；`CC_HAHA_FEATURES` 未设置时默认 `TRANSCRIPT_CLASSIFIER`（对齐上游官方入口的全路径特性注入，设空可禁用） | `compat/bunBundle.ts` |
+| `import.meta.main` | 新增 `serverNode.ts` 包装入口（Node 下该属性 undefined 导致 server 不自启动） | entrypoints |
+| `MACRO.*` 构建期注入 | esbuild `define` 复刻 Bun 发布管线注入（全部 7 键：VERSION/PACKAGE_URL/NATIVE_PACKAGE_URL/VERSION_CHANGELOG/ISSUES_EXPLAINER 等） | build.mjs |
+
+原生/私有模块保持与上游一致的桩策略（`color-diff-napi`、`@ant/claude-for-chrome-mcp` 上游本就指向 stubs）；`@whiskeysockets/baileys` 在 CLI bundle 桩化、adapters 构建用真包。可选集成（sharp、Bedrock/Vertex SDK、OTel 导出器、audio-capture）external + 动态导入回退，与官方 Bun 构建的策略一致。
+
+**构建链**（esbuild，替代全部 `bun build`）：
+
+- `build.mjs` → `dist/{cli,server,recovery-cli,adapters}.mjs` + `adapters-chunks/`（五个 IM 适配器按需分块加载：feishu 5.4MB / whatsapp 4.4MB / telegram 967KB / dingtalk 221KB / wechat 30KB）
+- `build-electron.mjs` → 4 个 CJS 产物（external：electron / node-pty / electron-updater）
+- banner 统一注入：ESM 兼容 `__dirname`/`__filename`（adapters chunk 内 CJS 依赖必需，否则 `ReferenceError`）、`CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH ??= "1"` 默认值、cli/recovery 的 `process.chdir(CALLER_DIR)`（复刻原 bunfig preload 的两个副作用；server/adapters 不注入，对齐原编译 sidecar 行为）
+
+补丁文件清单与应用顺序见 `patches/README.md`（001 electron22 / 002 css-shim / 004 CU-offline / 005 nowine；003 即本节 main.cjs 回退层，以编译产物交付）。
+
+### 13.6 Node 版本语义：`node:sqlite` 旗标坑
+
+`node:sqlite` 于 22.5.0 引入，**22.5.0–22.12.x 与 23.0–23.3.x 必须加 `--experimental-sqlite`**（22.13.0 / 23.4.0 起免除），否则启动即崩 `ERR_UNKNOWN_BUILTIN_MODULE`。四条路径已全部自动附加旗标：
+
+1. `bin/claude-haha` JS 启动器按 `process.versions.node` 精确区间注入
+2. `bin/server-haha(.cmd)` 同逻辑
+3. main.cjs `sqliteFlagArgsForVersion()`（`node --version` 探测一次后缓存，server 与 adapters 两个 spawn 计划共用）
+4. Windows `.cmd` 启动器路由经 JS 启动器（Windows 同样吃到旗标逻辑）
+
+仅手工 `node dist\*.mjs` 裸跑需自查版本（Node 22.5.0 实测：裸跑崩溃复现 → 启动器自愈 → mock API 端到端通过）。
+
+### 13.7 运行时派生链与环境变量
+
+**桌面壳 spawn 计划**（main.cjs，详见 `port-src/desktop-electron/README.md`）：sidecar 缺失时由 `resolveSidecarExecutable` 切换为 `resolveNodeRuntimeExecutable()` + `[sqlite 旗标…] server.mjs|adapters.mjs`，入口与解释器均可环境变量覆盖；捆绑 node.exe 经 `buildSidecarEnv` 的 PATH 增强定位，安装器另为其建防火墙入站规则。
+
+**server→CLI / cron→CLI 派生**：dist 布局下 launcher 解析为 null 的场景（会话服务与 cron 调度器两处），回退探测 `../bin/claude-haha` 启动器（自带 sqlite 旗标 / CALLER_DIR / 特性注入）；`CC_HAHA_CLI_ENTRY` 直连分支同样补 sqlite 旗标。
+
+**事件循环保活**：`standaloneProviderProxy` 模块加载时 eager 绑定的 `net.Server`（补偿 node:http 下一 tick 才有端口、供同步读 `.port`）创建后立即 `unref()`——否则 CLI 启动错误后进程永久挂起而非退出（上游 `Bun.serve` 同步绑定无此问题，此为语义对齐修复）。
+
+**环境变量参考**（与部署手册 §4 合并）：
+
+| 变量 | 作用 |
+|---|---|
+| `CC_HAHA_NODE_EXE` / `CC_HAHA_SERVER_MJS` / `CC_HAHA_ADAPTERS_MJS` | 桌面壳回退链覆盖：node 解释器 / server / adapters 入口 |
+| `CC_HAHA_CLI_ENTRY` | server/cron 派生 CLI 的直连入口覆盖 |
+| `CC_HAHA_NODE` | 仅 .cmd 启动器：指定 node.exe 全路径 |
+| `CC_HAHA_DESKTOP_SERVER_URL` | 远程模式（Win7 只跑 Electron 壳，后端在局域网他机） |
+| `CC_HAHA_FEATURES` | 特性开关（默认 TRANSCRIPT_CLASSIFIER，显式设空禁用） |
+| `CC_HAHA_SKIP_DOTENV` | 跳过根目录 .env 加载（.cmd 默认置 1） |
+| `CLAUDE_CODE_FORCE_RECOVERY_CLI` | 强制进入恢复 CLI |
+| `IS_SANDBOX` | 容器/root 高权限场景跳过权限拦截 |
+| `NODE_SKIP_PLATFORM_CHECK` | 仅"官方 node.exe + 平台检查豁免"路径需要（部署手册 §2.1 路径 B） |
+
+### 13.8 Electron 22 / Chromium 108 API 边界修复汇总
+
+三个运行时层（主进程 Electron 22 = Node 16.17、渲染层 Chromium 108、sidecar = 系统 Node ≥22.5）各自的越界 API 经六轮全量扫描收敛（明细见 VERIFICATION-REPORT §7–§9）：
+
+| 面 | 修复/回退 |
+|---|---|
+| 预览面板 | `WebContentsView`/`contentView`（Electron 28+）运行时探测构造器，22 上回退 `BrowserView`/`addBrowserView`（两代 API 同一 bundle 兼容） |
+| 文件拖入 | `webUtils.getPathForFile`（Electron 29+）双代兼容：29+ 走 webUtils，≤31 走 `File.path`（32 才移除） |
+| 自动更新 | `electron-updater` 懒加载 + no-op 回退（最小化部署缺失时仅告警禁用，不崩溃） |
+| GPU 合成 | win32 且 `os.release()` 主版本 <10 自动 `app.disableHardwareAcceleration()`（软件合成，防老显卡驱动 GPU 进程崩溃循环白窗） |
+| 渲染层 CSS | 即第 3 节两段式方案（lightningcss chrome108 构建期 + index.html 运行时求值器，patch 002） |
+| 桌面终端 | node-pty 1.x 仅 ConPTY（Win10 1809+）；模块加载或 spawn 失败且主版本 <10 时自动管道式 PTY 回退（行式 shell 可用，vim 等全屏程序降级，启动有提示） |
+| 工作区搜索 | 内置 ripgrep 14.1.0（双重验证：PE 导入表仅 Win7 可用 API + SubsystemVersion 6.0；运行需 VxKex 注册，见第 9 节） |
+| TUI 按键 | VT 模式判定加 `parseFloat(os.release()) >= 10` 门控（Win7 conhost 无 VT 输入，自动用非 VT 按键绑定） |
+| 通知 | `isSupported()` 门控——Win7 无 toast 时权限态 denied、发送返回 false，UI 优雅拒绝无崩溃路径 |
+
 ---
 
 ## 14. Computer Use 离线适配（Win7）
@@ -330,7 +406,7 @@ runCommand(py, ["-m","pip","install","--no-index","--no-build-isolation",
 
 原版 requirements 要求 `Pillow>=11.3.0`（需 Python ≥3.9），Win7 版降为
 `Pillow>=10.0.0,<11`（`requirements-win.txt`，remove-sidecar.bat 部署，
-server.mjs 内嵌默认值同步修改）。离线轮子清单（`runtime\node-fallback\wheels\`）：
+server.mjs 内嵌默认值同步修改）。离线轮子清单（`runtime\python\wheels\`，16 个）：
 
 | 轮子 | 版本 | 类型 |
 |---|---|---|
@@ -484,7 +560,7 @@ phase2（无 mock 重启，3 项）：CJK 设置跨重启 sqlite 回环
 agent `hi.txt=ok`。
 
 v2 产物：`Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe`
-sha256 `03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be`
+sha256 `971df9d518f0d567c4a6a759835d99882cac1fc5abeabac51abce91dbe766ae1`
 （体积超 git 上限，以 Release 附件分发；构建脚本 `repack/build-repack.sh`）。
 
 ## 17. 覆盖审计与 A 级盲区闭合（round25）
@@ -608,7 +684,7 @@ round27 = **37/37 PASS**（phase1 18 + batch 卸载 4 + phase3 重装 7 + WS 控
 - **NSIS 卸载残留是锁竞态**：杀进程后等待 ≥9s 再触发卸载即全清；
   偶发残留目录不代表卸载器缺陷。
 
-### 19.2 最终汇总（round23–29）
+### 19.2 最终汇总（round23–30）
 
 | 套件 | 覆盖 | 结果 |
 |---|---|---|
@@ -650,7 +726,7 @@ round27 之后按**交互时序与状态机**视角第四次审计，发现最�
 - **mock 上下文回显**：text-only 场景回 `[seen-assistant:N]`（N=请求中
   历史助手消息数），使"会话上下文是否累积"从推断变为可断言。
 - **UAC 与 VNC 合成输入**：secure desktop 下鼠标点击不可靠（11 连击
-  失败），键盘 `Alt+Y` 稳定；`vm/r28-launch.sh` 固化了"启动→检测
+  失败），键盘 `Alt+Y` 稳定；宿主机侧固化了"启动→检测
   UAC→Alt+Y→验证提权副本开跑"的反馈闭环。
 
 ## 21. 数据变更面 / 输入边界 / 资源与实例边界闭合（round29）
