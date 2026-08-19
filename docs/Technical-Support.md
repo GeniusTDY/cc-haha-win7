@@ -461,7 +461,7 @@ dist 回退产物注入 + wheels 合并 + `._pth` 修复 - sidecar 移除）。
 6. KexCfg 自动注册 node.exe + python.exe（均 `ENABLE:YES +
    WINVERSPOOF:NONE`）；系统未装 VxKex 时弹窗引导运行内嵌
    `KexSetup_Release_1_2_1_2229.exe`，装完继续注册
-7. `node --version` 自检（失败弹窗提示手工跑 reg-vxkex.bat）
+7. `node --version` 自检（失败弹窗提示手工跑 setup-vxkex.bat）
 
 卸载 Section 对称清理（同样 `SetRegView 64`）：实例停止、防火墙规则、
 快捷方式、整个安装目录、64 位卸载项；用户数据
