@@ -578,4 +578,49 @@ round26 结果：**49/49 PASS，0 FAIL**。至此对账闭环：32 个 API 路�
 
 累计 **179 项断言，0 失败**，21 个维度；覆盖矩阵见 `e2e/TEST-COVERAGE.md`。
 预期豁免项（离线环境物理不可达）：真实外网 API、真实 OAuth 回调、
-Telegram/微信/WhatsApp 通道真实推送、自动更新、在线市场拉取。
+Telegram/微信/WhatsApp 通道真实推送、自动更新、在线市场拉取。
+
+## 19. 测试类型学盲区闭合（round27）
+
+round26 之后按**测试类型学**再审计一轮：此前 26 轮几乎全部走 happy
+path。round27 用 5 类新场景（mock 新增 SLOW-STREAM / FAIL-NOW）补齐，
+**产品零缺陷**——所有路径按设计工作：
+
+| 类型 | 验证结论 |
+|---|---|
+| 协议负向 | 非法 JSON→PARSE_ERROR、未知类型→UNKNOWN_TYPE、非法 runtime config→RUNTIME_CONFIG_INVALID，连接不中断 |
+| 运行中断 | stop_generation 于流式回合中断生效（2 delta 后流停，未跑完 25 tick） |
+| 失败终态 | 提供方 500：SDK 10 级指数退避重试 218s → run 标记 failed（exitCode=1、output 落盘 API Error）——不卡 running、不假报成功 |
+| 边界路径 | workDir 含空格+中文：Write→Read 工具回合正常落盘目标目录 |
+| 生命周期终点 | v2 自卸载全清（exe/dist/快捷方式/安装目录），重装全恢复（含 v2 标记、health） |
+| WS 控制面 | 入站 11 种消息类型 100% 受控覆盖（含无挂起 permission_response 的静默忽略语义） |
+
+round27 = **37/37 PASS**（phase1 18 + batch 卸载 4 + phase3 重装 7 + WS 控制面 8）。
+
+### 19.1 本轮沉淀的复现铁律
+
+- **VxKex 注入按路径注册**：捆绑 node.exe 拷贝到任意其他路径都会以
+  `0xC0000139`（入口点缺失）死亡——任何"卸载后自检"类测试只能用纯
+  batch/系统工具完成，不能依赖拷贝出来的 node。这也再次印证第 1 节
+  "必须关闭版本伪装 + 按安装路径注册"的设计约束。
+- **cron 失败断言窗口必须大于 SDK 重试梯队**（实测 218s）：窗口不足会
+  把"重试中"误判为"卡死"。
+- **NSIS 卸载残留是锁竞态**：杀进程后等待 ≥9s 再触发卸载即全清；
+  偶发残留目录不代表卸载器缺陷。
+
+### 19.2 最终汇总（round23–27）
+
+| 套件 | 覆盖 | 结果 |
+|---|---|---|
+| round23 | 全新离线安装 + 完整性 + e2e-full 77 项 + CU | 77/77 PASS |
+| round24 | CLI/agent/WS/cron/H5/终端/持久化 | 20/20 PASS |
+| round25 | 8 项 A 级盲区（升级/恢复/并发/安全门/非提权） | 33/33 PASS |
+| round26 | API 32 路由组 sweep + GUI 全 20 导航条目 | 49/49 PASS |
+| round27 | 类型学盲区（负向/中断/失败终态/自卸载/WS 控制面） | 37/37 PASS |
+
+累计 **216 项断言，0 失败**，25 个维度。覆盖完备性经三层对账：源码级
+（32 个 handle*Api + WS 11 种入站帧 + GUI 侧边栏运行时枚举）、测试
+类型学级（happy/负向/边界/中断/失败/生命周期）、mock 场景矩阵
+（file-tools/text-only/bash/slow-stream/fail）。矩阵明细见
+`e2e/TEST-COVERAGE.md`。豁免项不变（离线物理不可达：真实外网 API、
+真实 OAuth 回调、Telegram/微信/WhatsApp 真实推送、自动更新、在线市场）。
