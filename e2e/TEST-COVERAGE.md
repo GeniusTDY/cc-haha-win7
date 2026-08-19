@@ -144,14 +144,32 @@ bypassPermissions——真实的权限审批线上路径、同会话多轮上下
 round28 附带结论：UAC 提权确认在 VNC 合成输入下鼠标点击不可靠，
 键盘 `Alt+Y` 是稳定通道（启动脚本 r28-launch.sh 固化该流程）。
 
-## 8. 修复回归对照（v2 上一版 → 本版）
+## 8. round29-probe — 数据变更面 / 输入边界 / 资源泄漏 / 实例边界闭合（26/26 PASS）
+
+第五轮对账（前四轮：源码级、测试类型学、交互时序/状态机、mock 场景），
+从四个从未审计过的维度排查，发现变更面此前**只有负向测试**（非法
+JSON→400、错误方法→405），全部正向 CRUD 从未跑过。round29 闭合，
+**产品零缺陷**：
+
+| 维度 | 检查 | 结果 |
+|---|---|---|
+| 数据变更面 (9) | settings/user GET→PUT(有效负载)→GET 往返不变形；session PATCH 改名（含中文+emoji 标题）持久化；session DELETE→复查 404→列表消失；定时任务 PUT 更新（改名+禁用+cron 变更三项全部生效）+ DELETE→列表消失 | PASS |
+| 输入边界 (6) | 空 content user_message 受控完成；emoji+中文混合内容完整走完回合；120KB 超大消息完成（/health 仍 200）；1000 层深嵌套 JSON 帧→UNKNOWN_TYPE 受控且连接存活 | PASS |
+| 资源与泄漏 (5) | 完整回合 + stop_generation 中断回合后：CLI node.exe 子进程 4→4 **零孤儿**；server RSS 144676K→145492K（**Δ1MB**，阈值 150MB）；基线采集含 serverPid 定位 | PASS |
+| 实例边界 (3) | 二次启动 GUI：**单实例锁生效**（新增进程自行退出，无共存）；期间原服务器 /health 200；最终健康复查 200 | PASS |
+
+附带结论：深嵌套 JSON 服务端以 UNKNOWN_TYPE 应答（JSON.parse 本身
+无栈深问题），连接不断开；空消息与 120KB 消息均走完整回合链路而非
+被拒收。
+
+## 9. 修复回归对照（v2 上一版 → 本版）
 
 | 问题 | 症状 | 修复 | 验证 |
 |---|---|---|---|
 | 服务端 spawn CLI 用了 Bun 专属 `--preload` | node.exe 报 bad option，WS/cron 全挂 | win32 分支改为直接执行 cli.mjs，保留 .cmd 启动器与 preload 兜底 | WS ended=complete frames=34；cron status=completed |
 | 继承环境变量被过度剥离 | CLI 拿不到 ANTHROPIC_* | 仅显式选择 provider id 时才剥离 | agent turn / WS / cron 全通过 |
 
-## 9. 历史脚本归类（迭代遗留，结论已收敛进 round23–28，无需再跑）
+## 10. 历史脚本归类（迭代遗留，结论已收敛进 round23–29，无需再跑）
 
 | 组 | 脚本 | 用途（已被取代） |
 |---|---|---|
@@ -160,8 +178,8 @@ round28 附带结论：UAC 提权确认在 VNC 合成输入下鼠标点击不可
 | 迭代验收 | func1–10.bat, crash14*.bat, probe14.bat, retry14.bat, retry-sidecar.bat, cuverify3–15.bat, cudiag*.bat, cupip.bat, cusetup2.bat, cuquick1.bat, cu9recheck.bat, round17–22*.bat, e2erun*.bat, srvwatch.bat, node-fallback.bat, deploy-node-fallback.bat | 各轮功能/崩溃/CU/回退验证，断言已并入 round23/24 |
 | 驱动辅助 | auto-trigger.py, run-launch.py, vncclick.py, vncshot.py, vnccap.py, uac-click.py, uac-watch.py, scr.py, screen-check.py, slowtype.py, cdp.mjs, cdp2.mjs, mock-anthropic.mjs, server-v2.mjs, postsetup.mjs, gap-probe.mjs, cu-setup-probe.mjs, e2e-full.mjs, diag24.bat | 套件基础设施（VNC/UAC/CDP/mock），仍在用 |
 
-## 10. 结论
+## 11. 结论
 
-- 安装、离线、完整性、运行时、API（32 路由组全覆盖 + 负向矩阵）、GUI（侧边栏 20 条目全遍历）、Python 侧、CLI（--version/--help/回合）、agent 回合、WS 会话（含并发 + 协议负向 + 运行中断 + 权限审批/拒绝 + 多轮上下文 + 断线重连重放）、cron 调度（真实 tick + 失败终态）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行、卸载/重装生命周期闭环、边界路径（空格+中文）—— **26 个维度全覆盖，245 项断言 0 失败**。
-- 覆盖完备性由四层对账保证：源码级（32 个 `handle*Api` 全触达、WS 入站 11 种消息类型全覆盖、GUI 侧边栏运行时枚举全点击）、测试类型学级（happy/负向/边界/中断/失败/生命周期终点）、交互时序与状态机级（权限审批/拒绝全链路、同会话多轮上下文、挂起权限断线恢复、活动轮并发）、以及 mock 场景矩阵（file-tools/text-only/bash/slow-stream/fail）。
+- 安装、离线、完整性、运行时、API（32 路由组全覆盖 + 负向矩阵 + 正向 CRUD 变更面）、GUI（侧边栏 20 条目全遍历）、Python 侧、CLI（--version/--help/回合）、agent 回合、WS 会话（含并发 + 协议负向 + 运行中断 + 权限审批/拒绝 + 多轮上下文 + 断线重连重放 + 输入边界）、cron 调度（真实 tick + 失败终态 + 任务更新/删除）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行、卸载/重装生命周期闭环、边界路径（空格+中文+emoji）、资源稳定性（零孤儿进程/RSS 有界）、实例边界（单实例锁）—— **30 个维度全覆盖，271 项断言 0 失败**。
+- 覆盖完备性由五层对账保证：源码级（32 个 `handle*Api` 全触达、WS 入站 11 种消息类型全覆盖、GUI 侧边栏运行时枚举全点击）、测试类型学级（happy/负向/边界/中断/失败/生命周期终点）、交互时序与状态机级（权限审批/拒绝全链路、同会话多轮上下文、挂起权限断线恢复、活动轮并发）、资源与实例级（进程/内存/二次启动）、以及 mock 场景矩阵（file-tools/text-only/bash/slow-stream/fail）。
 - 未覆盖项（超出离线范围，属预期豁免）：真实外网 API 调用、真实 OAuth 回调流程、Telegram/微信/WhatsApp 通道真实推送、自动更新、在线 Skills Market 拉取（离线环境用 mock/本地断言替代）。
