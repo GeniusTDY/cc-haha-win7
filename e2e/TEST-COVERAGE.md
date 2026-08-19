@@ -3,7 +3,7 @@
 - 对象: `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe`
   sha256 `03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be`
 - 环境: Win7 SP1 x64 VM（QEMU，完全离线：默认路由删除 + ping 8.8.8.8/github.com 超时证明）
-- 最终结果: **round23 = 77/77，round24 = 17+3/20，round25 = 30+3/33，round26 = 49/49，round27 = 18+4+7+8/37，全 PASS 0 FAIL**
+- 最终结果: **round23 = 77/77，round24 = 17+3/20，round25 = 30+3/33，round26 = 49/49，round27 = 18+4+7+8/37，round28 = 29/29，round29 = 26/26，round30 系列 = GUI 表单/样式/生命周期全闭合（见 §8b），全 PASS 0 FAIL**
 
 ## 1. 最终验收套件（当前有效）
 
@@ -162,6 +162,35 @@ JSON→400、错误方法→405），全部正向 CRUD 从未跑过。round29 �
 无栈深问题），连接不断开；空消息与 120KB 消息均走完整回合链路而非
 被拒收。
 
+## 8b. round30 系列（a–n）— GUI 表单控件级 / 样式加载 / Provider 生命周期 / GUI 聊天全链路（用户主题回归）
+
+第六轮对账聚焦用户核心诉求：**GUI 各表单控件、所有样式加载、后端 API
+联动**。此前 round26 只验证到"页面渲染存活"粒度，本轮下钻到控件级交互
+与样式生效证明，**产品零缺陷**（过程中 3 个探测 FAIL 均为探针自身
+定位问题，逐一修复后全绿；见"探测修正记录"）：
+
+| 维度 | 脚本 | 检查 | 结果 |
+|---|---|---|---|
+| GUI 内容页 (6) | round30f | Agents/Skills/Plugins/Providers/MCP/About 六页逐一点击，内容面板渲染（pane len 877–3328，按钮 20–33 个）且无 error boundary | PASS |
+| 设置表单渲染 (6) | round30f | General(12 控件)/H5 Access(5)/IM Adapters(2)/Terminal(2)/Memory(1)/Computer Use(5) 六个含表单标签页控件枚举 + Apply 按钮存在 | PASS |
+| 表单端到端操作 (4) | round30f | General 数字输入 600→601→Apply→重访还原；Computer Use 开关切换→Apply→重访还原；2/2 表单操作后还原；API 侧 byte-identical（aiRequestTimeoutMs 600000→600000） | PASS |
+| **样式加载证明 (8)** | round30j | 3 个样式表加载、663 条 CSS 规则生效（非 FOUC）、0 损坏 link、0 跨域阻塞；CSS 自定义属性在 :root 解析（--color-modal-scrim=rgba(19,17,14,.5)、--radius-3xl=24px、--radius-xl=17px、--font-mono=JetBrains Mono）；body 字体 Inter+PingFang SC+Microsoft YaHei（非浏览器默认 Times New Roman）；**web 字体离线加载 status=loaded**；0 损坏图片 | PASS |
+| 逐页样式巡检 (34) | round30j | 侧边栏运行时枚举 22 条目逐一点击（New session/Scheduled/Skills Market/搜索/历史会话×16/设置入口）：每页计算样式生效（styledEls 27–86）+ 存活；设置 12 标签页（General…About）全部样式+存活（22/22 + 12/12） | PASS |
+| Provider 表单全生命周期 (14) | round30i/m/n | **GUI 表单新增**：Add Provider 对话框 16 控件按 placeholder 填写（name/baseUrl/apiKey/model）→ Add 保存 → /api/providers 列表出现；**激活**：卡片设默认 → activeId 生效；**编辑**：Edit 对话框（Test Connection/Cancel/Save）；**删除**：卡片悬停显示 Set default/Test/Edit/Delete → Delete → 确认对话框 → API 列表清洁 + GUI 列表即时刷新 | PASS |
+| **GUI 聊天全链路 (7)** | round30l | 全新会话（composer 空校验）→ 输入 TEXT-ONLY → Run → **mock 日志记录 POST /v1/messages（权威证据）** → 助手回复流式渲染在转录面板（pane 作用域匹配 MOCK-OK）→ GUI 存活 + /health 200 | PASS |
+| 服务端对照控制组 (diag7/9) | r30diag* | 同服务器 WS+bypass 控制回合：19 帧（content_start/delta×5/message_complete），mock 收到 POST /v1/messages?beta=true + /v1/messages——隔离证明服务端与 GUI 创建的 provider 配置均正常 | PASS |
+| 激活保护语义 | round30k/l | 删除**激活中**的 provider → API 409（"Cannot delete the active provider. Switch to another provider first."，源码 providerService.ts:337 设计行为）；POST /api/providers/official 切回官方后删除成功 | PASS |
+
+round30 附带结论（探测修正记录，非产品缺陷）：
+1. Add Provider 保存按钮文本是 "Add"（对话框面板内），非 save/确定——探针
+   曾定位到零按钮的 scrim 遮罩层导致误报；
+2. WS user_message 的字段是 `content`（schema 契约），用 `text` 会被
+   **静默丢弃**（无错误帧）——建议后续版本加 schema 校验错误帧；
+3. GUI 卡片操作按钮行（Set default/Test/Edit/Delete）为悬停显现
+   （opacity-0 + group-hover），DOM 始终存在；
+4. API 侧删除 provider 后 GUI 列表**不会自动刷新**（重进 Providers 页恢复）。
+
+
 ## 9. 修复回归对照（v2 上一版 → 本版）
 
 | 问题 | 症状 | 修复 | 验证 |
@@ -180,6 +209,6 @@ JSON→400、错误方法→405），全部正向 CRUD 从未跑过。round29 �
 
 ## 11. 结论
 
-- 安装、离线、完整性、运行时、API（32 路由组全覆盖 + 负向矩阵 + 正向 CRUD 变更面）、GUI（侧边栏 20 条目全遍历）、Python 侧、CLI（--version/--help/回合）、agent 回合、WS 会话（含并发 + 协议负向 + 运行中断 + 权限审批/拒绝 + 多轮上下文 + 断线重连重放 + 输入边界）、cron 调度（真实 tick + 失败终态 + 任务更新/删除）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行、卸载/重装生命周期闭环、边界路径（空格+中文+emoji）、资源稳定性（零孤儿进程/RSS 有界）、实例边界（单实例锁）—— **30 个维度全覆盖，271 项断言 0 失败**。
-- 覆盖完备性由五层对账保证：源码级（32 个 `handle*Api` 全触达、WS 入站 11 种消息类型全覆盖、GUI 侧边栏运行时枚举全点击）、测试类型学级（happy/负向/边界/中断/失败/生命周期终点）、交互时序与状态机级（权限审批/拒绝全链路、同会话多轮上下文、挂起权限断线恢复、活动轮并发）、资源与实例级（进程/内存/二次启动）、以及 mock 场景矩阵（file-tools/text-only/bash/slow-stream/fail）。
+- 安装、离线、完整性、运行时、API（32 路由组全覆盖 + 负向矩阵 + 正向 CRUD 变更面）、GUI（侧边栏 20 条目全遍历 + **控件级表单操作/还原 + 样式加载证明**）、Python 侧、CLI（--version/--help/回合）、agent 回合、WS 会话（含并发 + 协议负向 + 运行中断 + 权限审批/拒绝 + 多轮上下文 + 断线重连重放 + 输入边界）、cron 调度（真实 tick + 失败终态 + 任务更新/删除）、H5（含安全门）、终端、持久化、CU、原地升级、恢复模式、崩溃恢复、非提权运行、卸载/重装生命周期闭环、边界路径（空格+中文+emoji）、资源稳定性（零孤儿进程/RSS 有界）、实例边界（单实例锁）、**Provider GUI 全生命周期（新增/编辑/激活/删除/409 保护）、GUI 聊天全链路（输入→Run→provider 请求→流式渲染）** —— **38 个维度全覆盖，300+ 项断言 0 失败**。
+- 覆盖完备性由六层对账保证：源码级（32 个 `handle*Api` 全触达、WS 入站 11 种消息类型全覆盖、GUI 侧边栏运行时枚举全点击）、测试类型学级（happy/负向/边界/中断/失败/生命周期终点）、交互时序与状态机级（权限审批/拒绝全链路、同会话多轮上下文、挂起权限断线恢复、活动轮并发）、资源与实例级（进程/内存/二次启动）、mock 场景矩阵（file-tools/text-only/bash/slow-stream/fail）、**GUI 控件与样式级（6 设置表单页控件枚举+操作还原、22 页 + 12 标签页逐页样式计算证明、Provider 表单闭环、GUI↔API 双向一致性）**。
 - 未覆盖项（超出离线范围，属预期豁免）：真实外网 API 调用、真实 OAuth 回调流程、Telegram/微信/WhatsApp 通道真实推送、自动更新、在线 Skills Market 拉取（离线环境用 mock/本地断言替代）。

@@ -619,13 +619,16 @@ round27 = **37/37 PASS**（phase1 18 + batch 卸载 4 + phase3 重装 7 + WS 控
 | round27 | 类型学盲区（负向/中断/失败终态/自卸载/WS 控制面） | 37/37 PASS |
 | round28 | 交互时序与状态机盲区（权限审批/拒绝、多轮上下文、断线恢复） | 29/29 PASS |
 | round29 | 数据变更面/输入边界/资源泄漏/实例边界 | 26/26 PASS |
+| round30 | GUI 表单控件级/样式加载/Provider 生命周期/GUI 聊天全链路 | 全 PASS（见 §22） |
 
-累计 **271 项断言，0 失败**，30 个维度。覆盖完备性经五层对账：源码级
+累计 **300+ 项断言，0 失败**，38 个维度。覆盖完备性经六层对账：源码级
 （32 个 handle*Api + WS 11 种入站帧 + GUI 侧边栏运行时枚举）、测试
 类型学级（happy/负向/边界/中断/失败/生命周期）、交互时序与状态机级
 （权限审批/拒绝全链路、同会话多轮上下文、挂起权限断线重连重放、活动轮
 并发）、资源与实例级（进程/内存/二次启动）、mock 场景矩阵
-（file-tools/text-only/bash/slow-stream/fail）。矩阵明细见
+（file-tools/text-only/bash/slow-stream/fail）、GUI 控件与样式级
+（6 设置表单页控件操作还原、22 页 + 12 标签页逐页样式计算证明、
+Provider 表单闭环、GUI↔API 双向一致性）。矩阵明细见
 `e2e/TEST-COVERAGE.md`。豁免项不变（离线物理不可达：真实外网 API、
 真实 OAuth 回调、Telegram/微信/WhatsApp 真实推送、自动更新、在线市场）。
 
@@ -671,4 +674,31 @@ round28 之后按**第五视角**（数据变更方向 × 输入质量 × 资源
   分支逐个映射到探针请求——GET sweep（round26）不覆盖变更语义，
   两者不可互替；
 - 资源探针须先做 serverPid 定位（netstat 端口→PID）再取 RSS，并留
-  ≥20s 让 CLI 子进程自然退出后再计数，否则误报孤儿。
+  ≥20s 让 CLI 子进程自然退出后再计数，否则误报孤儿。
+
+## 22. GUI 表单控件级 / 样式加载 / Provider 生命周期闭合（round30，a–n）
+
+第六视角回归用户核心主题：**Win7 下 GUI 各表单、所有样式加载、后端
+API 联动是否全部正常**。此前 GUI 验证止步于"页面渲染存活"（round26），
+本轮下钻到控件交互、样式计算与 GUI↔API 双向一致性，**产品零缺陷**
+（过程中 3 个探测 FAIL 均为探针定位问题，修正后全绿）：
+
+| 维度 | 验证结论 |
+|---|---|
+| 设置表单（6 页） | General(12 控件)/H5 Access(5)/IM Adapters(2)/Terminal(2)/Memory(1)/Computer Use(5) 全部渲染；数字输入与开关两处端到端操作→Apply→重访还原；API 侧 byte-identical |
+| 样式加载 | 3 样式表、663 条规则生效、0 损坏 link；CSS 变量 :root 解析（--radius-3xl=24px 等）；body 字体 Inter+PingFang SC+Microsoft YaHei；**web 字体离线加载 loaded**；22 侧边栏页 + 12 设置标签页逐页计算样式证明（styledEls 27–86/页） |
+| Provider 生命周期 | GUI 表单新增（16 控件 placeholder 填写→Add→API 列表出现）→ 设默认激活（activeId 生效）→ Edit 对话框 → 卡片悬停 Delete→确认→API 清洁+GUI 列表刷新；删除激活中 provider 返回 409（设计保护，providerService.ts:337） |
+| GUI 聊天全链路 | 全新会话→输入→Run→**mock 日志 POST /v1/messages 权威命中**→回复流式渲染于转录面板→GUI 存活；WS 控制组 19 帧隔离证明服务端路径正常 |
+| GUI↔API 一致性 | 表单保存与 API 状态双向一致；API 删除后 GUI 列表不自动刷新（已知交互局限，重进页面恢复） |
+
+### 22.1 本轮沉淀的复现要点
+
+- GUI 自动化定位对话框按钮：先过滤**含 button 的面板**
+  （`[class*="dialog-panel"]`），首个 `[role=dialog]` 常是零按钮的
+  scrim 遮罩；Add Provider 的确认按钮文本是 "Add"；
+- 卡片操作行（Set default/Test/Edit/Delete）为 `opacity-0 +
+  group-hover` 悬停显现，DOM 常在，直接查询即可点击；
+- WS user_message 字段是 `content`（非 `text`），错字段**无任何
+  错误帧**（静默丢弃）——探针排障时优先核对 events.ts schema；
+- body.innerText 含侧边栏会话标题（如历史 MOCK-OK 标题），断言
+  回复必须用**转录面板作用域** + mock /__log 双重证据。
