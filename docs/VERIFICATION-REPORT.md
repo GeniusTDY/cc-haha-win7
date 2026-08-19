@@ -86,7 +86,7 @@ EXIT=0
 
 | 问题 | 定性 | 处置 |
 |---|---|---|
-| node-pty ^1.1.0 已移除 winpty、仅 ConPTY（Win10 1809+）→ 桌面终端在 Win7 失败 | 功能缺失 | **已修**：`terminal.ts` 增加管道式 PTY 回退——模块加载失败（`loadNodePtyFactory` catch）或 spawn 失败（spawn 点位 catch）且 `os.release()` 主版本 <10 时，自动改用 `child_process` 管道实现（write→stdin、合并 stdout/stderr→onData、exit→onExit、resize 为 no-op），并向终端输出一条降级提示。行式 shell 可用；vim 等全屏程序渲染降级 |
+| node-pty 1.x 默认走 ConPTY（Win10 1809+）→ 桌面终端在 Win7 失败 | 功能缺失 | **已修（两轮）**：第一轮加管道式 PTY 回退（`loadNodePtyFactory` catch / spawn 点位 catch 且主版本 <10 时降级 `child_process` 管道实现）；第二轮升级为 winpty 完整方案——node-pty 1.1.0 的 prebuilds/win32-x64 实际仍附带 winpty（`pty.node` N-API + `winpty-agent.exe` + `winpty.dll`），补丁 006 在 Win7/8 强制 `useConpty:false` 走 winpty 后端（完整 TTY，vim/htop 可用），vendored 载荷（`runtime/node-pty-win32-x64/`）由 repack 步骤 6/8 保证不被 electron-builder 裁剪；管道回退仅保留为载荷损坏时的最后防线 |
 | 无内置 ripgrep；2024-05 后构建的 rg.exe 要求 Win10+ → Grep 工具在 Win7 不可用 | 功能缺失 | **已修**：vendor 进 ripgrep 14.1.0 x64（`dist/vendor/ripgrep/x64-win32/rg.exe`）。双重验证：① PE 导入表解析确认仅含 ADVAPI32/KERNEL32/bcrypt/ntdll/USERENV，无任何 Win8+ API（无 `GetSystemTimePreciseAsFileTime`/`SetProcessMitigationPolicy`）；② SubsystemVersion=6.0。CLI 的 `builtinRipgrepConfig` 按该路径自动发现 |
 | VT 模式判定只看 Node 版本（≥22.17），Win7 conhost 无 VT 输入处理 → 新 Node 上按键绑定错乱 | 渲染缺陷 | **已修**：`defaultBindings.ts` 的 `SUPPORTS_TERMINAL_VT_MODE` 增加 `parseFloat(os.release()) >= 10` 门控；Win7 自动使用非 VT 按键绑定（如 mode 切换用 meta+m） |
 | PowerShell 目标 5.1，Win7 原生仅 2.0 | 部署前提 | **澄清**：shell 检测已有 Git Bash→PowerShell 回退链；装 WMF 5.1（Win7 SP1 支持）或 Git Bash 即满配，非代码缺陷 |

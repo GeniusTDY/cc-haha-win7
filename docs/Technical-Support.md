@@ -212,7 +212,7 @@ payload（第 9 节），不依赖装后脚本。发行包必须附带 `runtime\
 | 文件拖入 | `webUtils.getPathForFile`（29+）双代兼容：29+ 走 webUtils，≤31 走 `File.path` |
 | 自动更新 | `electron-updater` 懒加载 + no-op 回退（缺失时告警禁用，不崩溃） |
 | GPU 合成 | win32 且 `os.release()` 主版本 <10 自动 `app.disableHardwareAcceleration()`（防老驱动 GPU 进程崩溃循环） |
-| 桌面终端 | node-pty 1.x 仅 ConPTY（Win10 1809+）；加载或 spawn 失败且主版本 <10 时自动管道式 PTY 回退 |
+| 桌面终端 | Win7/8 强制 node-pty 的 winpty 后端（`useConpty:false`，补丁 006）——winpty 原生支持 Win7，完整 TTY 仿真（vim/htop 可用）；repack 步骤 6/8 保证 winpty 载荷不被裁剪；仅载荷损坏时才降级管道式回退（有提示） |
 | TUI 按键 | VT 模式判定加 `parseFloat(os.release()) >= 10` 门控（Win7 conhost 无 VT 输入） |
 | 通知 | `isSupported()` 门控，无 toast 时优雅拒绝 |
 | 工作区搜索 | 内置 ripgrep 14.1.0（PE 导入表仅 Win7 可用 API + SubsystemVersion 6.0 双重验证；运行需 VxKex 注册） |
@@ -319,8 +319,8 @@ npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 
 | 项 | 表现 | 说明 |
 |---|---|---|
-| 桌面终端 | 管道式 PTY 回退，行式 shell 可用 | node-pty 1.x 仅 ConPTY（Win10 1809+）；vim 等全屏程序降级，启动有提示 |
-| Bash 工具 | Win7 下不可用 | 依赖 rg / 管道等 Win7 缺失能力；文件类工具（Write/Read）正常 |
+| 桌面终端 | 完整 TTY（winpty 后端） | Win7/8 强制 `useConpty:false`（补丁 006），winpty 载荷由 repack 步骤 6/8 保证；仅当载荷损坏时降级为管道式回退（启动有提示，vim 等全屏程序降级） |
+| Bash 工具 | 可用（需 Git Bash） | shell 解析链（补丁 007）：用户 Git for Windows → 内置 PortableGit 2.45.x（`runtime/git`，最后支持 Win7 的 Git 版本）→ PATH bash；三者皆无时报错并提示安装/设置 `CC_HAHA_BASH_EXE` |
 | 自动更新 | no-op | 离线无更新源，属设计行为 |
 | GPU | 软件合成 | Win7 自动禁硬件加速，防老驱动崩溃 |
 | 离线不可达 | 真实外网 API、OAuth 回调、IM 真实推送、在线市场 | 物理离线豁免 |

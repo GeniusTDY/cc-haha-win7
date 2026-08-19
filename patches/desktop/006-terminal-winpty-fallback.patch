@@ -1,0 +1,228 @@
+--- a/desktop/electron/services/terminal.ts
++++ b/desktop/electron/services/terminal.ts
+@@ -1,4 +1,4 @@
+-import { execFileSync } from 'node:child_process'
++import { execFileSync, spawn as childSpawn } from 'node:child_process'
+ import { createHash } from 'node:crypto'
+ import fs from 'node:fs'
+ import { createRequire } from 'node:module'
+@@ -52,6 +52,13 @@
+   rows: number
+   cwd: string
+   env: Record<string, string>
++  /**
++   * Win7/8 port: force node-pty's winpty backend. ConPTY is a Win10 1809+
++   * OS feature; node-pty 1.1.0 still ships the winpty agent + N-API binding in
++   * prebuilds/win32-x64, so passing `useConpty: false` restores full TTY
++   * emulation on legacy Windows instead of relying on its build-number probe.
++   */
++  useConpty?: boolean
+ }
+ 
+ export type TerminalPtyFactory = {
+@@ -103,6 +110,7 @@
+   app?: TerminalAppLike
+   env?: NodeJS.ProcessEnv
+   platform?: NodeJS.Platform
++  osRelease?: () => string
+   ptyFactory?: TerminalPtyFactory | (() => Promise<TerminalPtyFactory>)
+   nodePtySourceDir?: string
+   nodePtyCacheDir?: string
+@@ -546,22 +554,130 @@
+   return cacheDir
+ }
+ 
+-async function loadNodePtyFactory(sourceDir?: string, cacheDir?: string): Promise<TerminalPtyFactory> {
+-  if (sourceDir && cacheDir) {
+-    const moduleDir = prepareNodePtyRuntime(sourceDir, cacheDir)
+-    const requireFromNodePty = createRequire(path.join(moduleDir, 'package.json'))
+-    return requireFromNodePty(moduleDir) as TerminalPtyFactory
++/**
++ * Win7/8 detection: ConPTY requires Windows 10 1809 (build 18309 in node-pty's
++ * probe). Anything below must use the winpty backend — or, if node-pty is not
++ * loadable at all, the line-based pipe fallback below.
++ */
++export function isLegacyWindows(
++  platform: NodeJS.Platform = process.platform,
++  release: string = os.release(),
++): boolean {
++  if (platform !== 'win32') return false
++  const [major = -1] = release.split('.').map(Number)
++  return !Number.isFinite(major) || major < 10
++}
++
++const PIPE_PTY_NOTICE =
++  '[terminal] node-pty unavailable on this Windows version - using pipe fallback (no full TTY emulation)\r\n'
++
++/**
++ * Last-resort line-based terminal used only on legacy Windows when node-pty
++ * cannot be loaded or spawned. No TTY emulation: full-screen programs (vim,
++ * htop) render degraded, resize is a no-op.
++ */
++function createPipePtyFactory(): TerminalPtyFactory {
++  return {
++    spawn(shell: string, args: string[], options: TerminalPtySpawnOptions) {
++      const child = childSpawn(shell, args, {
++        cwd: options.cwd,
++        env: options.env,
++        stdio: ['pipe', 'pipe', 'pipe'],
++        windowsHide: true,
++      })
++      const dataListeners: Array<(data: string) => void> = []
++      let exitHandler: ((event: { exitCode: number, signal?: number | string | null }) => void) | null = null
++      let settled = false
++      const emit = (chunk: string | Buffer) => {
++        const data = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
++        for (const listener of dataListeners) listener(data)
++      }
++      child.stdout?.setEncoding('utf8')
++      child.stdout?.on('data', emit)
++      child.stderr?.setEncoding('utf8')
++      child.stderr?.on('data', emit)
++      child.on('exit', (code, signal) => {
++        if (settled) return
++        settled = true
++        exitHandler?.({ exitCode: code ?? 1, signal })
++      })
++      child.on('error', () => {
++        if (settled) return
++        settled = true
++        exitHandler?.({ exitCode: 1 })
++      })
++      queueMicrotask(() => emit(PIPE_PTY_NOTICE))
++      return {
++        pid: child.pid,
++        process: child.spawnfile,
++        write(data: string) {
++          child.stdin?.write(data)
++        },
++        resize() {
++          // A plain pipe has no screen buffer to resize.
++        },
++        kill() {
++          // Mirror the tree-kill semantics of the real PTY path without adding
++          // a tree-kill dependency: taskkill /T kills the whole console child
++          // tree on Windows.
++          if (child.pid && process.platform === 'win32') {
++            try {
++              childSpawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
++                windowsHide: true,
++                stdio: 'ignore',
++              })
++            } catch {
++              // child.kill() below is the final fallback.
++            }
++          }
++          try {
++            child.kill()
++          } catch {
++            // Renderer teardown must not surface a kill error.
++          }
++        },
++        onData(handler: (data: string) => void) {
++          dataListeners.push(handler)
++          return dataListeners
++        },
++        onExit(handler: (event: { exitCode: number, signal?: number | string | null }) => void) {
++          exitHandler = handler
++        },
++      }
++    },
+   }
++}
+ 
+-  return import('node-pty') as Promise<TerminalPtyFactory>
++async function loadNodePtyFactory(
++  sourceDir?: string,
++  cacheDir?: string,
++  platform: NodeJS.Platform = process.platform,
++  release: string = os.release(),
++): Promise<TerminalPtyFactory> {
++  try {
++    if (sourceDir && cacheDir) {
++      const moduleDir = prepareNodePtyRuntime(sourceDir, cacheDir)
++      const requireFromNodePty = createRequire(path.join(moduleDir, 'package.json'))
++      return requireFromNodePty(moduleDir) as TerminalPtyFactory
++    }
++
++    return import('node-pty') as Promise<TerminalPtyFactory>
++  } catch (error) {
++    // A pruned/broken node-pty payload must not take the terminal tab down on
++    // Win7/8 — degrade to the line-based pipe instead.
++    if (isLegacyWindows(platform, release)) return createPipePtyFactory()
++    throw error
++  }
+ }
+ 
+ async function resolvePtyFactory(
+   factory: TerminalPtyFactory | (() => Promise<TerminalPtyFactory>) | undefined,
+   nodePtySourceDir: string | undefined,
+   nodePtyCacheDir: string | undefined,
++  platform: NodeJS.Platform = process.platform,
++  release: string = os.release(),
+ ): Promise<TerminalPtyFactory> {
+-  if (!factory) return loadNodePtyFactory(nodePtySourceDir, nodePtyCacheDir)
++  if (!factory) return loadNodePtyFactory(nodePtySourceDir, nodePtyCacheDir, platform, release)
+   if (typeof factory === 'function') return factory()
+   return factory
+ }
+@@ -570,6 +686,7 @@
+   private readonly app?: TerminalAppLike
+   private readonly env: NodeJS.ProcessEnv
+   private readonly platform: NodeJS.Platform
++  private readonly osRelease: () => string
+   private readonly ptyFactory?: TerminalPtyFactory | (() => Promise<TerminalPtyFactory>)
+   private readonly nodePtySourceDir?: string
+   private readonly nodePtyCacheDir?: string
+@@ -583,6 +700,7 @@
+     this.app = options.app
+     this.env = options.env ?? process.env
+     this.platform = options.platform ?? process.platform
++    this.osRelease = options.osRelease ?? os.release
+     this.ptyFactory = options.ptyFactory
+     this.nodePtySourceDir = options.nodePtySourceDir
+     this.nodePtyCacheDir = options.nodePtyCacheDir
+@@ -656,13 +774,20 @@
+     webContents.on('did-navigate', onOwnerNavigated)
+ 
+     try {
+-      const ptyFactory = await resolvePtyFactory(this.ptyFactory, this.nodePtySourceDir, this.nodePtyCacheDir)
++      const legacyWindows = isLegacyWindows(this.platform, this.osRelease())
++      const ptyFactory = await resolvePtyFactory(
++        this.ptyFactory,
++        this.nodePtySourceDir,
++        this.nodePtyCacheDir,
++        this.platform,
++        this.osRelease(),
++      )
+       if (rendererDestroyed || webContents.isDestroyed()) {
+         throw new Error('terminal renderer is destroyed')
+       }
+ 
+       sessionId = this.nextSessionId++
+-      pty = ptyFactory.spawn(shell, [], {
++      const ptySpawnOptions: TerminalPtySpawnOptions = {
+         name: 'xterm-256color',
+         cols,
+         rows,
+@@ -672,7 +797,19 @@
+           TERM: 'xterm-256color',
+           COLORTERM: 'truecolor',
+         },
+-      })
++      }
++      if (legacyWindows) {
++        // ConPTY is a Win10 1809+ OS feature: force the winpty backend that
++        // node-pty 1.1.0 still ships (prebuilds/win32-x64 winpty-agent.exe +
++        // N-API pty.node) for full TTY emulation on Win7/8.
++        ptySpawnOptions.useConpty = false
++      }
++      try {
++        pty = ptyFactory.spawn(shell, [], ptySpawnOptions)
++      } catch (error) {
++        if (!legacyWindows) throw error
++        pty = createPipePtyFactory().spawn(shell, [], ptySpawnOptions)
++      }
+ 
+       if (rendererDestroyed || webContents.isDestroyed()) {
+         disposePty()

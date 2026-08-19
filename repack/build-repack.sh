@@ -84,7 +84,35 @@ done
 # drop Stage A dev leftovers not meant to ship
 rm -f "$RT/WIN7-SETUP.txt" "$RT/mac_helper.py" "$RT/test_helpers.py"
 
-echo "== 6/6 makensis (native, no wine) =="
+echo "== 6/8 guarantee node-pty winpty payload (full TTY terminal on Win7) =="
+# The desktop terminal loads node-pty from app.asar.unpacked/node_modules and
+# forces its winpty backend on Win7/8 (main.cjs useConpty:false). electron-
+# builder may prune or omit that module from the payload — overlay the vendored
+# runtime copy (node-pty 1.1.0 N-API binding + winpty agent, win32-x64) so the
+# terminal never silently degrades to the line-based pipe fallback.
+NODE_PTY_DST="$APP/resources/app.asar.unpacked/node_modules/node-pty"
+if [ ! -f "$NODE_PTY_DST/lib/windowsTerminal.js" ] || \
+   [ ! -f "$NODE_PTY_DST/prebuilds/win32-x64/winpty-agent.exe" ]; then
+  echo "  node-pty missing/pruned in Stage A payload — overlaying vendored copy"
+  mkdir -p "$NODE_PTY_DST"
+  cp -a "$HERE/../runtime/node-pty-win32-x64/." "$NODE_PTY_DST/"
+fi
+ls "$NODE_PTY_DST/prebuilds/win32-x64" | sed 's/^/  node-pty: /'
+
+echo "== 7/8 optional bundled PortableGit (Bash tool on a clean offline Win7) =="
+# The CLI's findSuitableShell resolves, in order: user-installed Git for
+# Windows, then <resources>/runtime/git/bin/bash.exe (this overlay), then PATH.
+# PortableGit 2.45.x is the last Git line that still runs on Win7 — unpack a
+# PortableGit extraction under RUNTIME_DIR/git/ to ship it fully offline.
+if [ -d "$RUNTIME_DIR/git" ]; then
+  echo "  overlaying bundled PortableGit -> resources/runtime/git"
+  rm -rf "$RT/git"
+  cp -a "$RUNTIME_DIR/git" "$RT/git"
+else
+  echo "  (no RUNTIME_DIR/git — Bash tool needs Git for Windows installed)"
+fi
+
+echo "== 8/8 makensis (native, no wine) =="
 cd "$HERE"
 # installer.nsi expects app/, app-icon.ico, modern-wizard.bmp next to it
 ln -sfn "$APP" "$HERE/app"

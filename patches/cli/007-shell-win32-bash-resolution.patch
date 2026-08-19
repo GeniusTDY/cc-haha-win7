@@ -1,0 +1,109 @@
+--- a/src/utils/Shell.ts
++++ b/src/utils/Shell.ts
+@@ -39,7 +39,7 @@
+ import { createPowerShellProvider } from './shell/powershellProvider.js'
+ import type { ShellProvider, ShellType } from './shell/shellProvider.js'
+ import { subprocessEnv } from './subprocessEnv.js'
+-import { posixPathToWindowsPath } from './windowsPaths.js'
++import { findBundledGitBashPath, posixPathToWindowsPath, tryFindGitBashPath } from './windowsPaths.js'
+ 
+ const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 minutes
+ 
+@@ -88,6 +88,32 @@
+     }
+   }
+ 
++  // Win7 offline port: Windows never has the POSIX locations below, so probe
++  // Git Bash explicitly before the POSIX logic (which would only ever be
++  // reached from WSL-ish environments). Order: user-installed Git for Windows
++  // (env override, standard install dirs, PATH — via tryFindGitBashPath),
++  // then the PortableGit bundled with the offline runtime payload, then a
++  // bare bash.exe anywhere on PATH.
++  if (getPlatform() === 'windows') {
++    const windowsCandidates = [
++      tryFindGitBashPath(),
++      findBundledGitBashPath(),
++      await which('bash'),
++    ]
++    const windowsShell = windowsCandidates.find(
++      shellPath => shellPath && isExecutable(shellPath),
++    )
++    if (windowsShell) {
++      logForDebugging(`Using Windows bash: ${windowsShell}`)
++      return windowsShell
++    }
++    const errorMsg =
++      'No suitable shell found. The Bash tool on Windows requires Git Bash. ' +
++      'Install Git for Windows, or set CC_HAHA_BASH_EXE / CLAUDE_CODE_GIT_BASH_PATH to a bash.exe path.'
++    logError(new Error(errorMsg))
++    throw new Error(errorMsg)
++  }
++
+   // Check user's preferred shell from environment
+   const env_shell = process.env.SHELL
+   // Only consider SHELL if it's bash or zsh
+--- a/src/utils/windowsPaths.ts
++++ b/src/utils/windowsPaths.ts
+@@ -1,3 +1,5 @@
++import { statSync } from 'node:fs'
++import { fileURLToPath } from 'node:url'
+ import memoize from 'lodash-es/memoize.js'
+ import * as path from 'path'
+ import * as pathWin32 from 'path/win32'
+@@ -125,6 +127,56 @@
+ })
+ 
+ /**
++ * Win7 offline port: resolve the PortableGit bash.exe shipped inside the
++ * installer's runtime payload. Probes, in order:
++ *
++ *   1. CC_HAHA_BASH_EXE            — explicit bash.exe override
++ *   2. CC_HAHA_RUNTIME_DIR/git/…   — runtime dir override
++ *   3. <dist>/../runtime/git/…     — portable layout (package/dist + runtime)
++ *   4. <dist>/../../runtime/git/…  — installer layout
++ *                                    (resources/app.asar.unpacked/dist +
++ *                                     resources/runtime)
++ *
++ * In the bundled dist this module lives next to cli.mjs/server.mjs, so the
++ * relative probes land on the payload's runtime tree. In the source tree the
++ * probes simply miss and return null.
++ */
++export function findBundledGitBashPath(
++  env: NodeJS.ProcessEnv = process.env,
++  distDir: string = defaultBundledDistDir(),
++  fileExists: (filePath: string) => boolean = bundledFileExists,
++): string | null {
++  const candidates = [
++    env.CC_HAHA_BASH_EXE?.trim() || undefined,
++    env.CC_HAHA_RUNTIME_DIR
++      ? pathWin32.join(env.CC_HAHA_RUNTIME_DIR, 'git', 'bin', 'bash.exe')
++      : undefined,
++    pathWin32.join(distDir, '..', 'runtime', 'git', 'bin', 'bash.exe'),
++    pathWin32.join(distDir, '..', '..', 'runtime', 'git', 'bin', 'bash.exe'),
++  ]
++  for (const candidate of candidates) {
++    if (candidate && fileExists(candidate)) return candidate
++  }
++  return null
++}
++
++function defaultBundledDistDir(): string {
++  try {
++    return path.dirname(fileURLToPath(import.meta.url))
++  } catch {
++    return process.cwd()
++  }
++}
++
++function bundledFileExists(filePath: string): boolean {
++  try {
++    return statSync(filePath).isFile()
++  } catch {
++    return false
++  }
++}
++
++/**
+  * Find the path where `bash.exe` included with git-bash exists, exiting the process if not found.
+  */
+ export const findGitBashPath = memoize((): string => {

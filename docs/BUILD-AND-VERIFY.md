@@ -26,6 +26,8 @@ git clone https://github.com/NanmiCoder/cc-haha && cd cc-haha
 git checkout d52bbec7
 git apply patches/desktop/001-package-json-electron22.patch
 git apply patches/desktop/002-index-html-css-shim.patch
+git apply patches/desktop/006-terminal-winpty-fallback.patch
+git apply patches/cli/007-shell-win32-bash-resolution.patch
 cp -r port-src ./
 
 # CLI bundle (Bun-free, esbuild):
@@ -54,8 +56,10 @@ cd repack
 # put Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe here (or pass path),
 # unpack runtime payloads per runtime/README.md
 NODE_FALLBACK_DIR=../runtime/node-fallback \
-RUNTIME_DIR=<dir with node/ python/ vxkex/> \
+RUNTIME_DIR=<dir with node/ python/ vxkex/ [git/]> \
   ./build-repack.sh
+# optional RUNTIME_DIR/git = PortableGit 2.45.x extraction -> ships a Bash
+# tool shell on a clean offline Win7 (build-repack step 7/8)
 ```
 
 Reproducibility: rebuilding from the shipped Setup.exe + shipped runtime

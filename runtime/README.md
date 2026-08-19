@@ -18,6 +18,9 @@ resources/runtime/
 │                        pyscreeze/pytweening as .whl) +
 │                        pip-24.3.1 / setuptools-75.3.0 / wheel-0.42.0
 ├── vxkex/           KexSetup_Release_1_2_1_2229.exe (VxKex 1.2.1) [binary]
+├── git/             optional PortableGit 2.45.x extraction — Bash tool
+│                    shell on a clean offline Win7 (2.46+ dropped Win7)
+│                    [binary, optional attachment]
 ├── setup-vxkex.bat  manual KexCfg registration (installer does it
 │                    automatically; this is the fallback)
 ├── requirements-win.txt / requirements.txt / win_helper.py
@@ -44,9 +47,21 @@ resources/runtime/
 | `win7-kb-patches.tar.gz` (KB2533623 + KB2670838 MSU) | anywhere; install both **before** VxKex setup on a clean Win7 | see release notes |
 | `Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe` | Stage A input for `repack/build-repack.sh` | see release notes |
 | `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe` | rebuilt all-in-one offline installer (v2) | `971df9d5…e766ae1` |
+| `runtime-git-portable-2.45-win64.tar.gz` (optional) | `runtime/git/` | see release notes |
 
 After unpacking, apply the two text fixes already tracked here:
 `python38._pth` (this dir) replaces the stock one inside `python/`.
+
+## node-pty-win32-x64/ (in git, ~1 MB)
+
+Vendored node-pty 1.1.0 runtime subset (lib/ JS + `prebuilds/win32-x64/`
+N-API `pty.node` + `winpty-agent.exe` + `winpty.dll`; conpty bits omitted —
+the app forces the winpty backend on Win7/8 via patch 006). The repack
+script (step 6/8) overlays it onto
+`resources/app.asar.unpacked/node_modules/node-pty` whenever the Stage A
+payload is missing or pruned that module, so the desktop terminal keeps
+full TTY emulation (winpty works natively on Win7 — no VxKex registration
+needed for the agent).
 
 ## node-fallback/
 
