@@ -6,10 +6,18 @@ offline installer's `resources/app.asar`:
 
 | file | sha256 (first 16) | role |
 |---|---|---|
-| `main.cjs` | `c79f6853b368cc69` | main process (node-fallback layer, see below) |
-| `preload.cjs` | see MANIFEST.sha256 | renderer preload |
-| `pet-preload.cjs` | see MANIFEST.sha256 | pet window preload |
-| `preview-preload.cjs` | see MANIFEST.sha256 | preview window preload |
+| `main.cjs` | `bcff1e9c10ff5767` | main process (node-fallback layer + winpty forcing, see below) |
+| `preload.cjs` | `17710337ae27feb7` | renderer preload |
+| `pet-preload.cjs` | `7d73778fe069d0d8` | pet window preload |
+| `preview-preload.cjs` | `819aae02d816873d` | preview window preload |
+
+Full hashes: `MANIFEST.sha256` in this directory. `main.cjs` carries
+both Win7 port additions — the node-runtime fallback layer described
+below AND the winpty backend forcing
+(`ptySpawnOptions.useConpty = false` on legacy Windows, the same hunk
+`repack/patch-app-asar.mjs` inserts when it patches an asar whose
+main.cjs lacks it; that patcher is idempotent, so overlaying this
+already-patched main.cjs into a Stage A build is safe).
 
 They live inside `app.asar` at `electron-dist/*.cjs`. The desktop build
 compiles `desktop/electron/*.ts` (upstream) plus the Win7 port additions

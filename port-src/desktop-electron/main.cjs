@@ -5,6 +5,9 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __commonJS = (cb, mod) => function __require() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -22,9 +25,120 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
+// ../node_modules/tree-kill/index.js
+var require_tree_kill = __commonJS({
+  "../node_modules/tree-kill/index.js"(exports2, module2) {
+    "use strict";
+    var childProcess = require("child_process");
+    var spawn2 = childProcess.spawn;
+    var exec = childProcess.exec;
+    module2.exports = function(pid, signal, callback) {
+      if (typeof signal === "function" && callback === void 0) {
+        callback = signal;
+        signal = void 0;
+      }
+      pid = parseInt(pid);
+      if (Number.isNaN(pid)) {
+        if (callback) {
+          return callback(new Error("pid must be a number"));
+        } else {
+          throw new Error("pid must be a number");
+        }
+      }
+      var tree = {};
+      var pidsToProcess = {};
+      tree[pid] = [];
+      pidsToProcess[pid] = 1;
+      switch (process.platform) {
+        case "win32":
+          exec("taskkill /pid " + pid + " /T /F", callback);
+          break;
+        case "darwin":
+          buildProcessTree(pid, tree, pidsToProcess, function(parentPid) {
+            return spawn2("pgrep", ["-P", parentPid]);
+          }, function() {
+            killAll(tree, signal, callback);
+          });
+          break;
+        // case 'sunos':
+        //     buildProcessTreeSunOS(pid, tree, pidsToProcess, function () {
+        //         killAll(tree, signal, callback);
+        //     });
+        //     break;
+        default:
+          buildProcessTree(pid, tree, pidsToProcess, function(parentPid) {
+            return spawn2("ps", ["-o", "pid", "--no-headers", "--ppid", parentPid]);
+          }, function() {
+            killAll(tree, signal, callback);
+          });
+          break;
+      }
+    };
+    function killAll(tree, signal, callback) {
+      var killed = {};
+      try {
+        Object.keys(tree).forEach(function(pid) {
+          tree[pid].forEach(function(pidpid) {
+            if (!killed[pidpid]) {
+              killPid(pidpid, signal);
+              killed[pidpid] = 1;
+            }
+          });
+          if (!killed[pid]) {
+            killPid(pid, signal);
+            killed[pid] = 1;
+          }
+        });
+      } catch (err) {
+        if (callback) {
+          return callback(err);
+        } else {
+          throw err;
+        }
+      }
+      if (callback) {
+        return callback();
+      }
+    }
+    function killPid(pid, signal) {
+      try {
+        process.kill(parseInt(pid, 10), signal);
+      } catch (err) {
+        if (err.code !== "ESRCH") throw err;
+      }
+    }
+    function buildProcessTree(parentPid, tree, pidsToProcess, spawnChildProcessesList, cb) {
+      var ps = spawnChildProcessesList(parentPid);
+      var allData = "";
+      ps.stdout.on("data", function(data) {
+        var data = data.toString("ascii");
+        allData += data;
+      });
+      var onClose = function(code) {
+        delete pidsToProcess[parentPid];
+        if (code != 0) {
+          if (Object.keys(pidsToProcess).length == 0) {
+            cb();
+          }
+          return;
+        }
+        allData.match(/\d+/g).forEach(function(pid) {
+          pid = parseInt(pid, 10);
+          tree[parentPid].push(pid);
+          tree[pid] = [];
+          pidsToProcess[pid] = 1;
+          buildProcessTree(pid, tree, pidsToProcess, spawnChildProcessesList, cb);
+        });
+      };
+      ps.on("close", onClose);
+    }
+  }
+});
+
 // electron/main.ts
 var import_electron = require("electron");
-var import_electron_updater = require("electron-updater");
+var electron = __toESM(require("electron"), 1);
+var import_node_os6 = __toESM(require("node:os"), 1);
 var import_node_path14 = __toESM(require("node:path"), 1);
 
 // electron/ipc/channels.ts
@@ -425,13 +539,94 @@ function resolveSidecarExecutable(desktopRoot, triple = resolveHostTriple()) {
   const base = import_node_path.default.join(desktopRoot, "src-tauri", "binaries", `claude-sidecar-${triple}`);
   return process.platform === "win32" ? `${base}.exe` : base;
 }
+var NODE_RUNTIME_EXE_ENV = "CC_HAHA_NODE_EXE";
+var SERVER_MJS_ENV = "CC_HAHA_SERVER_MJS";
+var ADAPTERS_MJS_ENV = "CC_HAHA_ADAPTERS_MJS";
+var warnedMissingNodeRuntimeExe = false;
+function resolveNodeRuntimeExecutable(env = process.env, desktopRoot) {
+  var _a;
+  const explicit = (_a = env[NODE_RUNTIME_EXE_ENV]) == null ? void 0 : _a.trim();
+  if (explicit && (0, import_node_fs.existsSync)(explicit)) return explicit;
+  if (explicit && !warnedMissingNodeRuntimeExe) {
+    warnedMissingNodeRuntimeExe = true;
+    console.warn(
+      `[sidecar] ${NODE_RUNTIME_EXE_ENV} points to a missing path (${explicit}); falling back to node on PATH`
+    );
+  }
+  if (desktopRoot) {
+    for (const candidate of [
+      import_node_path.default.join(desktopRoot, "runtime", "node", "node.exe"),
+      import_node_path.default.join(desktopRoot, "..", "runtime", "node", "node.exe")
+    ]) {
+      if ((0, import_node_fs.existsSync)(candidate)) return candidate;
+    }
+  }
+  try {
+    const resourcesNode = import_node_path.default.join(process.resourcesPath, "runtime", "node", "node.exe");
+    if ((0, import_node_fs.existsSync)(resourcesNode)) return resourcesNode;
+  } catch {
+  }
+  return process.platform === "win32" ? "node.exe" : "node";
+}
+function sqliteFlagArgsForVersion(version) {
+  const [major = -1, minor = -1] = version.trim().replace(/^v/, "").split(".").map(Number);
+  if (!Number.isFinite(major) || !Number.isFinite(minor)) return [];
+  if (major === 22 && minor >= 5 && minor < 13) return ["--experimental-sqlite"];
+  if (major === 23 && minor < 4) return ["--experimental-sqlite"];
+  return [];
+}
+var probedNodeRuntimeFlags = null;
+function nodeRuntimeFlags(executable = resolveNodeRuntimeExecutable(), runner = defaultVersionProbe) {
+  if (probedNodeRuntimeFlags) return probedNodeRuntimeFlags;
+  try {
+    probedNodeRuntimeFlags = sqliteFlagArgsForVersion(runner(executable));
+  } catch {
+    probedNodeRuntimeFlags = [];
+  }
+  return probedNodeRuntimeFlags;
+}
+function defaultVersionProbe(executable) {
+  return (0, import_node_child_process.execFileSync)(executable, ["--version"], { encoding: "utf8", timeout: 1e4 }).trim();
+}
+function resolveBundledScript(candidates, explicitEnv) {
+  const explicit = explicitEnv == null ? void 0 : explicitEnv.trim();
+  if (explicit && (0, import_node_fs.existsSync)(explicit)) return explicit;
+  for (const candidate of candidates) {
+    if ((0, import_node_fs.existsSync)(candidate)) return candidate;
+  }
+  return null;
+}
+function resolveServerScript(desktopRoot, env = process.env) {
+  return resolveBundledScript(
+    [
+      import_node_path.default.join(desktopRoot, "dist", "server.mjs"),
+      import_node_path.default.join(desktopRoot, "..", "dist", "server.mjs"),
+      import_node_path.default.join(desktopRoot, "..", "..", "dist", "server.mjs")
+    ],
+    env[SERVER_MJS_ENV]
+  );
+}
+function resolveAdaptersScript(desktopRoot, env = process.env) {
+  return resolveBundledScript(
+    [
+      import_node_path.default.join(desktopRoot, "dist", "adapters.mjs"),
+      import_node_path.default.join(desktopRoot, "..", "dist", "adapters.mjs"),
+      import_node_path.default.join(desktopRoot, "..", "..", "dist", "adapters.mjs")
+    ],
+    env[ADAPTERS_MJS_ENV]
+  );
+}
+function hasCompiledSidecar(desktopRoot) {
+  return (0, import_node_fs.existsSync)(resolveSidecarExecutable(desktopRoot));
+}
 function resolveBundledRipgrepExecutable(desktopRoot, triple = resolveHostTriple()) {
   const extension = triple.includes("windows") ? ".exe" : "";
   return import_node_path.default.join(desktopRoot, "src-tauri", "binaries", `rg${extension}`);
 }
 function withBundledRipgrepPath(env, desktopRoot) {
+  var _a;
   const bundledRipgrep = resolveBundledRipgrepExecutable(desktopRoot);
-  const explicitRipgrep = env[RIPGREP_PATH_ENV]?.trim();
+  const explicitRipgrep = (_a = env[RIPGREP_PATH_ENV]) == null ? void 0 : _a.trim();
   const selectedRipgrep = explicitRipgrep && (0, import_node_fs.existsSync)(explicitRipgrep) ? explicitRipgrep : (0, import_node_fs.existsSync)(bundledRipgrep) ? bundledRipgrep : null;
   if (!selectedRipgrep) return env;
   const pathKey = process.platform === "win32" ? Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path" : "PATH";
@@ -837,10 +1032,11 @@ function mergeLoopbackNoProxy(existing) {
 }
 var POWERSHELL_PATH_OVERRIDE_ENV = "CLAUDE_CODE_POWERSHELL_PATH";
 function windowsPowerShellOverride(shellPath, platform = process.platform) {
+  var _a;
   if (platform !== "win32") return null;
-  const trimmed = shellPath?.trim();
+  const trimmed = shellPath == null ? void 0 : shellPath.trim();
   if (!trimmed) return null;
-  const base = trimmed.split(/[\\/]/).pop()?.toLowerCase().replace(/\.exe$/, "");
+  const base = (_a = trimmed.split(/[\\/]/).pop()) == null ? void 0 : _a.toLowerCase().replace(/\.exe$/, "");
   return base === "pwsh" || base === "powershell" ? trimmed : null;
 }
 function buildSidecarEnv(baseEnv, h5DistDir) {
@@ -866,6 +1062,29 @@ function createServerPlan({
   h5DistDir = import_node_path.default.join(desktopRoot, "dist"),
   env = process.env
 }) {
+  if (!hasCompiledSidecar(desktopRoot)) {
+    const serverScript = resolveServerScript(desktopRoot, env);
+    if (serverScript) {
+      return {
+        command: resolveNodeRuntimeExecutable(env, desktopRoot),
+        args: [
+          ...nodeRuntimeFlags(resolveNodeRuntimeExecutable(env, desktopRoot)),
+          serverScript,
+          "server",
+          "--app-root",
+          appRoot2,
+          "--host",
+          bindHost,
+          "--port",
+          String(port)
+        ],
+        env: {
+          ...buildSidecarEnv(withBundledRipgrepPath(env, desktopRoot), h5DistDir),
+          CLAUDE_APP_ROOT: appRoot2
+        }
+      };
+    }
+  }
   return {
     command: resolveSidecarExecutable(desktopRoot),
     args: ["server", "--app-root", appRoot2, "--host", bindHost, "--port", String(port)],
@@ -880,6 +1099,26 @@ function createAdapterPlan({
   h5DistDir = import_node_path.default.join(desktopRoot, "dist"),
   env = process.env
 }) {
+  if (!hasCompiledSidecar(desktopRoot)) {
+    const adaptersScript = resolveAdaptersScript(desktopRoot, env);
+    if (adaptersScript) {
+      return {
+        command: resolveNodeRuntimeExecutable(env, desktopRoot),
+        args: [
+          ...nodeRuntimeFlags(resolveNodeRuntimeExecutable(env, desktopRoot)),
+          adaptersScript,
+          "--app-root",
+          appRoot2,
+          flag
+        ],
+        env: {
+          ...buildSidecarEnv(withBundledRipgrepPath(env, desktopRoot), h5DistDir),
+          CLAUDE_APP_ROOT: appRoot2,
+          ADAPTER_SERVER_URL: httpToWebSocketUrl(serverUrl)
+        }
+      };
+    }
+  }
   return {
     command: resolveSidecarExecutable(desktopRoot),
     args: ["adapters", "--app-root", appRoot2, flag],
@@ -891,7 +1130,8 @@ function createAdapterPlan({
 }
 function spawnSidecar(plan, deps = {}) {
   const exists = deps.existsSyncFn ?? import_node_fs.existsSync;
-  if (!exists(plan.command)) {
+  const isPathResolved = plan.command.includes("/") || plan.command.includes("\\");
+  if (isPathResolved && !exists(plan.command)) {
     throw new Error(`Electron sidecar binary not found: ${plan.command}. Run "cd desktop && bun run build:sidecars" first.`);
   }
   return (deps.spawnFn ?? import_node_child_process.spawn)(plan.command, plan.args, {
@@ -901,8 +1141,9 @@ function spawnSidecar(plan, deps = {}) {
   });
 }
 function getWindowsEnv(env, name) {
+  var _a;
   const normalizedName = name.toLowerCase();
-  return Object.entries(env).find(([key, value]) => key.toLowerCase() === normalizedName && value)?.[1];
+  return (_a = Object.entries(env).find(([key, value]) => key.toLowerCase() === normalizedName && value)) == null ? void 0 : _a[1];
 }
 function resolveWindowsTaskkillExecutable(env = process.env) {
   const systemRoot = getWindowsEnv(env, "SystemRoot") ?? getWindowsEnv(env, "windir");
@@ -944,6 +1185,7 @@ function killSidecar(child, sync = false, deps = {}) {
 
 // electron/services/terminal.ts
 var import_node_child_process2 = require("node:child_process");
+var import_tree_kill = __toESM(require_tree_kill(), 1);
 var import_node_crypto2 = require("node:crypto");
 var import_node_fs2 = __toESM(require("node:fs"), 1);
 var import_node_module = require("node:module");
@@ -967,7 +1209,8 @@ function sendTerminalEvent(webContents, channel, payload) {
 }
 var preparedNodePtyDirs = /* @__PURE__ */ new Set();
 function terminalConfigPath(app2, env = import_node_process.default.env) {
-  const portableDir = env.CLAUDE_CONFIG_DIR?.trim();
+  var _a;
+  const portableDir = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
   if (portableDir) {
     return import_node_path2.default.join(portableDir, TERMINAL_CONFIG_FILE);
   }
@@ -975,7 +1218,8 @@ function terminalConfigPath(app2, env = import_node_process.default.env) {
   return import_node_path2.default.join(app2.getPath("home"), ".claude", TERMINAL_CONFIG_FILE);
 }
 function claudeConfigDir2(env = import_node_process.default.env, platform = import_node_process.default.platform) {
-  const portableDir = env.CLAUDE_CONFIG_DIR?.trim();
+  var _a;
+  const portableDir = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
   if (portableDir) return portableDir;
   const home = platform === "win32" ? env.USERPROFILE || import_node_os2.default.homedir() : env.HOME || import_node_os2.default.homedir();
   return home ? import_node_path2.default.join(home, ".claude") : null;
@@ -1078,11 +1322,11 @@ function readDesktopTerminalConfig(env = import_node_process.default.env, platfo
     if (!isRecord2(parsed) || !isRecord2(parsed.desktopTerminal)) return null;
     const startupShell = typeof parsed.desktopTerminal.startupShell === "string" ? parsed.desktopTerminal.startupShell : null;
     const customShellPath = typeof parsed.desktopTerminal.customShellPath === "string" ? parsed.desktopTerminal.customShellPath : null;
-    const normalizedStartupShell = startupShell?.trim() ?? "";
+    const normalizedStartupShell = (startupShell == null ? void 0 : startupShell.trim()) ?? "";
     if (!["", "system", "pwsh", "powershell", "cmd", "custom"].includes(normalizedStartupShell)) {
       return null;
     }
-    if (normalizedStartupShell === "custom" && !customShellPath?.trim()) {
+    if (normalizedStartupShell === "custom" && !(customShellPath == null ? void 0 : customShellPath.trim())) {
       return null;
     }
     return {
@@ -1121,7 +1365,7 @@ function saveTerminalConfig(app2, env, config) {
   import_node_fs2.default.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
 function resolveTerminalCwd(cwd, env = import_node_process.default.env, currentDirectory = import_node_process.default.cwd) {
-  const trimmed = cwd?.trim();
+  const trimmed = cwd == null ? void 0 : cwd.trim();
   const resolved = trimmed || env.CLAUDE_CONFIG_DIR || env.HOME || env.USERPROFILE || currentDirectory();
   let isDirectory = false;
   try {
@@ -1274,15 +1518,29 @@ function prepareNodePtyRuntime(sourceDir, cacheDir) {
   preparedNodePtyDirs.add(cacheDir);
   return cacheDir;
 }
-function isLegacyWindows(platform = import_node_process.default.platform, release = import_node_os2.default.release()) {
+async function loadNodePtyFactory(sourceDir, cacheDir) {
+  try {
+    if (sourceDir && cacheDir) {
+      const moduleDir = prepareNodePtyRuntime(sourceDir, cacheDir);
+      const requireFromNodePty = (0, import_node_module.createRequire)(import_node_path2.default.join(moduleDir, "package.json"));
+      return requireFromNodePty(moduleDir);
+    }
+    return await import("node-pty");
+  } catch (error) {
+    if (isLegacyWindows(import_node_process.default.platform)) return createPipePtyFactory();
+    throw error;
+  }
+}
+function isLegacyWindows(platform) {
   if (platform !== "win32") return false;
-  const [major = -1] = release.split(".").map(Number);
+  const [major = -1] = import_node_os2.default.release().split(".").map(Number);
   return !Number.isFinite(major) || major < 10;
 }
 var PIPE_PTY_NOTICE = "[terminal] node-pty unavailable on this Windows version - using pipe fallback (no full TTY emulation)\r\n";
 function createPipePtyFactory() {
   return {
     spawn(shell, args, options) {
+      var _a, _b, _c, _d;
       const child = (0, import_node_child_process2.spawn)(shell, args, {
         cwd: options.cwd,
         env: options.env,
@@ -1296,38 +1554,39 @@ function createPipePtyFactory() {
         const data = typeof chunk === "string" ? chunk : chunk.toString("utf8");
         for (const listener of dataListeners) listener(data);
       };
-      child.stdout?.setEncoding("utf8");
-      child.stdout?.on("data", emit);
-      child.stderr?.setEncoding("utf8");
-      child.stderr?.on("data", emit);
+      (_a = child.stdout) == null ? void 0 : _a.setEncoding("utf8");
+      (_b = child.stdout) == null ? void 0 : _b.on("data", emit);
+      (_c = child.stderr) == null ? void 0 : _c.setEncoding("utf8");
+      (_d = child.stderr) == null ? void 0 : _d.on("data", emit);
       child.on("exit", (code, signal) => {
         if (settled) return;
         settled = true;
-        exitHandler?.({ exitCode: code ?? 1, signal });
+        exitHandler == null ? void 0 : exitHandler({ exitCode: code ?? 1, signal });
       });
       child.on("error", () => {
         if (settled) return;
         settled = true;
-        exitHandler?.({ exitCode: 1 });
+        exitHandler == null ? void 0 : exitHandler({ exitCode: 1 });
       });
       queueMicrotask(() => emit(PIPE_PTY_NOTICE));
       return {
         pid: child.pid,
         process: child.spawnfile,
         write(data) {
-          child.stdin?.write(data);
+          var _a2;
+          (_a2 = child.stdin) == null ? void 0 : _a2.write(data);
         },
         resize() {
         },
         kill() {
-          if (child.pid && import_node_process.default.platform === "win32") {
-            try {
-              (0, import_node_child_process2.spawn)("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-                windowsHide: true,
-                stdio: "ignore"
-              });
-            } catch {
-            }
+          if (child.pid) {
+            (0, import_tree_kill.default)(child.pid, "SIGKILL", () => {
+              try {
+                child.kill();
+              } catch {
+              }
+            });
+            return;
           }
           try {
             child.kill();
@@ -1340,26 +1599,14 @@ function createPipePtyFactory() {
         },
         onExit(handler) {
           exitHandler = handler;
+          return child;
         }
       };
     }
   };
 }
-async function loadNodePtyFactory(sourceDir, cacheDir, platform = import_node_process.default.platform, release = import_node_os2.default.release()) {
-  try {
-    if (sourceDir && cacheDir) {
-      const moduleDir = prepareNodePtyRuntime(sourceDir, cacheDir);
-      const requireFromNodePty = (0, import_node_module.createRequire)(import_node_path2.default.join(moduleDir, "package.json"));
-      return requireFromNodePty(moduleDir);
-    }
-    return import("node-pty");
-  } catch (error) {
-    if (isLegacyWindows(platform, release)) return createPipePtyFactory();
-    throw error;
-  }
-}
-async function resolvePtyFactory(factory, nodePtySourceDir, nodePtyCacheDir, platform = import_node_process.default.platform, release = import_node_os2.default.release()) {
-  if (!factory) return loadNodePtyFactory(nodePtySourceDir, nodePtyCacheDir, platform, release);
+async function resolvePtyFactory(factory, nodePtySourceDir, nodePtyCacheDir) {
+  if (!factory) return loadNodePtyFactory(nodePtySourceDir, nodePtyCacheDir);
   if (typeof factory === "function") return factory();
   return factory;
 }
@@ -1367,7 +1614,6 @@ var ElectronTerminalService = class {
   app;
   env;
   platform;
-  osRelease;
   ptyFactory;
   nodePtySourceDir;
   nodePtyCacheDir;
@@ -1380,7 +1626,6 @@ var ElectronTerminalService = class {
     this.app = options.app;
     this.env = options.env ?? import_node_process.default.env;
     this.platform = options.platform ?? import_node_process.default.platform;
-    this.osRelease = options.osRelease ?? import_node_os2.default.release;
     this.ptyFactory = options.ptyFactory;
     this.nodePtySourceDir = options.nodePtySourceDir;
     this.nodePtyCacheDir = options.nodePtyCacheDir;
@@ -1434,7 +1679,7 @@ var ElectronTerminalService = class {
       rendererDestroyed = true;
       if (sessionId === null || !pty) return;
       const active = this.sessions.get(sessionId);
-      if (active?.pty !== pty) return;
+      if ((active == null ? void 0 : active.pty) !== pty) return;
       this.sessions.delete(sessionId);
       this.detachOwnerListener(active);
       disposePty();
@@ -1445,14 +1690,7 @@ var ElectronTerminalService = class {
     webContents.once("destroyed", onOwnerDestroyed);
     webContents.on("did-navigate", onOwnerNavigated);
     try {
-      const legacyWindows = isLegacyWindows(this.platform, this.osRelease());
-      const ptyFactory = await resolvePtyFactory(
-        this.ptyFactory,
-        this.nodePtySourceDir,
-        this.nodePtyCacheDir,
-        this.platform,
-        this.osRelease()
-      );
+      const ptyFactory = await resolvePtyFactory(this.ptyFactory, this.nodePtySourceDir, this.nodePtyCacheDir);
       if (rendererDestroyed || webContents.isDestroyed()) {
         throw new Error("terminal renderer is destroyed");
       }
@@ -1468,13 +1706,16 @@ var ElectronTerminalService = class {
           COLORTERM: "truecolor"
         }
       };
-      if (legacyWindows) {
+      if (isLegacyWindows(this.platform)) {
+        // ConPTY is a Win10 1809+ OS feature: force the winpty backend that
+        // node-pty 1.1.0 still ships (prebuilds/win32-x64 winpty-agent.exe +
+        // N-API pty.node) for full TTY emulation on Win7/8.
         ptySpawnOptions.useConpty = false;
       }
       try {
         pty = ptyFactory.spawn(shell, [], ptySpawnOptions);
       } catch (error) {
-        if (!legacyWindows) throw error;
+        if (!isLegacyWindows(this.platform)) throw error;
         pty = createPipePtyFactory().spawn(shell, [], ptySpawnOptions);
       }
       if (rendererDestroyed || webContents.isDestroyed()) {
@@ -1490,7 +1731,8 @@ var ElectronTerminalService = class {
         onOwnerNavigated
       });
       activePty.onData((data) => {
-        if (this.sessions.get(activeSessionId)?.pty !== activePty) return;
+        var _a;
+        if (((_a = this.sessions.get(activeSessionId)) == null ? void 0 : _a.pty) !== activePty) return;
         sendTerminalEvent(webContents, ELECTRON_EVENT_CHANNELS.terminalOutput, {
           session_id: activeSessionId,
           data
@@ -1584,7 +1826,7 @@ var SYSTEM_PROXY_BRIDGE_HOST = "127.0.0.1";
 var CONNECT_TIMEOUT_MS = 1e4;
 var MAX_BUFFERED_REQUEST_BYTES = 32 * 1024 * 1024;
 function parseSystemProxyRules(rules) {
-  if (!rules?.trim()) return [{ type: "direct" }];
+  if (!(rules == null ? void 0 : rules.trim())) return [{ type: "direct" }];
   const parsed = [];
   for (const rawRule of rules.split(";")) {
     const rule = rawRule.trim();
@@ -1609,7 +1851,6 @@ var SystemProxyBridge = class {
   constructor(resolveSystemProxy) {
     this.resolveSystemProxy = resolveSystemProxy;
   }
-  resolveSystemProxy;
   server = null;
   startPromise = null;
   lifecycleGeneration = 0;
@@ -1629,11 +1870,11 @@ var SystemProxyBridge = class {
     this.server = null;
     for (const socket of this.clientSockets) socket.destroy();
     for (const socket of this.outboundSockets) socket.destroy();
-    if (server?.listening) server.closeAllConnections();
-    const closing = server?.listening ? new Promise((resolve) => server.close(() => resolve())) : Promise.resolve();
+    if (server == null ? void 0 : server.listening) server.closeAllConnections();
+    const closing = (server == null ? void 0 : server.listening) ? new Promise((resolve) => server.close(() => resolve())) : Promise.resolve();
     await closing;
-    await startPromise?.catch(() => {
-    });
+    await (startPromise == null ? void 0 : startPromise.catch(() => {
+    }));
   }
   async startOnce(generation) {
     const server = import_node_http2.default.createServer((request, response) => {
@@ -1718,7 +1959,7 @@ var SystemProxyBridge = class {
     const isClientUnavailable = () => clientUnavailable || clientSocket.destroyed || !clientSocket.writable || clientSocket.writableEnded || clientSocket.writableFinished;
     const closeRoute = () => {
       clientUnavailable = true;
-      routeSocket?.destroy();
+      routeSocket == null ? void 0 : routeSocket.destroy();
       clientSocket.destroy();
     };
     clientSocket.on("error", closeRoute);
@@ -1880,7 +2121,7 @@ async function selectReachableRule(rules, target) {
       socket.destroy();
       return rule;
     } catch (error) {
-      socket?.destroy();
+      socket == null ? void 0 : socket.destroy();
       errors.push(`${rule.type}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -1912,7 +2153,6 @@ var SingleSocketAgent = class extends import_node_http2.default.Agent {
     super({ keepAlive: false });
     this.socket = socket;
   }
-  socket;
   claimed = false;
   createConnection() {
     if (this.claimed) throw new Error("System proxy route socket was already claimed");
@@ -1953,6 +2193,7 @@ async function connectTunnelUsingRules(rules, targetHost, targetPortNumber) {
   throw new Error(`No system proxy route succeeded (${errors.join("; ")})`);
 }
 async function establishHttpProxyTunnel(endpoint, secure, targetHost, targetPortNumber) {
+  var _a;
   const socket = await connectProxyEndpoint(endpoint, secure);
   try {
     const authority = formatAuthority(targetHost, targetPortNumber);
@@ -1965,7 +2206,7 @@ Proxy-Connection: keep-alive\r
     );
     const header = await readUntil(socket, Buffer.from("\r\n\r\n"), 64 * 1024);
     const statusLine = header.toString("latin1").split("\r\n", 1)[0] ?? "";
-    const status = Number(statusLine.match(/^HTTP\/\d(?:\.\d)?\s+(\d{3})\b/i)?.[1]);
+    const status = Number((_a = statusLine.match(/^HTTP\/\d(?:\.\d)?\s+(\d{3})\b/i)) == null ? void 0 : _a[1]);
     if (status === 407) {
       throw new ProxyAuthenticationRequiredError("HTTP proxy requires authentication");
     }
@@ -2224,7 +2465,8 @@ var ElectronServerRuntime = class {
     return this.petAccessToken;
   }
   getActiveServerUrl() {
-    return this.server?.url ?? null;
+    var _a;
+    return ((_a = this.server) == null ? void 0 : _a.url) ?? null;
   }
   restartAdaptersSidecars() {
     if (this.adapterRestartPromise) return this.adapterRestartPromise;
@@ -2243,12 +2485,13 @@ var ElectronServerRuntime = class {
     await this.startAdaptersSidecars(serverUrl, void 0, server);
   }
   stopAll(sync = false) {
+    var _a;
     ++this.lifecycleGeneration;
     const starting = this.startingServer;
     if (starting) {
       this.startingServer = null;
       this.stopAdaptersForStart(starting, sync);
-      if (this.server?.child === starting.child) this.server = null;
+      if (((_a = this.server) == null ? void 0 : _a.child) === starting.child) this.server = null;
       starting.fail(new Error("server startup stopped"));
       if (!starting.childStopped) {
         starting.childStopped = true;
@@ -2263,6 +2506,7 @@ var ElectronServerRuntime = class {
     this.stopSystemProxyBridge();
   }
   async startServerOnce(generation) {
+    var _a;
     const port = await this.deps.reserveServerPort(
       SERVER_BIND_HOST,
       this.deps.preferredServerPorts(this.baseEnv)
@@ -2307,13 +2551,13 @@ var ElectronServerRuntime = class {
     } catch (error) {
       if (startState) {
         this.stopAdaptersForStart(startState);
-        if (this.server?.child === startState.child) this.server = null;
+        if (((_a = this.server) == null ? void 0 : _a.child) === startState.child) this.server = null;
         if (!startState.childStopped) {
           startState.childStopped = true;
           killSidecar(startState.child);
         }
       }
-      if (startState?.failure) {
+      if (startState == null ? void 0 : startState.failure) {
         throw new Error(this.startupError ?? startState.failure.message);
       }
       const message = error instanceof Error ? error.message : String(error);
@@ -2332,12 +2576,12 @@ var ElectronServerRuntime = class {
     const bridgeUrl = baseEnv.CC_HAHA_SYSTEM_PROXY_URL;
     const env = bridgeUrl ? withAdapterProxyBridgeEnv(baseEnv, bridgeUrl) : baseEnv;
     const isCurrentGeneration = () => {
-      if (startState?.failure) return false;
+      if (startState == null ? void 0 : startState.failure) return false;
       if (activeServer && this.server !== activeServer) return false;
       return true;
     };
     if (!isCurrentGeneration()) return;
-    const ownedAdapters = startState?.adapterChildren ?? activeServer?.adapterChildren;
+    const ownedAdapters = (startState == null ? void 0 : startState.adapterChildren) ?? (activeServer == null ? void 0 : activeServer.adapterChildren);
     for (const [label, flag] of [
       ["feishu", "--feishu"],
       ["telegram", "--telegram"],
@@ -2361,16 +2605,17 @@ var ElectronServerRuntime = class {
         }
         this.captureLogs(child, `claude-adapters:${label}`);
         this.adapters.push(child);
-        ownedAdapters?.push(child);
+        ownedAdapters == null ? void 0 : ownedAdapters.push(child);
       } catch (error) {
         console.error(`[desktop] failed to start ${label} adapter sidecar`, error);
       }
     }
   }
   stopAdaptersSidecars(sync = false) {
+    var _a, _b;
     const children = this.adapters.splice(0);
-    this.removeOwnedAdapters(this.server?.adapterChildren, children);
-    this.removeOwnedAdapters(this.startingServer?.adapterChildren, children);
+    this.removeOwnedAdapters((_a = this.server) == null ? void 0 : _a.adapterChildren, children);
+    this.removeOwnedAdapters((_b = this.startingServer) == null ? void 0 : _b.adapterChildren, children);
     for (const child of children) {
       killSidecar(child, sync);
     }
@@ -2388,7 +2633,7 @@ var ElectronServerRuntime = class {
     };
   }
   removeOwnedAdapters(owned, removed) {
-    if (!owned?.length || !removed.length) return;
+    if (!(owned == null ? void 0 : owned.length) || !removed.length) return;
     const removedSet = new Set(removed);
     const retained = owned.filter((child) => !removedSet.has(child));
     owned.splice(0, owned.length, ...retained);
@@ -2416,7 +2661,7 @@ var ElectronServerRuntime = class {
       console.log(`[${label}] ${line}`);
       this.deps.appendHostDiagnostic(this.diagnosticsFile, `[${label}] [exit] ${line}`);
       if (startupLogs) pushStartupLog(startupLogs, `[exit] ${line}`);
-      onExit?.(code, signal);
+      onExit == null ? void 0 : onExit(code, signal);
     });
     child.on("error", (error) => {
       const message = error instanceof Error ? error.message : String(error);
@@ -2424,7 +2669,7 @@ var ElectronServerRuntime = class {
       console.error(`[${label}] ${sanitizeHostDiagnostic(line)}`);
       this.deps.appendHostDiagnostic(this.diagnosticsFile, `[${label}] [process-error] ${line}`);
       if (startupLogs) pushStartupLog(startupLogs, `[process-error] ${line}`);
-      onError?.(error instanceof Error ? error : new Error(message));
+      onError == null ? void 0 : onError(error instanceof Error ? error : new Error(message));
     });
   }
   handleServerExit(child, code, signal, logs) {
@@ -2442,8 +2687,9 @@ var ElectronServerRuntime = class {
     );
   }
   handleServerFailure(child, message, logs) {
-    const active = this.server?.child === child;
-    const starting = this.startingServer?.child === child;
+    var _a, _b, _c;
+    const active = ((_a = this.server) == null ? void 0 : _a.child) === child;
+    const starting = ((_b = this.startingServer) == null ? void 0 : _b.child) === child;
     if (!active && !starting) return;
     if (active) {
       const adapterChildren = this.server.adapterChildren;
@@ -2452,7 +2698,7 @@ var ElectronServerRuntime = class {
     }
     this.restartAfterExit = true;
     this.startupError = formatStartupError(message, logs);
-    if (starting) this.startingServer?.fail(new Error(message));
+    if (starting) (_c = this.startingServer) == null ? void 0 : _c.fail(new Error(message));
   }
   stopAdapterChildren(children, sync = false) {
     for (const child of children.splice(0)) {
@@ -2533,7 +2779,7 @@ async function openDialog(parentWindow, options) {
   const dialogOptions = toElectronOpenDialogOptions(options);
   const result = parentWindow ? await dialog2.showOpenDialog(parentWindow, dialogOptions) : await dialog2.showOpenDialog(dialogOptions);
   if (result.canceled) return null;
-  return options?.multiple ? result.filePaths : result.filePaths[0] ?? null;
+  return (options == null ? void 0 : options.multiple) ? result.filePaths : result.filePaths[0] ?? null;
 }
 async function saveDialog(parentWindow, options) {
   const { dialog: dialog2 } = await import("electron");
@@ -2668,11 +2914,11 @@ function sendDesktopNotification({
     cleanup();
   });
   notification.on("close", () => {
-    onLifecycle?.("close");
+    onLifecycle == null ? void 0 : onLifecycle("close");
     cleanup();
   });
   notification.on("failed", () => {
-    onLifecycle?.("failed");
+    onLifecycle == null ? void 0 : onLifecycle("failed");
     cleanup();
   });
   notification.show();
@@ -2793,7 +3039,7 @@ function windowChromeOptionsForPlatform(platform = process.platform) {
   };
 }
 function restoreWindowMaximized(window, state) {
-  if (state?.maximized) window.maximize();
+  if (state == null ? void 0 : state.maximized) window.maximize();
 }
 function saveWindowState(app2, window) {
   const state = captureWindowState(window);
@@ -2803,18 +3049,18 @@ function hideWindowSafely(window, afterHide) {
   if (window.isSimpleFullScreen()) {
     window.setSimpleFullScreen(false);
     window.hide();
-    afterHide?.();
+    afterHide == null ? void 0 : afterHide();
     return;
   }
   if (!window.isFullScreen()) {
     window.hide();
-    afterHide?.();
+    afterHide == null ? void 0 : afterHide();
     return;
   }
   window.once("leave-full-screen", () => {
     if (!window.isDestroyed()) {
       window.hide();
-      afterHide?.();
+      afterHide == null ? void 0 : afterHide();
     }
   });
   window.setFullScreen(false);
@@ -2827,8 +3073,9 @@ function toggleWindowFullScreen(window, platform = process.platform) {
   window.setFullScreen(!window.isFullScreen());
 }
 function showMainWindow(window, app2) {
+  var _a;
   if (!window) return;
-  app2?.show?.();
+  (_a = app2 == null ? void 0 : app2.show) == null ? void 0 : _a.call(app2);
   if (!window.isVisible()) window.show();
   if (window.isMinimized()) window.restore();
   window.focus();
@@ -2871,7 +3118,10 @@ function buildApplicationMenuTemplate(appName, onNavigate, platform = process.pl
       { type: "separator" },
       { role: "services" },
       { type: "separator" },
-      { label: `Hide ${appName}`, accelerator: "Command+H", click: () => actions.hide?.() },
+      { label: `Hide ${appName}`, accelerator: "Command+H", click: () => {
+        var _a;
+        return (_a = actions.hide) == null ? void 0 : _a.call(actions);
+      } },
       { role: "hideOthers" },
       { role: "unhide" },
       { type: "separator" },
@@ -2905,7 +3155,10 @@ function buildApplicationMenuTemplate(appName, onNavigate, platform = process.pl
         {
           label: "Toggle Full Screen",
           accelerator: platform === "darwin" ? "Ctrl+Command+F" : "F11",
-          click: () => actions.toggleFullScreen?.()
+          click: () => {
+            var _a;
+            return (_a = actions.toggleFullScreen) == null ? void 0 : _a.call(actions);
+          }
         }
       ]
     },
@@ -2914,7 +3167,10 @@ function buildApplicationMenuTemplate(appName, onNavigate, platform = process.pl
       submenu: [
         { role: "minimize" },
         { role: "zoom" },
-        { label: "Close Window", accelerator: "CmdOrCtrl+W", click: () => actions.close?.() }
+        { label: "Close Window", accelerator: "CmdOrCtrl+W", click: () => {
+          var _a;
+          return (_a = actions.close) == null ? void 0 : _a.call(actions);
+        } }
       ]
     }
   ];
@@ -2952,18 +3208,24 @@ async function installApplicationMenu(app2, getMainWindow, platform = process.pl
     return;
   }
   const template = buildApplicationMenuTemplate(app2.name || "Claude Code Haha", (destination) => {
-    getMainWindow()?.webContents.send(ELECTRON_EVENT_CHANNELS.nativeMenuNavigate, destination);
+    var _a;
+    (_a = getMainWindow()) == null ? void 0 : _a.webContents.send(ELECTRON_EVENT_CHANNELS.nativeMenuNavigate, destination);
   }, platform, {
     hide: () => {
+      var _a;
       const window = getMainWindow();
       if (!window) {
-        app2.hide?.();
+        (_a = app2.hide) == null ? void 0 : _a.call(app2);
         return;
       }
-      hideWindowSafely(window, () => app2.hide?.());
+      hideWindowSafely(window, () => {
+        var _a2;
+        return (_a2 = app2.hide) == null ? void 0 : _a2.call(app2);
+      });
     },
     close: () => {
-      getMainWindow()?.close();
+      var _a;
+      (_a = getMainWindow()) == null ? void 0 : _a.close();
     },
     toggleFullScreen: () => {
       const window = getMainWindow();
@@ -3098,7 +3360,7 @@ function isPathAtOrBelow(parentDir, candidateDir) {
   return relative === "" || !relative.startsWith(`..${import_node_path7.default.sep}`) && relative !== ".." && !import_node_path7.default.isAbsolute(relative);
 }
 function normalizedCustomDir(app2, value) {
-  const selectedDir = value?.trim();
+  const selectedDir = value == null ? void 0 : value.trim();
   if (!selectedDir) throw new Error("Choose an absolute custom data directory");
   if (!import_node_path7.default.isAbsolute(selectedDir)) throw new Error("Custom data storage must use an absolute path");
   const normalized = import_node_path7.default.resolve(selectedDir);
@@ -3119,7 +3381,7 @@ function clearAppManagedPortableEnv(env = import_node_process2.default.env) {
 function determineStartupPortableDir(app2, env = import_node_process2.default.env) {
   if (env.CLAUDE_CONFIG_DIR) return null;
   const config = readAppModeConfig(app2.getPath("userData"));
-  if (config?.mode !== "portable" || !config.portable_dir || !import_node_path7.default.isAbsolute(config.portable_dir)) return null;
+  if ((config == null ? void 0 : config.mode) !== "portable" || !config.portable_dir || !import_node_path7.default.isAbsolute(config.portable_dir)) return null;
   try {
     return normalizedCustomDir(app2, config.portable_dir);
   } catch {
@@ -3185,7 +3447,7 @@ function updaterSessionProxyConfig(proxy) {
   return proxy ? { proxyRules: proxy, proxyBypassRules: "<local>" } : { mode: "system" };
 }
 function normalizeUpdateInfo(info) {
-  if (!info?.version) return null;
+  if (!(info == null ? void 0 : info.version)) return null;
   const releaseNotes = Array.isArray(info.releaseNotes) ? info.releaseNotes.map((note) => note.note).filter(Boolean).join("\n\n") : info.releaseNotes;
   return {
     version: info.version,
@@ -3223,8 +3485,9 @@ var ElectronUpdaterService = class {
     this.updater.logger = null;
   }
   async applyProxy(options) {
+    var _a;
     if (!this.proxyController) return;
-    const proxy = options?.proxy?.trim() || null;
+    const proxy = ((_a = options == null ? void 0 : options.proxy) == null ? void 0 : _a.trim()) || null;
     const nextProxyKey = proxy ? `manual:${proxy}` : "system";
     if (this.proxyKey === nextProxyKey) return;
     await this.proxyController.apply(proxy);
@@ -3243,7 +3506,7 @@ var ElectronUpdaterService = class {
       if (!isMissingUpdateMetadataError(error)) throw error;
       result = null;
     }
-    this.pendingUpdate = normalizeUpdateInfo(result?.updateInfo);
+    this.pendingUpdate = normalizeUpdateInfo(result == null ? void 0 : result.updateInfo);
     this.downloaded = false;
     return this.pendingUpdate;
   }
@@ -3311,7 +3574,8 @@ function parsePositiveInteger(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 function parseUpdateSmokeEnv(env) {
-  const version = env.CC_HAHA_ELECTRON_UPDATE_SMOKE_VERSION?.trim();
+  var _a;
+  const version = (_a = env.CC_HAHA_ELECTRON_UPDATE_SMOKE_VERSION) == null ? void 0 : _a.trim();
   if (!version) return null;
   return {
     version,
@@ -3332,7 +3596,6 @@ var UpdateSmokeUpdater = class {
   constructor(config) {
     this.config = config;
   }
-  config;
   autoDownload = true;
   logger = null;
   progressHandler = null;
@@ -3349,13 +3612,14 @@ var UpdateSmokeUpdater = class {
     };
   }
   async downloadUpdate() {
+    var _a, _b;
     writeLog(this.config.logPath, {
       event: "download-start",
       totalBytes: this.config.totalBytes
     });
     const firstChunk = Math.max(1, Math.floor(this.config.totalBytes / 2));
-    this.progressHandler?.({ transferred: firstChunk, total: this.config.totalBytes });
-    this.progressHandler?.({ transferred: this.config.totalBytes, total: this.config.totalBytes });
+    (_a = this.progressHandler) == null ? void 0 : _a.call(this, { transferred: firstChunk, total: this.config.totalBytes });
+    (_b = this.progressHandler) == null ? void 0 : _b.call(this, { transferred: this.config.totalBytes, total: this.config.totalBytes });
     writeLog(this.config.logPath, {
       event: "download-finish",
       totalBytes: this.config.totalBytes
@@ -3467,6 +3731,23 @@ function normalizeZoomFactor(value) {
 // electron/services/preview.ts
 var FULL_CAPTURE_MAX_EDGE = 16384;
 var FULL_CAPTURE_MAX_PIXELS = 32e6;
+function attachPreviewView(parent, view) {
+  var _a;
+  if (parent.contentView) {
+    parent.contentView.addChildView(view);
+  } else {
+    (_a = parent.addBrowserView) == null ? void 0 : _a.call(parent, view);
+  }
+}
+function detachPreviewView(parent, view) {
+  var _a;
+  if (!parent) return;
+  if (parent.contentView) {
+    parent.contentView.removeChildView(view);
+  } else {
+    (_a = parent.removeBrowserView) == null ? void 0 : _a.call(parent, view);
+  }
+}
 function isPlainRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -3557,7 +3838,17 @@ var ElectronPreviewService = class {
     this.applyBounds(this.view);
   }
   setVisible(visible) {
-    this.view?.setVisible?.(visible);
+    var _a;
+    if ((_a = this.view) == null ? void 0 : _a.setVisible) {
+      this.view.setVisible(visible);
+      return;
+    }
+    if (!this.view || !this.parent) return;
+    if (visible) {
+      attachPreviewView(this.parent, this.view);
+    } else {
+      detachPreviewView(this.parent, this.view);
+    }
   }
   setZoomFactor(value) {
     this.zoomFactor = normalizeZoomFactor(value);
@@ -3567,10 +3858,11 @@ var ElectronPreviewService = class {
     this.applyBounds(this.view);
   }
   close() {
+    var _a, _b, _c, _d;
     if (!this.view) return;
-    this.parent?.contentView.removeChildView(this.view);
-    if (!this.view.webContents.isDestroyed?.()) {
-      this.view.webContents.close?.();
+    detachPreviewView(this.parent, this.view);
+    if (!((_b = (_a = this.view.webContents).isDestroyed) == null ? void 0 : _b.call(_a))) {
+      (_d = (_c = this.view.webContents).close) == null ? void 0 : _d.call(_c);
     }
     this.view = null;
     this.parent = null;
@@ -3590,7 +3882,8 @@ var ElectronPreviewService = class {
     await this.requireView().webContents.executeJavaScript(script);
   }
   async sendMessageToRenderer(sender, raw, renderer) {
-    if (sender !== this.view?.webContents) return;
+    var _a;
+    if (sender !== ((_a = this.view) == null ? void 0 : _a.webContents)) return;
     if (typeof raw !== "string") return;
     const message = parsePreviewAgentMessage(raw);
     if (!message) return;
@@ -3601,12 +3894,12 @@ var ElectronPreviewService = class {
       this.pickerArmed = false;
     }
     const event = message.type === "selection" ? await this.withNativeSelectionScreenshot(message) : message;
-    renderer?.send(ELECTRON_EVENT_CHANNELS.previewEvent, event);
+    renderer == null ? void 0 : renderer.send(ELECTRON_EVENT_CHANNELS.previewEvent, event);
   }
   ensureView(parent) {
     if (this.view) return this.view;
     const view = this.createView();
-    parent.contentView.addChildView(view);
+    attachPreviewView(parent, view);
     view.webContents.on("did-finish-load", () => {
       this.pickerArmed = false;
       void this.injectPreviewAgent(view);
@@ -3621,7 +3914,8 @@ var ElectronPreviewService = class {
     return this.view;
   }
   async injectPreviewAgent(view) {
-    if (view.webContents.isDestroyed?.()) return;
+    var _a, _b;
+    if ((_b = (_a = view.webContents).isDestroyed) == null ? void 0 : _b.call(_a)) return;
     const script = (0, import_node_fs9.readFileSync)(resolvePreviewScriptPath(this.previewScriptPath), "utf8");
     await view.webContents.executeJavaScript(script);
   }
@@ -3633,7 +3927,8 @@ var ElectronPreviewService = class {
     return image.toDataURL();
   }
   async captureFullPageDataUrl(webContents) {
-    if (this.fullCapture?.webContents === webContents) {
+    var _a;
+    if (((_a = this.fullCapture) == null ? void 0 : _a.webContents) === webContents) {
       return await this.fullCapture.promise;
     }
     const promise = this.captureFullPageDataUrlOnce(webContents);
@@ -3686,11 +3981,13 @@ var ElectronPreviewService = class {
     }
   }
   applyZoomFactor(view) {
-    view?.webContents.setZoomFactor?.(this.zoomFactor);
+    var _a, _b;
+    (_b = view == null ? void 0 : (_a = view.webContents).setZoomFactor) == null ? void 0 : _b.call(_a, this.zoomFactor);
   }
   applyBounds(view) {
+    var _a;
     if (!view || !this.parent || !this.requestedBounds) return;
-    const scaleFactor = this.resolveScaleFactor?.(this.parent) ?? 1;
+    const scaleFactor = ((_a = this.resolveScaleFactor) == null ? void 0 : _a.call(this, this.parent)) ?? 1;
     view.setBounds(snapPreviewBoundsToScaleFactor(this.requestedBounds, scaleFactor));
   }
   async captureScreenshotToRenderer(kind, renderer) {
@@ -3731,8 +4028,9 @@ var ElectronPreviewService = class {
     }
   }
   async clearSelectionOverlay() {
-    const webContents = this.view?.webContents;
-    if (!webContents || webContents.isDestroyed?.()) return;
+    var _a, _b;
+    const webContents = (_a = this.view) == null ? void 0 : _a.webContents;
+    if (!webContents || ((_b = webContents.isDestroyed) == null ? void 0 : _b.call(webContents))) return;
     try {
       await webContents.executeJavaScript("globalThis.__PREVIEW_AGENT_CLEAR_SELECTION_OVERLAY__?.()");
     } catch {
@@ -3762,8 +4060,9 @@ function sameOrigin(left, right) {
   }
 }
 function isAllowlistedMainRendererMediaRequest(details, mainRendererWebContentsId) {
+  var _a;
   if (details.webContentsId !== mainRendererWebContentsId) return false;
-  const method = details.method?.toUpperCase();
+  const method = (_a = details.method) == null ? void 0 : _a.toUpperCase();
   if (method !== "GET" && method !== "HEAD") return false;
   if (details.resourceType !== "image" && details.resourceType !== "media") {
     return false;
@@ -3902,7 +4201,7 @@ function parseNotificationSmokeDelay(value) {
   return Math.min(Math.max(Math.round(parsed), 0), MAX_DELAY_MS);
 }
 function shouldTriggerSyntheticAction(value) {
-  return value === "1" || value?.toLowerCase() === "true";
+  return value === "1" || (value == null ? void 0 : value.toLowerCase()) === "true";
 }
 function appendNotificationSmokeLog(logPath, event) {
   (0, import_node_fs10.mkdirSync)((0, import_node_path8.dirname)(logPath), { recursive: true });
@@ -3910,7 +4209,8 @@ function appendNotificationSmokeLog(logPath, event) {
 `);
 }
 function logNotificationSmokeRendererAck(env, payload) {
-  const logPath = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG?.trim();
+  var _a;
+  const logPath = (_a = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG) == null ? void 0 : _a.trim();
   if (!logPath) return false;
   appendNotificationSmokeLog(logPath, {
     event: "renderer_ack",
@@ -3926,13 +4226,14 @@ function scheduleNotificationSmoke({
   setTimer = setTimeout,
   writeLog: writeLog2
 }) {
-  const sessionId = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_SESSION_ID?.trim();
+  var _a, _b, _c, _d;
+  const sessionId = (_a = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_SESSION_ID) == null ? void 0 : _a.trim();
   if (!sessionId) return false;
-  const title = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_TITLE?.trim() || "Claude Code Haha notification smoke";
-  const body = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_BODY?.trim() || "Click to return to the target session.";
+  const title = ((_b = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_TITLE) == null ? void 0 : _b.trim()) || "Claude Code Haha notification smoke";
+  const body = ((_c = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_BODY) == null ? void 0 : _c.trim()) || "Click to return to the target session.";
   const delayMs = parseNotificationSmokeDelay(env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_DELAY_MS);
   const triggerSyntheticAction = shouldTriggerSyntheticAction(env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_TRIGGER_ACTION);
-  const logPath = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG?.trim();
+  const logPath = (_d = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG) == null ? void 0 : _d.trim();
   const log = (event) => {
     if (writeLog2) {
       writeLog2(event);
@@ -4056,7 +4357,8 @@ function isAllowedDevRendererUrl(input) {
   }
 }
 function resolveRendererEntry(options) {
-  const devUrl = options.env?.ELECTRON_RENDERER_URL?.trim();
+  var _a, _b;
+  const devUrl = (_b = (_a = options.env) == null ? void 0 : _a.ELECTRON_RENDERER_URL) == null ? void 0 : _b.trim();
   if (!options.isPackaged && devUrl) {
     if (!isAllowedDevRendererUrl(devUrl)) {
       throw new Error(`Refusing non-local Electron renderer URL: ${devUrl}`);
@@ -4143,7 +4445,7 @@ function installRendererLifecycle({
     const detail = recordDiagnostic(
       `[process-gone] reason=${details.reason} exitCode=${details.exitCode}`
     );
-    onRendererProcessGone?.(detail);
+    onRendererProcessGone == null ? void 0 : onRendererProcessGone(detail);
     writeSnapshot(`render-process-gone:${details.reason}:${details.exitCode}`);
     recoverRenderer(`process-gone:${details.reason}`);
   });
@@ -4170,6 +4472,7 @@ function installRendererLifecycle({
 // electron/services/windowSmoke.ts
 var import_node_fs12 = require("node:fs");
 function writeWindowSmokeSnapshot(window, reason, env = process.env) {
+  var _a, _b;
   const logPath = env.CC_HAHA_ELECTRON_WINDOW_SMOKE_LOG;
   if (!logPath) return;
   const payload = window ? {
@@ -4182,8 +4485,8 @@ function writeWindowSmokeSnapshot(window, reason, env = process.env) {
     maximized: window.isMaximized(),
     fullScreen: window.isFullScreen(),
     bounds: window.getBounds(),
-    url: window.webContents?.getURL() ?? null,
-    loading: window.webContents?.isLoading() ?? null
+    url: ((_a = window.webContents) == null ? void 0 : _a.getURL()) ?? null,
+    loading: ((_b = window.webContents) == null ? void 0 : _b.isLoading()) ?? null
   } : {
     reason,
     missingWindow: true
@@ -4280,8 +4583,9 @@ function resolveHomePath(input, homeDir) {
   return input;
 }
 function petWindowStatePath(env = process.env, homeDir = import_node_os4.default.homedir()) {
+  var _a;
   const normalizedHome = import_node_path11.default.resolve(homeDir);
-  const configuredRoot = env.CLAUDE_CONFIG_DIR?.trim();
+  const configuredRoot = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
   const configRoot = configuredRoot ? import_node_path11.default.resolve(resolveHomePath(configuredRoot, normalizedHome)) : import_node_path11.default.join(normalizedHome, ".claude");
   return import_node_path11.default.join(configRoot, "cc-haha", PET_WINDOW_STATE_FILE);
 }
@@ -4385,10 +4689,11 @@ function resolvePetPanelPlacement({
   return { vertical, horizontal };
 }
 function isPositiveExtent(extent) {
-  return typeof extent?.width === "number" && extent.width > 0 && typeof extent?.height === "number" && extent.height > 0;
+  return typeof (extent == null ? void 0 : extent.width) === "number" && extent.width > 0 && typeof (extent == null ? void 0 : extent.height) === "number" && extent.height > 0;
 }
 function petWindowContentExtent(window) {
-  const candidates = [window.getContentBounds?.(), window.getBounds()];
+  var _a;
+  const candidates = [(_a = window.getContentBounds) == null ? void 0 : _a.call(window), window.getBounds()];
   const measured = candidates.find(isPositiveExtent);
   return {
     width: measured ? Math.round(measured.width) : PET_WINDOW_WIDTH,
@@ -4504,10 +4809,11 @@ var PetWindowController = class {
     this.options = options;
   }
   async create() {
-    const restoredPosition = this.options.readPosition?.() ?? null;
+    var _a, _b, _c, _d;
+    const restoredPosition = ((_b = (_a = this.options).readPosition) == null ? void 0 : _b.call(_a)) ?? null;
     this.resetPanelState();
     this.pendingRestoredPosition = restoredPosition;
-    if (restoredPosition?.region) {
+    if (restoredPosition == null ? void 0 : restoredPosition.region) {
       this.pendingMascotAnchorScreen = {
         x: restoredPosition.x + restoredPosition.region.x,
         y: restoredPosition.y + restoredPosition.region.y
@@ -4530,7 +4836,7 @@ var PetWindowController = class {
     });
     try {
       configurePetWindow(window, this.options.platform ?? process.platform);
-      this.options.onCreated?.(window);
+      (_d = (_c = this.options).onCreated) == null ? void 0 : _d.call(_c, window);
       await this.options.load(window);
       return window;
     } catch (error) {
@@ -4598,6 +4904,7 @@ var PetWindowController = class {
     window.setIgnoreMouseEvents(ignore, ignore ? { forward: true } : void 0);
   }
   setInteractiveRegions(window, regions) {
+    var _a, _b;
     if (!this.owns(window)) {
       throw new Error("Pet window IPC sender does not own the companion window");
     }
@@ -4614,7 +4921,7 @@ var PetWindowController = class {
       this.pendingRestoredPosition = null;
       const requestedPosition = this.holdMascotAnchor(dragRegion, restoredPosition ?? bounds);
       const anchor = petWindowAnchor({ ...requestedPosition, region: dragRegion });
-      const workArea = this.options.getWorkAreaForPoint?.(anchor) ?? this.options.getCurrentWorkArea();
+      const workArea = ((_b = (_a = this.options).getWorkAreaForPoint) == null ? void 0 : _b.call(_a, anchor)) ?? this.options.getCurrentWorkArea();
       const nextPosition = clampPetWindowPosition(requestedPosition, workArea, dragRegion);
       if (nextPosition.x !== bounds.x || nextPosition.y !== bounds.y) {
         movePetWindow(window, nextPosition);
@@ -4656,6 +4963,7 @@ var PetWindowController = class {
     return compensated;
   }
   updatePanelPlacement(window, windowPosition, workArea, mascot) {
+    var _a, _b;
     const previous = this.panelPlacement;
     const next = resolvePetPanelPlacement({
       windowPosition,
@@ -4670,9 +4978,10 @@ var PetWindowController = class {
       y: windowPosition.y + mascot.y
     };
     this.panelPlacement = next;
-    this.options.onPanelPlacementChanged?.(window, next);
+    (_b = (_a = this.options).onPanelPlacementChanged) == null ? void 0 : _b.call(_a, window, next);
   }
   dragWindow(window, payload) {
+    var _a, _b;
     if (!this.owns(window)) {
       throw new Error("Pet window IPC sender does not own the companion window");
     }
@@ -4682,7 +4991,7 @@ var PetWindowController = class {
     if (payload.phase === "start") {
       this.finishDrag();
       const bounds = window.getBounds();
-      const sampledPointer = this.options.getCursorScreenPoint?.();
+      const sampledPointer = (_b = (_a = this.options).getCursorScreenPoint) == null ? void 0 : _b.call(_a);
       const pointerStart = sampledPointer && isPetWindowPosition(sampledPointer) ? sampledPointer : payload;
       this.drag = {
         window,
@@ -4708,24 +5017,26 @@ var PetWindowController = class {
     return this.panelPlacement;
   }
   readCursorScreenPoint() {
-    const point = this.options.getCursorScreenPoint?.();
+    var _a, _b;
+    const point = (_b = (_a = this.options).getCursorScreenPoint) == null ? void 0 : _b.call(_a);
     return point && isPetWindowPosition(point) ? { x: point.x, y: point.y } : null;
   }
   sampleDragPosition() {
     const drag = this.drag;
     if (!drag || drag.window.isDestroyed()) {
-      this.finishDrag(drag?.window);
+      this.finishDrag(drag == null ? void 0 : drag.window);
       return;
     }
     const point = this.readCursorScreenPoint();
     if (point) this.updateDragPosition(drag, point);
   }
   updateDragPosition(drag, pointer) {
+    var _a, _b;
     const requestedPosition = {
       x: drag.windowStart.x + pointer.x - drag.pointerStart.x,
       y: drag.windowStart.y + pointer.y - drag.pointerStart.y
     };
-    const workArea = this.options.getWorkAreaForPoint?.(pointer) ?? this.options.getCurrentWorkArea();
+    const workArea = ((_b = (_a = this.options).getWorkAreaForPoint) == null ? void 0 : _b.call(_a, pointer)) ?? this.options.getCurrentWorkArea();
     const nextPosition = clampPetWindowPosition(
       requestedPosition,
       workArea,
@@ -4739,6 +5050,7 @@ var PetWindowController = class {
     }
   }
   finishDrag(window) {
+    var _a, _b;
     const drag = this.drag;
     if (window && drag && drag.window !== window) return;
     if (this.dragTimer) {
@@ -4747,7 +5059,7 @@ var PetWindowController = class {
     }
     if (!drag) return;
     this.drag = null;
-    this.options.writePosition?.({
+    (_b = (_a = this.options).writePosition) == null ? void 0 : _b.call(_a, {
       ...drag.lastPosition,
       ...this.visibleDragRegion ? { region: this.visibleDragRegion } : {}
     });
@@ -4797,11 +5109,12 @@ function localePreferencePath(app2) {
   return import_node_path12.default.join(app2.getPath("userData"), LOCALE_PREFERENCE_FILE);
 }
 function readLocalePreference(app2) {
+  var _a;
   try {
     const parsed = JSON.parse(import_node_fs14.default.readFileSync(localePreferencePath(app2), "utf8"));
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
     const entries = Object.entries(parsed);
-    if (entries.length !== 1 || entries[0]?.[0] !== "locale") return null;
+    if (entries.length !== 1 || ((_a = entries[0]) == null ? void 0 : _a[0]) !== "locale") return null;
     return isLocale(entries[0][1]) ? entries[0][1] : null;
   } catch {
     return null;
@@ -4901,10 +5214,11 @@ function resolveHomePath2(input, homeDir) {
   return input;
 }
 function resolveCustomPetsRoot(options = {}) {
+  var _a;
   if (options.root) return import_node_path13.default.resolve(options.root);
   const env = options.env ?? process.env;
   const homeDir = import_node_path13.default.resolve(options.homeDir ?? import_node_os5.default.homedir());
-  const configuredRoot = env.CLAUDE_CONFIG_DIR?.trim();
+  const configuredRoot = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
   const claudeConfigDir3 = configuredRoot ? import_node_path13.default.resolve(resolveHomePath2(configuredRoot, homeDir)) : import_node_path13.default.join(homeDir, ".claude");
   return import_node_path13.default.join(claudeConfigDir3, "cc-haha", "pets");
 }
@@ -5028,7 +5342,8 @@ async function readDirectEntries(root, maxEntries, validateRoot) {
   };
 }
 async function readBoundedRegularFile(options) {
-  await options.validatePathContext?.();
+  var _a, _b, _c, _d, _e;
+  await ((_a = options.validatePathContext) == null ? void 0 : _a.call(options));
   let pathStat;
   try {
     pathStat = await (0, import_promises3.lstat)(options.filePath);
@@ -5047,7 +5362,7 @@ async function readBoundedRegularFile(options) {
   if (pathStat.size > options.maxBytes) {
     throw new PetPackageError(options.tooLargeCode, options.tooLargeMessage);
   }
-  await options.validatePathContext?.();
+  await ((_b = options.validatePathContext) == null ? void 0 : _b.call(options));
   const noFollow = import_node_fs15.constants.O_NOFOLLOW ?? 0;
   let file;
   try {
@@ -5069,7 +5384,7 @@ async function readBoundedRegularFile(options) {
     if (openedStat.size > options.maxBytes) {
       throw new PetPackageError(options.tooLargeCode, options.tooLargeMessage);
     }
-    await options.validatePathContext?.();
+    await ((_c = options.validatePathContext) == null ? void 0 : _c.call(options));
     const chunks = [];
     let totalBytes = 0;
     while (totalBytes < openedStat.size) {
@@ -5077,7 +5392,7 @@ async function readBoundedRegularFile(options) {
       const { bytesRead } = await file.read(chunk, 0, chunk.byteLength, null);
       if (bytesRead === 0) break;
       totalBytes += bytesRead;
-      options.onBytesRead?.(bytesRead);
+      (_d = options.onBytesRead) == null ? void 0 : _d.call(options, bytesRead);
       chunks.push(chunk.subarray(0, bytesRead));
     }
     const afterReadStat = await file.stat();
@@ -5087,7 +5402,7 @@ async function readBoundedRegularFile(options) {
       }
       throw new PetPackageError(options.invalidCode, options.invalidMessage);
     }
-    await options.validatePathContext?.();
+    await ((_e = options.validatePathContext) == null ? void 0 : _e.call(options));
     return Buffer.concat(chunks, totalBytes);
   } finally {
     await file.close();
@@ -5607,8 +5922,8 @@ async function installCustomAtlasPet(request, options) {
     const validationError = validation.errors[0];
     if (!pet || pet.spriteVersionNumber !== 2 || validationError) {
       throw new PetPackageError(
-        validationError?.code ?? "invalid-image",
-        validationError?.message ?? "The custom pet package could not be validated."
+        (validationError == null ? void 0 : validationError.code) ?? "invalid-image",
+        (validationError == null ? void 0 : validationError.message) ?? "The custom pet package could not be validated."
       );
     }
     await assertDirectoryIdentity(rootIdentity);
@@ -5699,8 +6014,8 @@ async function createCustomPetFromImage(input, options = {}) {
     const validationError = validation.errors[0];
     if (!pet || pet.spriteVersionNumber !== 1 || validationError) {
       throw new PetPackageError(
-        validationError?.code ?? "invalid-image",
-        validationError?.message ?? "The custom pet package could not be validated."
+        (validationError == null ? void 0 : validationError.code) ?? "invalid-image",
+        (validationError == null ? void 0 : validationError.message) ?? "The custom pet package could not be validated."
       );
     }
     await assertDirectoryIdentity(rootIdentity);
@@ -5888,6 +6203,38 @@ var isQuitting = false;
 var trayController = null;
 installStdioWriteFailureGuards();
 installMacOsChromiumKeychainPromptGuard(import_electron.app);
+if (process.platform === "win32" && Number(import_node_os6.default.release().split(".")[0]) < 10) {
+  import_electron.app.disableHardwareAcceleration();
+}
+var lazyAutoUpdater;
+function createAutoUpdaterStub() {
+  const stub = {
+    autoDownload: false,
+    disableDifferentialDownload: true,
+    logger: null,
+    netSession: { setProxy: async () => void 0 },
+    setFeedURL: () => void 0,
+    checkForUpdates: () => Promise.resolve(null),
+    downloadUpdate: () => Promise.reject(new Error("electron-updater is not installed")),
+    quitAndInstall: () => void 0,
+    on: () => stub,
+    once: () => stub,
+    off: () => stub,
+    removeAllListeners: () => stub
+  };
+  return stub;
+}
+function loadAutoUpdater() {
+  if (lazyAutoUpdater) return lazyAutoUpdater;
+  try {
+    const updaterModule = require("electron-updater");
+    lazyAutoUpdater = updaterModule.autoUpdater ?? createAutoUpdaterStub();
+  } catch {
+    console.warn("[updater] electron-updater is not installed; automatic updates are disabled");
+    lazyAutoUpdater = createAutoUpdaterStub();
+  }
+  return lazyAutoUpdater;
+}
 function appRoot() {
   return import_electron.app.isPackaged ? import_electron.app.getAppPath() : process.cwd();
 }
@@ -6000,9 +6347,9 @@ function resolveMainRendererServerAccess() {
 }
 function getUpdaterService() {
   const smokeUpdater = createUpdateSmokeUpdaterFromEnv(process.env);
-  updaterService ??= new ElectronUpdaterService(smokeUpdater ?? import_electron_updater.autoUpdater, {
+  updaterService ??= new ElectronUpdaterService(smokeUpdater ?? loadAutoUpdater(), {
     async apply(proxy) {
-      await import_electron_updater.autoUpdater.netSession.setProxy(updaterSessionProxyConfig(proxy));
+      await loadAutoUpdater().netSession.setProxy(updaterSessionProxyConfig(proxy));
     }
   }, {
     updateConfigPath: !smokeUpdater && import_electron.app.isPackaged ? import_node_path14.default.join(process.resourcesPath, "app-update.yml") : void 0
@@ -6021,15 +6368,20 @@ function getTerminalService() {
   });
   return terminalService;
 }
+var previewViewConstructor = electron.WebContentsView ?? electron.BrowserView;
 function getPreviewService() {
   previewService ??= new ElectronPreviewService({
     previewScriptPath: previewAgentPath(),
     resolveScaleFactor: (parent) => {
-      const bounds = parent.getBounds?.();
+      var _a;
+      const bounds = (_a = parent.getBounds) == null ? void 0 : _a.call(parent);
       return bounds ? import_electron.screen.getDisplayMatching(bounds).scaleFactor : 1;
     },
     createView: () => {
-      const view = new import_electron.WebContentsView({
+      if (!previewViewConstructor) {
+        throw new Error("This Electron runtime provides neither WebContentsView nor BrowserView");
+      }
+      const view = new previewViewConstructor({
         webPreferences: {
           preload: previewPreloadPath(),
           partition: createPreviewSessionPartition(),
@@ -6082,7 +6434,7 @@ async function listCustomPets() {
 }
 function focusPetSession(sessionId) {
   showMainWindow(mainWindow, import_electron.app);
-  mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.petNavigateSession, sessionId);
+  mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.petNavigateSession, sessionId);
 }
 function currentWindow(event) {
   const window = import_electron.BrowserWindow.fromWebContents(event.sender);
@@ -6095,7 +6447,7 @@ function registerHandler(channel, handler) {
       throw new Error(`Invalid Electron IPC payload for ${channel}`);
     }
     const senderWindow = import_electron.BrowserWindow.fromWebContents(event.sender);
-    if (petWindowController?.owns(senderWindow) && !isElectronIpcChannelAllowedForPetWindow(channel)) {
+    if ((petWindowController == null ? void 0 : petWindowController.owns(senderWindow)) && !isElectronIpcChannelAllowedForPetWindow(channel)) {
       throw new Error(`Electron IPC channel ${channel} is not available to the pet window`);
     }
     return handler(event, payload);
@@ -6106,7 +6458,7 @@ function unsupported(name) {
 }
 function emitNotificationAction(payload) {
   showMainWindow(mainWindow, import_electron.app);
-  mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.notificationAction, payload);
+  mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.notificationAction, payload);
 }
 function broadcastLocaleChanged(locale) {
   for (const window of import_electron.BrowserWindow.getAllWindows()) {
@@ -6140,7 +6492,7 @@ async function handleCommandInvoke(payload) {
 }
 function registerIpcHandlers() {
   import_electron.ipcMain.on(ELECTRON_INTERNAL_CHANNELS.previewMessageFromView, (event, raw) => {
-    void getPreviewService().sendMessageToRenderer(event.sender, raw, mainWindow?.webContents);
+    void getPreviewService().sendMessageToRenderer(event.sender, raw, mainWindow == null ? void 0 : mainWindow.webContents);
   });
   registerHandler(ELECTRON_IPC_CHANNELS.appGetVersion, () => import_electron.app.getVersion());
   registerHandler(
@@ -6259,11 +6611,11 @@ function registerIpcHandlers() {
   });
   registerHandler(ELECTRON_IPC_CHANNELS.petsShow, async () => {
     await getPetWindowController().show();
-    mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, true);
+    mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, true);
   });
   registerHandler(ELECTRON_IPC_CHANNELS.petsHide, () => {
     getPetWindowController().hide();
-    mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, false);
+    mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, false);
   });
   registerHandler(ELECTRON_IPC_CHANNELS.petsShowContextMenu, (event, payload) => {
     const { closeLabel } = payload;
@@ -6295,7 +6647,7 @@ function registerIpcHandlers() {
   registerHandler(ELECTRON_IPC_CHANNELS.dialogSave, (event, payload) => saveDialog(currentWindow(event), payload));
   registerHandler(ELECTRON_IPC_CHANNELS.updateCheck, (_event, payload) => getUpdaterService().checkForUpdates(payload));
   registerHandler(ELECTRON_IPC_CHANNELS.updateDownload, () => getUpdaterService().downloadUpdate((event) => {
-    mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.updateDownloadEvent, event);
+    mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.updateDownloadEvent, event);
   }));
   registerHandler(ELECTRON_IPC_CHANNELS.updateInstall, () => getUpdaterService().stageDownloadedUpdate());
   registerHandler(ELECTRON_IPC_CHANNELS.updatePrepareInstall, () => getServerRuntime().stopAll());
@@ -6403,7 +6755,7 @@ async function createMainWindow() {
   installMainWindowNavigationGuards(mainWindow.webContents, { openExternal: openExternalUrl });
   await installRendererContextMenu(mainWindow);
   installPreviewCleanupOnRendererNavigation(mainWindow.webContents, () => {
-    previewService?.close();
+    previewService == null ? void 0 : previewService.close();
   });
   installWindowLifecycle({
     app: import_electron.app,
@@ -6473,7 +6825,7 @@ import_electron.app.whenReady().then(async () => {
   installSystemAppearanceWatch();
   import_electron.screen.on("display-metrics-changed", (_event, _display, changedMetrics) => {
     if (changedMetrics.includes("scaleFactor") || changedMetrics.includes("bounds")) {
-      previewService?.refreshBounds();
+      previewService == null ? void 0 : previewService.refreshBounds();
     }
   });
   await getServerRuntime().startServer().catch((error) => {
@@ -6514,11 +6866,11 @@ import_electron.app.on("window-all-closed", () => {
 import_electron.app.on("before-quit", () => {
   isQuitting = true;
   if (mainWindow) saveWindowState(import_electron.app, mainWindow);
-  trayController?.dispose();
+  trayController == null ? void 0 : trayController.dispose();
   trayController = null;
-  terminalService?.killAll();
-  previewService?.close();
-  petWindowController?.dispose();
+  terminalService == null ? void 0 : terminalService.killAll();
+  previewService == null ? void 0 : previewService.close();
+  petWindowController == null ? void 0 : petWindowController.dispose();
   petWindowController = null;
   getServerRuntime().stopAll(true);
 });

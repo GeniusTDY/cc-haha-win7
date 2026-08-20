@@ -269,7 +269,7 @@ function createElectronHost(bridge) {
       try {
         await invoke(ELECTRON_IPC_CHANNELS.updateDownload);
       } finally {
-        unlisten?.();
+        unlisten == null ? void 0 : unlisten();
       }
     },
     install: () => invoke(ELECTRON_IPC_CHANNELS.updateInstall),
@@ -310,7 +310,8 @@ function createElectronHost(bridge) {
     },
     files: {
       getPathForFile(file) {
-        const nativePath = bridge.getPathForFile?.(file);
+        var _a;
+        const nativePath = (_a = bridge.getPathForFile) == null ? void 0 : _a.call(bridge, file);
         if (nativePath) return nativePath;
         const legacyPath = file.path;
         return typeof legacyPath === "string" ? legacyPath : "";
@@ -423,7 +424,11 @@ function createElectronHost(bridge) {
 // electron/preload.ts
 var electronHost = createElectronHost({
   getPathForFile(file) {
-    return import_electron.webUtils.getPathForFile(file);
+    var _a;
+    if (typeof ((_a = import_electron.webUtils) == null ? void 0 : _a.getPathForFile) === "function") {
+      return import_electron.webUtils.getPathForFile(file);
+    }
+    return file.path ?? "";
   },
   invoke(channel, payload) {
     return import_electron.ipcRenderer.invoke(channel, payload);

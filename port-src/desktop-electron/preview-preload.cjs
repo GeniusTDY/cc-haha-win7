@@ -67,7 +67,7 @@ function isTopFrame() {
   }
 }
 function installPreviewPostBridge() {
-  if (!contextBridge?.exposeInMainWorld || !ipcRenderer?.send) return;
+  if (!(contextBridge == null ? void 0 : contextBridge.exposeInMainWorld) || !(ipcRenderer == null ? void 0 : ipcRenderer.send)) return;
   contextBridge.exposeInMainWorld("__DESKTOP_PREVIEW_POST__", (raw) => {
     if (!shouldForwardPreviewMessage({
       raw,
