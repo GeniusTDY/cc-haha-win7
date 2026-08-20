@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # restore.sh — one-command restore of desktop/node_modules from the
-# git-committed plain file tree in this directory (vendor/desktop-node-modules/).
+# git-committed plain file tree in this directory
+# (vendor/desktop-node-modules-0.5.4/ — the claude-code-desktop 0.5.4 tree).
 #
 # Replaces `ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install` entirely:
 #   - node_modules/ here is the exact dependency tree as resolved WITH patch
@@ -18,7 +19,7 @@
 #     resolution, then apply 006 after install)
 #
 # Usage (from cc-haha/desktop/, the documented Stage A layout):
-#   bash ../../cc-haha-win7/vendor/desktop-node-modules/restore.sh
+#   bash ../../cc-haha-win7/vendor/desktop-node-modules-0.5.4/restore.sh
 # Or with an explicit target:
 #   bash restore.sh /path/to/cc-haha/desktop
 set -euo pipefail

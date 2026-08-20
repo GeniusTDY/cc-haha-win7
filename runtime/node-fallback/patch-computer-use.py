@@ -172,8 +172,8 @@ rep("""async function detectPythonRuntime(platform5, runCommand2, venvPythonPath
     if (process.platform !== "win32") return [];
     const selfDir = path59.dirname(fileURLToPath9(import.meta.url));
     return [
-      path59.resolve(selfDir, "..", "runtime", "python", "python.exe"),
-      path59.resolve(selfDir, "..", "..", "runtime", "python", "python.exe")
+      path59.resolve(selfDir, "..", "runtime", "python-3.8.10", "python.exe"),
+      path59.resolve(selfDir, "..", "..", "runtime", "python-3.8.10", "python.exe")
     ];
   } catch {
     return [];

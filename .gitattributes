@@ -8,5 +8,5 @@
 *.whl -text
 *.node -text
 *.dll -text
-vendor/electron-builder-cache/** -text
+vendor/electron-builder-cache-26.8.1/** -text
 runtime/** -text

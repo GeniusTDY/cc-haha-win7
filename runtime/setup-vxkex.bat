@@ -23,7 +23,7 @@ set "KEXCFG=C:\Program Files\VxKex\KexCfg.exe"
 if not exist "%KEXCFG%" set "KEXCFG=C:\Program Files (x86)\VxKex\KexCfg.exe"
 if not exist "%KEXCFG%" (
     echo [FAIL] KexCfg.exe not found. Install VxKex first:
-    echo        %~dp0vxkex\KexSetup_Release_1_2_1_2229.exe
+    echo        %~dp0vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe
     exit /b 1
 )
 
@@ -35,8 +35,8 @@ rem VxKex never matched the real exe path and injection silently failed.
 pushd "%~dp0.."
 set "RES=%CD%"
 popd
-set "NODE=%RES%\runtime\node\node.exe"
-set "PYEXE=%RES%\runtime\python\python.exe"
+set "NODE=%RES%\runtime\node-v22.17.0\node.exe"
+set "PYEXE=%RES%\runtime\python-3.8.10\python.exe"
 set "RGEXE=%RES%\app.asar.unpacked\src-tauri\binaries\rg.exe"
 
 echo [1/5] Registering node.exe...

@@ -89,7 +89,7 @@ Section "install" SecInstall
   ; ---- firewall rule for bundled node.exe ----
   DetailPrint "Adding firewall rule for bundled node.exe..."
   nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="cc-haha node"'
-  nsExec::ExecToLog 'netsh advfirewall firewall add rule name="cc-haha node" dir=in action=allow program="$INSTDIR\resources\runtime\node\node.exe" enable=yes'
+  nsExec::ExecToLog 'netsh advfirewall firewall add rule name="cc-haha node" dir=in action=allow program="$INSTDIR\resources\runtime\node-v22.17.0\node.exe" enable=yes'
 
   ; ---- VxKex: register bundled runtimes (Node22 + Python3.8 UCRT) ----
   ; NOTE: this NSIS build is 32-bit; under WOW64 "C:\Program Files" file
@@ -113,7 +113,7 @@ Section "install" SecInstall
 
 kex_install:
   DetailPrint "Running bundled VxKex setup (follow its wizard)..."
-  ExecWait '"$INSTDIR\resources\runtime\vxkex\KexSetup_Release_1_2_1_2229.exe"' $R1
+  ExecWait '"$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe"' $R1
   ${DisableX64FSRedirection}
   IfFileExists "C:\Program Files\VxKex\KexCfg.exe" 0 +3
     StrCpy $R0 "C:\Program Files\VxKex\KexCfg.exe"
@@ -125,18 +125,18 @@ kex_install:
   IfFileExists "C:\Program Files (x86)\VxKex\KexCfg.exe" 0 +3
     StrCpy $R0 "C:\Program Files (x86)\VxKex\KexCfg.exe"
     Goto kex_have
-  MessageBox MB_ICONEXCLAMATION "VxKex 仍未安装（KexCfg.exe 未找到）。$\ncc-haha 将无法启动后端服务。$\n请稍后手动运行：$INSTDIR\resources\runtime\vxkex\KexSetup_Release_1_2_1_2229.exe$\n然后以管理员身份运行 resources\runtime\setup-vxkex.bat 完成注册。"
+  MessageBox MB_ICONEXCLAMATION "VxKex 仍未安装（KexCfg.exe 未找到）。$\ncc-haha 将无法启动后端服务。$\n请稍后手动运行：$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe$\n然后以管理员身份运行 resources\runtime\setup-vxkex.bat 完成注册。"
   Goto kex_end
 
 kex_have:
   DetailPrint "Registering node.exe with VxKex (WINVERSPOOF:NONE)..."
-  ExecWait '"$R0" /EXE:"$INSTDIR\resources\runtime\node\node.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
+  ExecWait '"$R0" /EXE:"$INSTDIR\resources\runtime\node-v22.17.0\node.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
   DetailPrint "Registering python.exe with VxKex (UCRT shim)..."
-  ExecWait '"$R0" /EXE:"$INSTDIR\resources\runtime\python\python.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
+  ExecWait '"$R0" /EXE:"$INSTDIR\resources\runtime\python-3.8.10\python.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
   DetailPrint "Registering rg.exe with VxKex (WaitOnAddress Win8+ API shim)..."
   ExecWait '"$R0" /EXE:"$INSTDIR\resources\app.asar.unpacked\src-tauri\binaries\rg.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
   DetailPrint "Verifying node.exe runs..."
-  nsExec::ExecToLog '"$INSTDIR\resources\runtime\node\node.exe" --version'
+  nsExec::ExecToLog '"$INSTDIR\resources\runtime\node-v22.17.0\node.exe" --version'
   Pop $R1
   ${If} $R1 != 0
     MessageBox MB_ICONEXCLAMATION "node.exe 未能运行（exit=$R1）。$\n请以管理员身份重新运行 resources\runtime\setup-vxkex.bat。"

@@ -7,7 +7,8 @@ repack/app-icon.ico
 repack/modern-wizard.bmp
 repack/latest.yml
 
-# runtime payloads committed in git: node/ python/ vxkex/ git/ kb-patches/
+# runtime payloads committed in git: node-v22.17.0/ python-3.8.10/
+# vxkex-1.2.1.2229/ git-2.45.2/ kb-patches/
 # (~545MB total, see runtime/README.md)
 # NOT in git (optional / machine-specific):
 runtime/node-fallback/wheels/
@@ -15,4 +16,4 @@ runtime/node-fallback/server.mjs.pre-cu.bak
 
 # reassembled on demand by port-src/desktop/offline-win.cjs from the
 # committed electron.exe.00/01.part split parts (GitHub 100MB file cap)
-vendor/electron/electron.exe
+vendor/electron-v22.3.27-win32-x64/electron.exe

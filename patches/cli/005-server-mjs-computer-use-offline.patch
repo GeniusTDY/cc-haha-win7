@@ -35,9 +35,9 @@ bundled-detection prologue; this diff is the full cumulative delta
 +  try {
 +    if (process.platform !== "win32") return [];
 +    return [
-+      path17.resolve(__dirname2, "..", "runtime", "python"),
-+      path17.resolve(__dirname2, "..", "..", "runtime", "python"),
-+      path17.resolve(__dirname2, "..", "..", "..", "runtime", "python")
++      path17.resolve(__dirname2, "..", "runtime", "python-3.8.10"),
++      path17.resolve(__dirname2, "..", "..", "runtime", "python-3.8.10"),
++      path17.resolve(__dirname2, "..", "..", "..", "runtime", "python-3.8.10")
 +    ];
 +  } catch {
 +    return [];
@@ -189,8 +189,8 @@ bundled-detection prologue; this diff is the full cumulative delta
 +    if (process.platform !== "win32") return [];
 +    const selfDir = path59.dirname(fileURLToPath9(import.meta.url));
 +    return [
-+      path59.resolve(selfDir, "..", "runtime", "python", "python.exe"),
-+      path59.resolve(selfDir, "..", "..", "runtime", "python", "python.exe")
++      path59.resolve(selfDir, "..", "runtime", "python-3.8.10", "python.exe"),
++      path59.resolve(selfDir, "..", "..", "runtime", "python-3.8.10", "python.exe")
 +    ];
 +  } catch {
 +    return [];

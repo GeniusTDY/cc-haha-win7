@@ -50,7 +50,7 @@ Spawn-plan sites (server + adapters) switch from
 server.mjs | adapters.mjs, ...]` with entry resolution overridable via
 `CC_HAHA_SERVER_MJS` / `CC_HAHA_ADAPTERS_MJS`.
 
-The bundled `resources/runtime/node/node.exe` (Node 22.17.0 win-x64) is
+The bundled `resources/runtime/node-v22.17.0/node.exe` (Node 22.17.0 win-x64) is
 found via PATH augmentation done by `buildSidecarEnv` — the installer
 also adds a firewall allow rule for it. On Win7, node.exe only starts
 under the VxKex compatibility layer (registered with

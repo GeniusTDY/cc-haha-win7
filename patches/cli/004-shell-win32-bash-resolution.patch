@@ -57,10 +57,10 @@
 + * Win7 offline port: resolve the PortableGit bash.exe shipped inside the
 + * installer's runtime payload. Probes, in order:
 + *
-+ *   1. CC_HAHA_BASH_EXE            — explicit bash.exe override
-+ *   2. CC_HAHA_RUNTIME_DIR/git/…   — runtime dir override
-+ *   3. <dist>/../runtime/git/…     — portable layout (package/dist + runtime)
-+ *   4. <dist>/../../runtime/git/…  — installer layout
++ *   1. CC_HAHA_BASH_EXE                  — explicit bash.exe override
++ *   2. CC_HAHA_RUNTIME_DIR/git-2.45.2/… — runtime dir override
++ *   3. <dist>/../runtime/git-2.45.2/…    — portable layout (package/dist + runtime)
++ *   4. <dist>/../../runtime/git-2.45.2/… — installer layout
 + *                                    (resources/app.asar.unpacked/dist +
 + *                                     resources/runtime)
 + *
@@ -76,10 +76,10 @@
 +  const candidates = [
 +    env.CC_HAHA_BASH_EXE?.trim() || undefined,
 +    env.CC_HAHA_RUNTIME_DIR
-+      ? pathWin32.join(env.CC_HAHA_RUNTIME_DIR, 'git', 'bin', 'bash.exe')
++      ? pathWin32.join(env.CC_HAHA_RUNTIME_DIR, 'git-2.45.2', 'bin', 'bash.exe')
 +      : undefined,
-+    pathWin32.join(distDir, '..', 'runtime', 'git', 'bin', 'bash.exe'),
-+    pathWin32.join(distDir, '..', '..', 'runtime', 'git', 'bin', 'bash.exe'),
++    pathWin32.join(distDir, '..', 'runtime', 'git-2.45.2', 'bin', 'bash.exe'),
++    pathWin32.join(distDir, '..', '..', 'runtime', 'git-2.45.2', 'bin', 'bash.exe'),
 +  ]
 +  for (const candidate of candidates) {
 +    if (candidate && fileExists(candidate)) return candidate

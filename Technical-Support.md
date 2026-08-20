@@ -66,8 +66,8 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 | 映像 | 结论 | 原因 |
 |---|---|---|
 | `Claude Code Haha.exe`（GUI） | **不注册** | Electron 22 / Chromium 108 装好两个 KB 后原生兼容 Win7 SP1 |
-| `runtime\node\node.exe` | **注册，WINVERSPOOF:NONE** | Node 22 导入 Win8+ API（`EventSetInformation` 等），不注册以 `0xC0000139` 退出 |
-| `runtime\python\python.exe` | **注册，WINVERSPOOF:NONE** | UCRT api-set shim，Computer Use 依赖链必需 |
+| `runtime\node-v22.17.0\node.exe` | **注册，WINVERSPOOF:NONE** | Node 22 导入 Win8+ API（`EventSetInformation` 等），不注册以 `0xC0000139` 退出 |
+| `runtime\python-3.8.10\python.exe` | **注册，WINVERSPOOF:NONE** | UCRT api-set shim，Computer Use 依赖链必需 |
 | `src-tauri\binaries\rg.exe` | **注册，WINVERSPOOF:NONE** | 静态导入 `WaitOnAddress`（api-ms-win-core-synch-l1-2-0，Win8+），不注册则搜索挂起并弹 DLL 错误框 |
 | sidecar exe | 不注册（已删除） | 见 §6 |
 
@@ -133,7 +133,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 | 解析项 | 顺序 |
 |---|---|
 | server 入口 | `CC_HAHA_SERVER_MJS` → `<inst>\resources\app.asar.unpacked\dist\server.mjs` |
-| node 解释器 | `CC_HAHA_NODE_EXE` → `<inst>\resources\runtime\node\node.exe` → PATH |
+| node 解释器 | `CC_HAHA_NODE_EXE` → `<inst>\resources\runtime\node-v22.17.0\node.exe` → PATH |
 
 捆绑 node.exe 经 `buildSidecarEnv` 的 PATH 增强定位；安装器为其建防火墙入站规则。
 
@@ -175,7 +175,7 @@ CU 依赖装在捆绑 Python 的 site-packages（随程序目录卸载），而�
 Bash 工具依赖 Git Bash，上游仅探测 POSIX 路径（`/bin/bash` 等），Windows 上永不可达。win32 分支在 POSIX 逻辑之前显式三级探测：
 
 1. **用户自装 Git for Windows**：`CC_HAHA_BASH_EXE` / `CLAUDE_CODE_GIT_BASH_PATH` 覆盖 → 标准安装目录 → PATH 扫描
-2. **捆绑 PortableGit 2.45.2**（`runtime/git/`，2.46+ 已放弃 Win7 的最后可用版）：探测 `CC_HAHA_RUNTIME_DIR/git` → 便携布局 `<dist>/../runtime/git` → 安装器布局 `<dist>/../../runtime/git`
+2. **捆绑 PortableGit 2.45.2**（`runtime/git-2.45.2/`，2.46+ 已放弃 Win7 的最后可用版）：探测 `CC_HAHA_RUNTIME_DIR/git-2.45.2` → 便携布局 `<dist>/../runtime/git-2.45.2` → 安装器布局 `<dist>/../../runtime/git-2.45.2`
 3. **PATH 上的裸 bash.exe** 兜底
 
 三者皆无时报错并提示安装 Git for Windows 或设置 `CC_HAHA_BASH_EXE`。干净离线机靠第 2 级开箱即用，无需任何预装。
@@ -213,7 +213,7 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 | 文件拖入 | `webUtils.getPathForFile`（29+）双代兼容：29+ 走 webUtils，≤31 走 `File.path` |
 | 自动更新 | `electron-updater` 懒加载（手动检查/下载，`autoDownload:false`），feed 指向**本仓库** Releases——Stage B 步骤 2b 重写 `resources/app-update.yml`（owner/repo 可经 `UPDATE_OWNER`/`UPDATE_REPO` 覆盖）；元数据缺失或离线时静默回退为“无更新”，不崩溃 |
 | GPU 合成 | win32 且 `os.release()` 主版本 <10 自动 `app.disableHardwareAcceleration()`（防老驱动 GPU 进程崩溃循环） |
-| 桌面终端 | Win7/8 强制 node-pty 的 winpty 后端（`useConpty:false`，补丁 003）——winpty 原生支持 Win7，完整 TTY 仿真（vim / htop 可用）；repack 步骤 6/8 保证 winpty 载荷不被裁剪；仅载荷损坏时才降级管道式回退（有提示） |
+| 桌面终端 | Win7/8 强制 node-pty 的 winpty 后端（`useConpty:false`，补丁 003）——winpty 原生支持 Win7，完整 TTY 仿真（vim / htop 可用）；repack 步骤 7/9 保证 winpty 载荷不被裁剪；仅载荷损坏时才降级管道式回退（有提示） |
 | TUI 按键 | VT 模式判定加 `parseFloat(os.release()) >= 10` 门控（Win7 conhost 无 VT 输入） |
 | 通知 | `isSupported()` 门控，无 toast 时优雅拒绝 |
 | 工作区搜索 | 内置 ripgrep 14.1.0（PE 导入表仅 Win7 可用 API + SubsystemVersion 6.0 双重验证；运行需 VxKex 注册） |
@@ -222,7 +222,7 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 
 依赖 Python 3 + mss / PyAutoGUI / Pillow / pywin32；Win7 目标机离线，标准 venv + ensurepip + PyPI 流程在嵌入式发行版上全部不可用。
 
-捆绑 `runtime\python\python.exe`（3.8.10 embeddable，VxKex 已注册）三个硬限制：
+捆绑 `runtime\python-3.8.10\python.exe`（3.8.10 embeddable，VxKex 已注册）三个硬限制：
 
 | 限制 | 对策 |
 |---|---|
@@ -230,7 +230,7 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 | 无 `ensurepip` / `pip` | pip wheel **解压**到 `Lib\site-packages` 引导（见下） |
 | `python38._pth` 隔离 | 重写 `._pth`：追加 `Lib\site-packages` + `import site` |
 
-> **载荷说明**：`runtime/python/python38.zip`（2.4MB，617 个 stdlib `.pyc`）是 embeddable 布局的**标准库本体**——`python38._pth` 首行即指向它，python.exe 靠 zipimport 从中导入；`.pyd` / exe / DLL 只是二进制半边。它不是 python 目录的重复副本，**不能删**（删后 `import os` 都会失败）。`wheels/*.whl` 同理必须保留原格式（pip `--no-index --find-links` 只认 .whl）。仓库内仅这两处与两处分片（`repack/setup-exe/` 成品分片、`vendor/electron/electron.exe.00/01.part`）保留压缩 / 切分类文件；其余构建期依赖（esbuild / desktop node_modules / Electron 分发）均已为普通文件。两处分片均为原始字节切片而非压缩包，超 GitHub 100MB 单文件上限所致：前者由 build-repack.sh 步骤 0 重组，后者由 offline-win.cjs 在构建时自动重组并 sha256 校验。
+> **载荷说明**：`runtime/python-3.8.10/python38.zip`（2.4MB，617 个 stdlib `.pyc`）是 embeddable 布局的**标准库本体**——`python38._pth` 首行即指向它，python.exe 靠 zipimport 从中导入；`.pyd` / exe / DLL 只是二进制半边。它不是 python 目录的重复副本，**不能删**（删后 `import os` 都会失败）。`wheels/*.whl` 同理必须保留原格式（pip `--no-index --find-links` 只认 .whl）。仓库内仅这两处与两处分片（`repack/setup-exe/` 成品分片、`vendor/electron-v22.3.27-win32-x64/electron.exe.00/01.part`）保留压缩 / 切分类文件；其余构建期依赖（esbuild / desktop node_modules / Electron 分发）均已为普通文件。两处分片均为原始字节切片而非压缩包，超 GitHub 100MB 单文件上限所致：前者由 build-repack.sh 步骤 0 重组，后者由 offline-win.cjs 在构建时自动重组并 sha256 校验。
 
 pip 引导坑：pip ≥21.2 自修改保护，wheel 路径直接执行安装 pip 自身会被拒绝。最终方案（server.mjs，patch 005）：
 
@@ -247,4 +247,4 @@ runCommand(py, ["-m","pip","install","--no-index","--no-build-isolation",
   "--find-links",wheelsDir, "-r",requirementsPath])
 ```
 
-版本锁定（Python 3.8 兼容）：`Pillow>=11.3.0` → `Pillow>=10.0.0,<11`（`requirements-win.txt`）。离线轮子（`runtime\python\wheels\`，16 个）：pip 24.3.1（解压引导）/ setuptools 75.3.0 / wheel 0.42.0 / Pillow 10.4.0 / pywin32 306+ / psutil 5.9.8+ / mss 9.0.2 / pyautogui 0.9.54 及纯 Python 依赖链（pygetwindow / pyrect / pyscreeze / pytweening / mouseinfo / pymsgbox）/ pyperclip 1.10.0+ / screeninfo 0.8.1。二进制轮均为 cp38 win_amd64 / cp37-abi3。
+版本锁定（Python 3.8 兼容）：`Pillow>=11.3.0` → `Pillow>=10.0.0,<11`（`requirements-win.txt`）。离线轮子（`runtime\python-3.8.10\wheels\`，16 个）：pip 24.3.1（解压引导）/ setuptools 75.3.0 / wheel 0.42.0 / Pillow 10.4.0 / pywin32 306+ / psutil 5.9.8+ / mss 9.0.2 / pyautogui 0.9.54 及纯 Python 依赖链（pygetwindow / pyrect / pyscreeze / pytweening / mouseinfo / pymsgbox）/ pyperclip 1.10.0+ / screeninfo 0.8.1。二进制轮均为 cp38 win_amd64 / cp37-abi3。

@@ -14,6 +14,18 @@
 
 > 移植原理见 [Technical-Support.md](Technical-Support.md)
 
+## 仓库结构
+
+| 目录 | 职责 |
+|---|---|
+| `patches/` | 对上游 v0.5.4 的 6 个补丁（Electron 22 固定 / CSS 垫片 / winpty / Bash 链 / CU 离线 / 免 wine） |
+| `port-src/` | 移植新增源码：Bun API 兼容层、esbuild 构建链、main.cjs 编译产物 |
+| `repack/` | Stage B 全离线安装器打包脚本 |
+| `runtime/` | 装机载荷（~720MB）：Node / Python / PortableGit / VxKex / KB 补丁 / 离线 bundle |
+| `vendor/` | 构建期依赖（~1.2GB）：Electron 发行版 / NSIS 缓存 / desktop 依赖树 |
+
+各目录均有 README 详述。
+
 ## 使用教程
 
 ### 环境变量
@@ -106,9 +118,9 @@ node port-src/scripts/node-port/build.mjs
 git apply ../cc-haha-win7/patches/cli/005-server-mjs-computer-use-offline.patch
 
 cd desktop
-bash ../../cc-haha-win7/vendor/desktop-node-modules/restore.sh
+bash ../../cc-haha-win7/vendor/desktop-node-modules-0.5.4/restore.sh
 
-export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-cache"
+export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-cache-26.8.1"
 
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win --publish never
 ```
