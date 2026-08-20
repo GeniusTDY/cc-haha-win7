@@ -11,8 +11,9 @@ NODE_FALLBACK_DIR=../runtime/node-fallback RUNTIME_DIR=../runtime \
   ./build-repack.sh
 ```
 
-Only the optional payloads (`git/`, KB patches) remain release
-attachments — see "Optional / remaining attachments" below.
+`git/` (PortableGit 2.45.2) is committed too — so the Bash tool has a
+shell on a clean offline Win7 with zero downloads. Only the optional
+KB patches remain a release attachment (see below).
 
 ## Layout shipped inside the installer
 
@@ -27,9 +28,8 @@ resources/runtime/
 │                        pyscreeze/pytweening as .whl) +
 │                        pip-24.3.1 / setuptools-75.3.0 / wheel-0.42.0
 ├── vxkex/           KexSetup_Release_1_2_1_2229.exe (VxKex 1.2.1) [in git, 13MB]
-├── git/             optional PortableGit 2.45.x extraction — Bash tool
-│                    shell on a clean offline Win7 (2.46+ dropped Win7)
-│                    [optional attachment, ~300MB — too big for git]
+├── git/             PortableGit 2.45.2 extraction — Bash tool shell on a
+│                    clean offline Win7 (2.46+ dropped Win7) [in git, 404MB]
 ├── setup-vxkex.bat  manual KexCfg registration (installer does it
 │                    automatically; this is the fallback)
 ├── requirements-win.txt / requirements.txt / win_helper.py
@@ -48,7 +48,7 @@ resources/runtime/
 
 ## In-git payload provenance & checksums
 
-The committed trees were extracted from the released
+The committed node/python/vxkex trees were extracted from the released
 `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe` (the build that passed
 the 77-check QEMU Win7 E2E suite), so the fixed `python38._pth` and
 the 16 wheels are already applied — no post-clone fixup needed.
@@ -58,14 +58,35 @@ the 16 wheels are already applied — no post-clone fixup needed.
 | `node/` | `node/node.exe` | `39d45b59…20f3636` |
 | `python/` | `python/python.exe` | `5275c42f…b074581` |
 | `vxkex/` | `vxkex/KexSetup_Release_1_2_1_2229.exe` | `7db81065…6c8708cd` |
+| `git/` | `git/bin/bash.exe` | see `sha256sums.txt` |
 
 Verify with `cd runtime && sha256sum -c sha256sums.txt`.
+
+## git/ provenance (PortableGit 2.45.2)
+
+Pristine extraction of the upstream self-extracting archive
+`PortableGit-2.45.2-64-bit.7z.exe`
+(sha256 `851a1507…c27ccdd`, from
+<https://github.com/git-for-windows/git/releases/tag/v2.45.2.windows.1>)
+— 2.45.2 is the last Git line that still runs on Win7.
+
+Notes:
+
+- The Bash tool shell chain (patch 007) probes `runtime/git/bin/bash.exe`
+  — present at the extraction root, so the tree works as committed.
+- Upstream's `post-install.bat` step is *not* pre-applied: its one
+  critical effect (hard-linking `mingw64/bin/*.dll` into
+  `mingw64/libexec/git-core/`) is **already satisfied inside the
+  archive**; the rest (`/etc/mtab`, copying Windows `hosts` etc.) only
+  affects `df`/`mount` cosmetics. Running
+  `runtime\git\post-install.bat` once on the target machine is an
+  optional way to get the full upstream treatment (it is idempotent
+  and deletes itself when done).
 
 ## Optional / remaining attachments (GitHub Release)
 
 | attachment | unpack to | sha256 |
 |---|---|---|
-| `runtime-git-portable-2.45-win64.tar.gz` (optional) | `runtime/git/` (~300MB tree — Bash tool shell; 2.46+ dropped Win7) | see release notes |
 | `win7-kb-patches.tar.gz` (KB2533623 + KB2670838 MSU) | anywhere; install both **before** VxKex setup on a clean Win7 | see release notes |
 | `Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe` | Stage A input for `repack/build-repack.sh` (skip Stage A path) | see release notes |
 | `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe` | rebuilt all-in-one offline installer (v2) | `971df9d5…e766ae1` |

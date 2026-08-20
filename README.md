@@ -31,9 +31,10 @@ patches/       source deltas against upstream cc-haha v0.5.4 (d52bbec7)
   electron-builder/ 005 NsisTarget without wine
 port-src/      Bun→Node port sources (compat layer, build scripts,
                offline electron-builder config, canonical desktop .cjs)
-runtime/       offline runtime payloads — node/, python/, vxkex/ and
-               node-pty-win32-x64/ are committed in git (128 MB);
-               only optional git/ + KB patches remain release attachments
+runtime/       offline runtime payloads — node/, python/, vxkex/,
+               git/ (PortableGit 2.45.2) and node-pty-win32-x64/ are
+               all committed in git (~530 MB); only optional KB patches
+               remain a release attachment
 repack/        Stage B: build-repack.sh + installer.nsi → Offline.exe
 docs/          Technical-Support.md (technical porting solution) ·
                VERIFICATION-REPORT.md (L1–L4 + 15 review rounds + QEMU E2E) ·
@@ -42,9 +43,10 @@ docs/          Technical-Support.md (technical porting solution) ·
 
 ## Quick start
 
-1. `git clone` this repo — node/, python/, vxkex/ payloads are already
-   inside `runtime/` (verified with `cd runtime && sha256sum -c sha256sums.txt`).
-   Optional: PortableGit + KB patches from release attachments.
+1. `git clone` this repo — node/, python/, vxkex/ and git/ (PortableGit
+   2.45.2, Bash tool shell) payloads are already inside `runtime/`
+   (verify with `cd runtime && sha256sum -c sha256sums.txt`).
+   Optional: KB patches from release attachments.
 2. Build: [docs/BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md) —
    Stage A (upstream + patches → Setup.exe), Stage B (`repack/build-repack.sh`
    → Offline.exe).

@@ -320,7 +320,7 @@ npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 | 项 | 表现 | 说明 |
 |---|---|---|
 | 桌面终端 | 完整 TTY（winpty 后端） | Win7/8 强制 `useConpty:false`（补丁 006），winpty 载荷由 repack 步骤 6/8 保证；仅当载荷损坏时降级为管道式回退（启动有提示，vim 等全屏程序降级） |
-| Bash 工具 | 可用（需 Git Bash） | shell 解析链（补丁 007）：用户 Git for Windows → 内置 PortableGit 2.45.x（`runtime/git`，最后支持 Win7 的 Git 版本）→ PATH bash；三者皆无时报错并提示安装/设置 `CC_HAHA_BASH_EXE` |
+| Bash 工具 | 可用（需 Git Bash） | shell 解析链（补丁 007）：用户 Git for Windows → 内置 PortableGit 2.45.2（`runtime/git`，已入库，最后支持 Win7 的 Git 版本）→ PATH bash；三者皆无时报错并提示安装/设置 `CC_HAHA_BASH_EXE` |
 | 自动更新 | no-op | 离线无更新源，属设计行为 |
 | GPU | 软件合成 | Win7 自动禁硬件加速，防老驱动崩溃 |
 | 离线不可达 | 真实外网 API、OAuth 回调、IM 真实推送、在线市场 | 物理离线豁免 |

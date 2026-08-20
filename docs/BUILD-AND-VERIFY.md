@@ -53,12 +53,12 @@ contents of the shipped installer).
 
 ```bash
 cd repack
-# put Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe here (or pass path),
-# unpack runtime payloads per runtime/README.md
+# put Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe here (or pass path);
+# runtime/ payloads (node/ python/ vxkex/ git/) are already in this repo
 NODE_FALLBACK_DIR=../runtime/node-fallback \
-RUNTIME_DIR=<dir with node/ python/ vxkex/ [git/]> \
+RUNTIME_DIR=../runtime \
   ./build-repack.sh
-# optional RUNTIME_DIR/git = PortableGit 2.45.x extraction -> ships a Bash
+# RUNTIME_DIR/git = PortableGit 2.45.2 (committed) -> ships a Bash
 # tool shell on a clean offline Win7 (build-repack step 7/8)
 ```
 

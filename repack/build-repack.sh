@@ -99,11 +99,12 @@ if [ ! -f "$NODE_PTY_DST/lib/windowsTerminal.js" ] || \
 fi
 ls "$NODE_PTY_DST/prebuilds/win32-x64" | sed 's/^/  node-pty: /'
 
-echo "== 7/8 optional bundled PortableGit (Bash tool on a clean offline Win7) =="
+echo "== 7/8 bundled PortableGit (Bash tool on a clean offline Win7) =="
 # The CLI's findSuitableShell resolves, in order: user-installed Git for
 # Windows, then <resources>/runtime/git/bin/bash.exe (this overlay), then PATH.
-# PortableGit 2.45.x is the last Git line that still runs on Win7 — unpack a
-# PortableGit extraction under RUNTIME_DIR/git/ to ship it fully offline.
+# PortableGit 2.45.2 is the last Git line that still runs on Win7 — a pristine
+# extraction is committed under runtime/git/ (see runtime/README.md), so the
+# default RUNTIME_DIR=../runtime ships it fully offline.
 if [ -d "$RUNTIME_DIR/git" ]; then
   echo "  overlaying bundled PortableGit -> resources/runtime/git"
   rm -rf "$RT/git"
