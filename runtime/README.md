@@ -96,7 +96,7 @@ ready-made installer — the newest build:
 
 | attachment | purpose | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-20 v3 "most complete" rebuild**: full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload (older v1 / v2 / Stage A Setup.exe assets were removed; asset renamed from `…-Win7-x64-Offline.exe`) | `c22f57eb…88eacbc` |
+| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-20 v3 rebuild + update-channel rewrite**: full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload + `app-update.yml` repointed at this repo (older v1 / v2 / Stage A Setup.exe assets were removed; asset renamed from `…-Win7-x64-Offline.exe`; paired with `latest.yml` for electron-updater) | `b3665af6…71f4c` |
 
 ## node-pty-win32-x64/ (in git, ~1 MB)
 

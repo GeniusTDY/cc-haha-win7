@@ -13,7 +13,7 @@
 #     bundled interpreter; see patches/cli/004 runSetup venv fallback):
 #   sha256 971df9d518f0d567c4a6a759835d99882cac1fc5abeabac51abce91dbe766ae1
 # v2 2026-08-19 rebuild (also fixes Win32 CLI spawn + provider-env
-#     over-stripping; the only installer kept in the GitHub Release):
+#     over-stripping; Release asset until the v3 rebuild):
 #   sha256 03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
 # v3 2026-08-20 "most complete" rebuild:
 #   + desktop terminal full TTY: main.cjs forces node-pty's winpty backend on
@@ -29,6 +29,10 @@
 #   — built from the git-committed split parts (setup-exe/) + runtime tree
 #   only; differs from v3 c22f57eb… solely by NSIS-embedded file mtimes
 #   (structural identity asserted: same fix set)
+# 2026-08-20 feed-rewrite rebuild (v3 fix set + step 2b repoints
+#   app-update.yml at GeniusTDY/cc-haha-win7; current Release asset,
+#   paired with latest.yml from make-latest-yml.mjs):
+#   sha256 b3665af60989fead7f4a2b36c555a1d0074859782cafb30f500340ee55371f4c
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #
@@ -184,5 +188,7 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected: v3 2026-08-20 rebuild — see docs/BUILD.md for the full matrix
-# historical: v1 3221d5e9… · v2 971df9d5… · v2-rebuild 03286eaf…
+# expected: 2026-08-20 feed-rewrite rebuild — v3 fix set + update channel
+#   pointed at GeniusTDY/cc-haha-win7 (current Release asset)
+# historical: v1 3221d5e9… · v2 971df9d5… · v2-rebuild 03286eaf… ·
+#   v3 c22f57eb… · rebuild-from-parts 76a635d9…
