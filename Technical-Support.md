@@ -129,7 +129,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ### 4.5 移植内部环境变量
 
-用户侧模型服务商变量（`ANTHROPIC_*` 等）与运行模式见 [README](../README.md)，本表仅覆盖移植内部的回退链与开关：
+用户侧模型服务商变量（`ANTHROPIC_*` 等）与运行模式见 [README](README.md)，本表仅覆盖移植内部的回退链与开关：
 
 | 变量 | 作用 |
 |---|---|
