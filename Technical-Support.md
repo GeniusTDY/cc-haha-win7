@@ -32,15 +32,15 @@ node.exe / python.exe / rg.exe 均经 VxKex 注入补齐 Win8+ API
 
 本方案的技术模块与章节索引：
 
-| 章节 | 模块 |
+| 模块 | 章节 |
 |---|---|
-| §2 | Win7 系统前置（KB 补丁） |
-| §3 | VxKex 兼容层注册 |
-| §4 | Bun→Node 全量移植（API 兼容层、esbuild 构建链、运行时派生链） |
-| §5 | server.mjs 关键补丁 |
-| §6 | Sidecar 缺陷与 main.cjs 回退 |
-| §7 | Electron 22 / Chromium 108 适配（CSS 降级、API 边界） |
-| §8 | Computer Use 离线适配（Python 载荷与 pip 引导） |
+| Win7 系统前置（KB 补丁） | [2](#2-win7-系统前置) |
+| VxKex 兼容层注册 | [3](#3-vxkex-注册) |
+| Bun→Node 全量移植（API 兼容层、esbuild 构建链、运行时派生链） | [4](#4-bunnode-全量移植) |
+| server.mjs 关键补丁 | [5](#5-servermjs-关键补丁) |
+| Sidecar 缺陷与 main.cjs 回退 | [6](#6-sidecar-缺陷与-maincjs-回退) |
+| Electron 22 / Chromium 108 适配（CSS 降级、API 边界） | [7](#7-electron-22--chromium-108-适配) |
+| Computer Use 离线适配（Python 载荷与 pip 引导） | [8](#8-computer-use-离线适配) |
 
 ## 2. Win7 系统前置
 
