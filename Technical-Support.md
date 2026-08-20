@@ -113,7 +113,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 - **adapters 依赖优雅降级**：`adapters/node_modules` 未安装时跳过 adapters.mjs 并输出提示，核心三产物照常生成；`cd adapters && npm install` 后重跑可全量构建。Stage B 始终使用 `runtime/node-fallback/` 内的预构建分块，与本步无关。
 - **桌面产物**：`build-electron.mjs` → 4 个 CJS 产物（external：electron / node-pty / electron-updater）。
 - **banner 统一注入**：ESM 兼容 `__dirname` / `__filename`（adapters chunk 内 CJS 依赖必需）、`CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH ??= "1"`、cli / recovery 的 `process.chdir(CALLER_DIR)`（复刻原 bunfig preload 副作用；server / adapters 不注入，对齐原编译 sidecar 行为）。
-- **补丁清单与应用顺序**：见 [patches/README.md](../patches/README.md)——001 Electron 22 固定 / 002 CSS shim / 003 终端 winpty / 004 Bash 解析链 / 005 CU 离线 / 006 NSIS 免 wine。main.cjs 回退层不是编号补丁：以编译产物 `port-src/desktop-electron/main.cjs` 随 `port-src` 叠加交付（§6）。
+- **补丁清单与应用顺序**：见 [patches/README.md](patches/README.md)——001 Electron 22 固定 / 002 CSS shim / 003 终端 winpty / 004 Bash 解析链 / 005 CU 离线 / 006 NSIS 免 wine。main.cjs 回退层不是编号补丁：以编译产物 `port-src/desktop-electron/main.cjs` 随 `port-src` 叠加交付（§6）。
 
 ### 4.3 node:sqlite 旗标
 
@@ -169,6 +169,16 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 ### 5.3 重装场景依赖自愈
 
 CU 依赖装在捆绑 Python 的 site-packages（随程序目录卸载），而完成标记 `~\.claude\.runtime\requirements.sha256` 在用户目录（卸载保留）。重装后 stamp 匹配会跳过安装 → site-packages 实际为空，CU 假性就绪。修复（CU setup deps 步骤 + desktop-control `ensureBootstrapped` 两处）：stamp 匹配时先以 `python -c "import mss, pyautogui, PIL, …"` 真实导入探测，失败则强制离线 wheels 重装并回写 stamp。
+
+### 5.4 Bash 工具 shell 解析链（补丁 004）
+
+Bash 工具依赖 Git Bash，上游仅探测 POSIX 路径（`/bin/bash` 等），Windows 上永不可达。win32 分支在 POSIX 逻辑之前显式三级探测：
+
+1. **用户自装 Git for Windows**：`CC_HAHA_BASH_EXE` / `CLAUDE_CODE_GIT_BASH_PATH` 覆盖 → 标准安装目录 → PATH 扫描
+2. **捆绑 PortableGit 2.45.2**（`runtime/git/`，2.46+ 已放弃 Win7 的最后可用版）：探测 `CC_HAHA_RUNTIME_DIR/git` → 便携布局 `<dist>/../runtime/git` → 安装器布局 `<dist>/../../runtime/git`
+3. **PATH 上的裸 bash.exe** 兜底
+
+三者皆无时报错并提示安装 Git for Windows 或设置 `CC_HAHA_BASH_EXE`。干净离线机靠第 2 级开箱即用，无需任何预装。
 
 ## 6. Sidecar 缺陷与 main.cjs 回退
 
