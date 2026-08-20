@@ -55,7 +55,7 @@
 | 变量 | 说明 |
 |---|---|
 | `CLAUDE_CONFIG_DIR` | 自定义配置目录（默认 `~/.claude`），用于便携模式或隔离测试 |
-| `CLAUDE_CODE_FORCE_RECOVERY_CLI` | 设为 `1` 启用简化 Recovery CLI |
+| `CLAUDE_CODE_LOCAL_RECOVERY` | 设为 `1` 启用简化 Recovery CLI |
 | `CLAUDE_CODE_SHELL_PREFIX` | 为 Bash 工具指定 Shell 前缀，如 `wsl -e bash -lc` |
 | `DISABLE_TELEMETRY` | 设为 `1` 禁用遥测 |
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | 设为 `1` 禁用非必要网络请求 |
@@ -73,7 +73,7 @@
 |---|---|---|
 | 交互式会话（默认） | 直接启动 | 日常终端对话，流式输出与工具调用 |
 | `--print` 无头模式 | `claude-haha -p "任务描述"` | 脚本与 CI 自动化，处理完成后输出结果并退出；支持 `--output-format json`、`--max-budget-usd` |
-| 恢复模式 | `CLAUDE_CODE_FORCE_RECOVERY_CLI=1` 或 `-r [id]` | 主 CLI 异常时的简化兜底；`-r` 按会话恢复，配合 `--fork-session` 恢复并创建分支 |
+| 恢复模式 | `CLAUDE_CODE_LOCAL_RECOVERY=1` 或 `-r [id]` | 主 CLI 异常时的简化兜底；`-r` 按会话恢复，配合 `--fork-session` 恢复并创建分支 |
 
 桌面端的每个会话均由上述 CLI 进程驱动（运行在捆绑的 node.exe 上），无需手动启动。
 

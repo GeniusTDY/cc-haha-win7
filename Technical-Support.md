@@ -152,7 +152,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 | `CC_HAHA_DESKTOP_SERVER_URL` | 远程模式（Win7 只跑 Electron 壳，后端在局域网他机） |
 | `CC_HAHA_FEATURES` | 特性开关（默认 TRANSCRIPT_CLASSIFIER，设空禁用） |
 | `CC_HAHA_SKIP_DOTENV` | 跳过根目录 .env 加载（.cmd 默认置 1） |
-| `CLAUDE_CODE_FORCE_RECOVERY_CLI` | 强制进入恢复 CLI |
+| `CLAUDE_CODE_LOCAL_RECOVERY` | 强制进入恢复 CLI |
 | `IS_SANDBOX` | 容器 / root 高权限场景跳过权限拦截 |
 | `NODE_SKIP_PLATFORM_CHECK` | 仅"官方 node.exe + 平台检查豁免"路径需要 |
 
