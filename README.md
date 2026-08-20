@@ -1,96 +1,138 @@
 # cc-haha-win7
 
-Restored source of the **Windows 7 offline edition** of
-[NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4 —
-the compatibility work behind the original
-`Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe` release (now renamed
-`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`; the Release ships only the
-newest rebuild, the **2026-08-20 v3** "most complete" installer).
+[NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4 的 **Windows 7 SP1 x64 离线移植版**。
 
-The original fix sources were lost; this repo reconstructs them from the
-shipped installers + the development log, and re-verifies the result on an
-offline QEMU Win7 SP1 x64 guest (77/77 E2E checks). See
-[docs/VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md) §15.
+上游基于 Electron 42 与 Bun sidecar 架构，均不支持 Win7。本项目将其移植为 Electron 22.3.27（最后一个支持 Win7 的版本）加捆绑 Node 运行时，终端改用 winpty（Win7 无 ConPTY），并配合 VxKex 兼容层与内置 Python、PortableGit 载荷，实现**安装与使用全程离线**。
 
-## What the Win7 edition changes
-
-| layer | original | Win7 offline edition |
+| 层 | 上游 | Win7 移植 |
 |---|---|---|
-| Electron / Chromium | 42 (Win10+) | **22.3.27 / Chromium 108** (last Win7-capable) |
-| Renderer CSS | Tailwind v4 native (oklch, nesting) | lightningcss `chrome 108` downgrade + runtime shim in `index.html` (`color-mix()`, `lab()/oklch()`, `scrollbar-color`, Set-methods polyfill) |
-| Desktop backend | compiled Bun sidecar `.exe` | sidecar removed → **bundled Node 22.17.0** runs `dist/server.mjs` (Bun→Node port, `port-src/`) |
-| Desktop terminal | ConPTY (Win10 1809+) | **winpty backend forced** (`useConpty:false` via in-asar `main.cjs` surgery, `repack/patch-app-asar.mjs`) + pipe fallback if node-pty is unloadable |
-| Bash tool shell | requires Git for Windows | auto-resolves user Git Bash → **bundled PortableGit 2.45.2** (`resources/runtime/git`) → PATH |
-| Computer Use | system Python + pip install | **bundled Python 3.8.10 embeddable + 16 offline wheels**, venv-less fallback, runtime deps self-heal |
-| Search (rg) | shipped rg.exe (Win10+) | ripgrep 14.1.0 (Win7-safe imports) |
-| Win8+ API gaps | — | **VxKex** compatibility layer for node.exe / python.exe / rg.exe (auto-registered by the installer) |
-| Updates | electron-updater | lazy-loaded, no-op fallback (offline) |
+| 桌面壳 | Electron 42（Win10+） | Electron 22.3.27（Chromium 108） |
+| 后端 | Bun 编译 sidecar | 捆绑 node.exe 运行 `dist/server.mjs` |
+| 终端 | ConPTY | winpty（完整 TTY） |
+| Computer Use | 系统 Python + pip | 捆绑 Python 3.8.10 + 16 个离线 wheel |
+| Win8+ API 缺口 | — | VxKex 兼容层（node / python / rg 自动注册） |
 
-## Repo layout
+> 移植原理见 [Technical-Support.md](docs/Technical-Support.md) · 完整验证记录见 [VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md)
 
+## 使用教程
+
+### 环境变量
+
+配置入口按使用方式选择，避免在多处保存同一凭据：
+
+- **桌面端**：设置 → 服务商 中配置，由应用统一管理认证与模型映射；
+- **CLI**：`~/.claude/settings.json` 的 `env` 字段，或 Shell 环境变量。
+
+#### 模型服务（Anthropic 兼容接口）
+
+| 变量 | 说明 |
+|---|---|
+| `ANTHROPIC_API_KEY` | 经 `x-api-key` 头发送，与 Auth Token 二选一 |
+| `ANTHROPIC_AUTH_TOKEN` | 经 `Authorization: Bearer` 头发送，与 API Key 二选一 |
+| `ANTHROPIC_BASE_URL` | 兼容端点基础地址 |
+| `ANTHROPIC_MODEL` | 当前会话默认模型 |
+| `ANTHROPIC_DEFAULT_{HAIKU,SONNET,OPUS}_MODEL` | 各模型槽位 |
+| `API_TIMEOUT_MS` | 请求超时（毫秒），默认 `600000` |
+
+#### Azure OpenAI
+
+启用需设置 `CLAUDE_CODE_USE_AZURE_OPENAI=1`，并配置 `AZURE_OPENAI_BASE_URL` 与 `AZURE_OPENAI_API_KEY`；可选 `AZURE_OPENAI_API_VERSION`、`AZURE_OPENAI_CODEX_DEPLOYMENT`。
+
+#### 本地运行与隐私
+
+| 变量 | 说明 |
+|---|---|
+| `CLAUDE_CONFIG_DIR` | 自定义配置目录（默认 `~/.claude`），用于便携模式或隔离测试 |
+| `CLAUDE_CODE_FORCE_RECOVERY_CLI` | 设为 `1` 启用简化 Recovery CLI |
+| `CLAUDE_CODE_SHELL_PREFIX` | 为 Bash 工具指定 Shell 前缀，如 `wsl -e bash -lc` |
+| `DISABLE_TELEMETRY` | 设为 `1` 禁用遥测 |
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | 设为 `1` 禁用非必要网络请求 |
+
+#### Win7 版专属
+
+| 变量 | 说明 |
+|---|---|
+| `CC_HAHA_BASH_EXE` | 显式指定 bash.exe 路径；缺省时按 用户 Git → 内置 PortableGit → PATH 顺序解析 |
+| `CC_HAHA_RUNTIME_DIR` | 显式指定运行时载荷目录；缺省为安装目录 `resources/runtime` |
+
+### 三种运行模式
+
+| 模式 | 启动方式 | 适用场景 |
+|---|---|---|
+| 交互式会话（默认） | 直接启动 | 日常终端对话，流式输出与工具调用 |
+| `--print` 无头模式 | `claude-haha -p "任务描述"` | 脚本与 CI 自动化，处理完成后输出结果并退出；支持 `--output-format json`、`--max-budget-usd` |
+| 恢复模式 | `CLAUDE_CODE_FORCE_RECOVERY_CLI=1` 或 `-r [id]` | 主 CLI 异常时的简化兜底；`-r` 按会话恢复，配合 `--fork-session` 恢复并创建分支 |
+
+桌面端的每个会话均由上述 CLI 进程驱动（运行在捆绑的 node.exe 上），无需手动启动。
+
+### 部署打包
+
+构建流程分为两个阶段，可在 Linux 或 Win10/11 构建机上执行，产物目标机为 Win7 SP1 x64：
+
+- **Stage A**：上游源码 + 补丁 → electron-builder → `win-x64.exe`（可选，跳过时 Stage B 自动使用入仓成品）；
+- **Stage B**：上一步产物 + 离线载荷 → 全离线安装器 `win7-x64-setup.exe`。
+
+命令统一采用 Linux 形态；`[Win]` 注释标注 Windows 构建机的差异，其余命令两平台相同。
+
+#### 第 0 步 · 环境准备
+
+```bash
+sudo apt-get install -y nodejs git p7zip-full nsis
+# [Win] 先执行 git config --global core.autocrlf false（防止换行符改写导致 git apply 失败）
+#       改为安装 Git for Windows / Node.js≥18 / 7-Zip / NSIS≥3.08
+#       此后所有命令均在 Git Bash 中执行
+
+git clone https://github.com/GeniusTDY/cc-haha-win7.git
+cd cc-haha-win7
 ```
-patches/       source deltas against upstream cc-haha v0.5.4 (d52bbec7)
-  desktop/       001 electron 22 pin · 002 index.html CSS shim
-  cli/           004 server.mjs Computer-Use offline + self-heal
-  electron-builder/ 005 NsisTarget without wine
-port-src/      Bun→Node port sources (compat layer, build scripts,
-               offline electron-builder config, canonical desktop .cjs)
-runtime/       offline runtime payloads — node/, python/, vxkex/,
-               git/ (PortableGit 2.45.2), kb-patches/ and
-               node-pty-win32-x64/ are all committed in git (~545 MB);
-               Release carries installers only
-vendor/        Stage A build deps committed in git: the official
-               electron-v22.3.27-win32-x64.zip (97 MB, matches upstream
-               SHASUMS256.txt) + the electron-builder NSIS toolchain cache
-               (nsis-3.0.4.1 + nsis-resources-3.4.1, ~11 MB) — offline-win.cjs
-               auto-resolves the former, ELECTRON_BUILDER_CACHE the latter,
-               so the Stage A build step downloads nothing
-               (verify: cd vendor && sha256sum -c sha256sums.txt)
-repack/        Stage B: build-repack.sh + installer.nsi → win7-x64-setup.exe;
-               patch-app-asar.mjs surgically adds the winpty forcing to the
-               shipped main.cjs inside app.asar (asar-tool/ vendors
-               @electron/asar); asar surgery preserves the node-runtime
-               fallback layer byte-exactly. setup-exe/ carries the Stage A
-               input installer split into ≤95MB parts (GitHub file cap) —
-               when Setup.exe is absent, step 0/9 reassembles + sha256-
-               verifies it, so a fresh clone rebuilds fully offline
-docs/          Technical-Support.md (technical porting solution) ·
-               VERIFICATION-REPORT.md (L1–L4 + 15 review rounds + QEMU E2E) ·
-               BUILD-AND-VERIFY.md · WIN7-DEPLOY.md
+
+#### Stage A · 从源码构建 win-x64.exe
+
+```bash
+cd ..
+git clone https://github.com/NanmiCoder/cc-haha.git
+cd cc-haha
+git checkout d52bbec7
+
+git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
+git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
+git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch
+git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
+
+cp -r ../cc-haha-win7/port-src ./
+
+node port-src/scripts/node-port/build.mjs
+
+git apply ../cc-haha-win7/patches/cli/005-server-mjs-computer-use-offline.patch
+
+cd desktop
+bash ../../cc-haha-win7/vendor/desktop-node-modules/restore.sh
+
+export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-cache"
+
+npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 ```
 
-## Quick start
+产物：`build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe`（约 122 MB）
 
-1. `git clone` this repo — everything needed to rebuild the installer is
-   inside: runtime payloads in `runtime/` (verify with `cd runtime &&
-   sha256sum -c sha256sums.txt`), the Stage A input installer in
-   `repack/setup-exe/` (split parts, auto-reassembled by the build),
-   and Stage A build deps (Electron zip + NSIS toolchain cache) in
-   `vendor/` (verify with `cd vendor && sha256sum -c sha256sums.txt`).
-   Zero downloads, zero network.
-2. Build: [docs/BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md) —
-   Stage B alone (`cd repack && RUNTIME_DIR=../runtime ./build-repack.sh`
-   → win7-x64-setup.exe) needs only 7z + makensis + node on the host and
-   runs fully offline; Stage A (upstream + patches → Setup.exe) is the
-   optional from-source path (needs `npm install`; its build step itself
-   downloads nothing — Electron zip + NSIS cache are committed).
-3. Install on Win7 SP1 x64 (offline OK; on a clean system install the two
-   KB patches from `runtime/kb-patches/` first — installer bundles VxKex),
-   or grab the ready-made **v3** installer
-   (`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`, 2026-08-20) from Releases.
+#### Stage B · 重打包为离线安装器
 
-## Reproducibility
+```bash
+cd ../cc-haha-win7/repack
 
-Rebuilding from the Stage A Setup.exe + runtime tree reproduces the released
-Offline.exe (v1 sha256 `3221d5e9…a025b40`). Later rebuilds add cumulative
-fixes — v2 `971df9d5…e766ae1` (CU python-path fallback), the 2026-08-19 v2
-rebuild `03286eaf…a716be` (Win32 CLI spawn + provider-env fix), and the
-**2026-08-20 v3 rebuild** (current Release asset, sha256
-`c22f57eb…88eacbc`): full-TTY desktop terminal (winpty forced), Bash tool
-shell auto-resolution with bundled PortableGit, Computer Use fully offline,
-and a guaranteed node-pty payload. All passed the offline QEMU Win7 E2E
-(§15.4); the v3 delta is verified structurally (see
-docs/BUILD-AND-VERIFY.md "Verify the v3 build").
+NODE_FALLBACK_DIR=../runtime/node-fallback \
+RUNTIME_DIR=../runtime \
+  ./build-repack.sh
+```
 
-The Release carries only the newest build; older assets are reproducible
-from this repo.
+产物：`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`，刻录或拷贝至 U 盘后，可在 Win7 SP1 x64 离线机器上直接安装。
+
+若使用 Stage A 产物作为输入：
+
+```bash
+./build-repack.sh ../../cc-haha/desktop/build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe
+```
+
+---
+
+克隆即彻底零联网：esbuild、desktop 依赖树（替代 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓。构建细节见 [BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md)。

@@ -15,8 +15,15 @@
 //     2. <cc-haha>/vendor/electron — copied/extracted next to the source
 //     3. ../cc-haha-win7/vendor/electron — the recipe repo clone
 //        (sibling of the cc-haha checkout; ships the official
-//        electron-v22.3.27-win32-x64.zip committed in git, so Stage A
-//        needs zero Electron downloads — see vendor/sha256sums.txt)
+//        electron-v22.3.27-win32-x64 distribution committed as PLAIN
+//        FILES — the extracted zip root with electron.exe, no archives
+//        in the repo, so Stage A needs zero Electron downloads — see
+//        vendor/sha256sums.txt for provenance)
+//        electron.exe itself exceeds GitHub's 100MB file cap, so it is
+//        committed as raw split parts (electron.exe.00/01.part + a
+//        sha256 manifest, same scheme as repack/setup-exe/) and is
+//        reassembled on demand below — parts are byte slices, not
+//        archives, so the repo still contains no compressed packages.
 // - signAndEditExecutable: false — skips rcedit (depends on wine); with
 //   no certificate signtool is not invoked either
 const fs = require('fs')
@@ -40,6 +47,46 @@ function resolveBaseConfig() {
 }
 
 const DEFAULT_DIST = path.join(__dirname, '..', '..', 'vendor', 'electron')
+const crypto = require('crypto')
+
+// Reassemble electron.exe from the committed split parts (raw byte slices
+// at 95MB, GitHub's file cap is 100MB) when the assembled file is absent.
+// Verifies each part and the final file against electron.exe.parts.sha256.
+function ensureElectronExe(distDir) {
+  const exe = path.join(distDir, 'electron.exe')
+  if (fs.existsSync(exe)) return
+  const parts = fs.readdirSync(distDir)
+    .filter(f => /^electron\.exe\.\d+\.part$/.test(f))
+    .sort()
+  if (parts.length === 0) return
+  const manifest = fs.readFileSync(path.join(distDir, 'electron.exe.parts.sha256'), 'utf8')
+  const expected = {}
+  for (const line of manifest.split('\n')) {
+    const m = line.trim().match(/^([0-9a-f]{64})\s{2}(.+)$/)
+    if (m) expected[m[2]] = m[1]
+  }
+  const sha256 = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+  for (const p of parts) {
+    if (sha256(path.join(distDir, p)) !== expected[p]) {
+      throw new Error(`[offline-win.cjs] sha256 mismatch for ${p} — re-clone or fix the part file`)
+    }
+  }
+  console.log(`[offline-win.cjs] reassembling electron.exe from ${parts.length} split parts`)
+  const out = fs.openSync(exe, 'w')
+  try {
+    for (const p of parts) {
+      const buf = fs.readFileSync(path.join(distDir, p))
+      fs.writeSync(out, buf)
+    }
+  } finally {
+    fs.closeSync(out)
+  }
+  const actual = sha256(exe)
+  if (expected['electron.exe'] && actual !== expected['electron.exe']) {
+    fs.unlinkSync(exe)
+    throw new Error('[offline-win.cjs] reassembled electron.exe sha256 mismatch')
+  }
+}
 
 function resolveElectronDist() {
   const candidates = [
@@ -48,7 +95,10 @@ function resolveElectronDist() {
     path.join(__dirname, '..', '..', '..', 'cc-haha-win7', 'vendor', 'electron'),
   ].filter(Boolean)
   for (const c of candidates) {
-    if (fs.existsSync(c)) return c
+    if (fs.existsSync(c)) {
+      if (fs.statSync(c).isDirectory()) ensureElectronExe(c)
+      return c
+    }
   }
   // nothing found — return the default so electron-builder surfaces its
   // usual "electronDist not found" error for the documented path

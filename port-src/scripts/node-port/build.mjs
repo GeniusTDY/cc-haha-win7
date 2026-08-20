@@ -7,15 +7,45 @@
  *  - tsconfig path stubs (color-diff-napi, @ant/claude-for-chrome-mcp) aliased
  *  - node_modules kept external (shipped alongside dist/)
  *
- * Usage: node scripts/node-port/build.mjs
+ * Usage: node port-src/scripts/node-port/build.mjs
+ *        (or, after copying scripts/node-port/ to the repo root: node scripts/node-port/build.mjs)
  */
 
-import { build } from 'esbuild'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+// Works from both layouts:
+//   <root>/port-src/scripts/node-port/build.mjs  (documented: direct overlay
+//     after `cp -r port-src ./`)
+//   <root>/scripts/node-port/build.mjs            (legacy copied layout)
+const rootDir = existsSync(path.join(scriptDir, '..', '..', 'package.json'))
+  ? path.resolve(scriptDir, '..', '..')
+  : path.resolve(scriptDir, '..', '..', '..')
+
+// Resolve esbuild: the copy vendored into port-src/vendor/node_modules/ comes
+// first (pinned 0.28.2 with both linux-x64 and win32-x64 binaries — a fresh
+// clone runs this build with zero registry access, no root `npm install`);
+// fall back to whatever esbuild the repo's own node_modules provides.
+async function loadEsbuild() {
+  const vendored = [
+    path.join(scriptDir, '..', '..', 'vendor', 'node_modules', 'esbuild', 'lib', 'main.js'),
+    path.join(scriptDir, '..', '..', 'port-src', 'vendor', 'node_modules', 'esbuild', 'lib', 'main.js'),
+  ].find(existsSync)
+  const specs = vendored ? [pathToFileURL(vendored).href, 'esbuild'] : ['esbuild']
+  for (const spec of specs) {
+    try {
+      const m = await import(spec)
+      if (m.build) return m
+      if (m.default?.build) return m.default
+    } catch {}
+  }
+  throw new Error(
+    'esbuild not found: neither port-src/vendor/node_modules/ nor the repo node_modules has it',
+  )
+}
+const { build } = await loadEsbuild()
 const outDir = path.join(rootDir, 'dist')
 mkdirSync(outDir, { recursive: true })
 
@@ -142,18 +172,43 @@ async function main() {
   // loads when its --flag is passed. Unlike the CLI bundle, baileys here is
   // the real package from adapters/node_modules (the CLI stub alias must not
   // apply — whatsapp bridging is a real feature in this artifact).
-  await build({
-    ...shared,
-    alias: undefined,
-    entryPoints: [path.join(rootDir, 'adapters', 'index.ts')],
-    outdir: outDir,
-    entryNames: 'adapters',
-    outExtension: { '.js': '.mjs' },
-    splitting: true,
-    chunkNames: 'adapters-chunks/[name]-[hash]',
-  })
-
-  console.log('[node-port] build complete → dist/cli.mjs, dist/recovery-cli.mjs, dist/server.mjs, dist/adapters.mjs')
+  // The dispatcher is a port overlay file (does not exist upstream) and its
+  // relative ./feishu/index.ts imports require it to sit at
+  // <root>/adapters/index.ts — overlay it there automatically (idempotent)
+  // when `cp -r port-src ./` left it inside the port-src subdirectory.
+  // Adapter deps (grammy/baileys/@larksuiteoapi/…) live in adapters'
+  // own node_modules; when they are not installed the bundle is skipped
+  // with a notice — the core artifacts above are complete either way, and
+  // Stage B ships the prebuilt chunks from runtime/node-fallback/.
+  const overlaySrc = path.resolve(scriptDir, '..', '..', 'adapters', 'index.ts')
+  const adaptersEntry = path.join(rootDir, 'adapters', 'index.ts')
+  const adaptersDepsInstalled = existsSync(path.join(rootDir, 'adapters', 'node_modules'))
+  if (adaptersDepsInstalled) {
+    if (!existsSync(adaptersEntry)) {
+      if (!existsSync(overlaySrc)) {
+        throw new Error('adapters/index.ts not found (neither at repo root nor in port-src/)')
+      }
+      copyFileSync(overlaySrc, adaptersEntry)
+    }
+    await build({
+      ...shared,
+      alias: undefined,
+      entryPoints: [adaptersEntry],
+      outdir: outDir,
+      entryNames: 'adapters',
+      outExtension: { '.js': '.mjs' },
+      splitting: true,
+      chunkNames: 'adapters-chunks/[name]-[hash]',
+    })
+    console.log('[node-port] build complete → dist/cli.mjs, dist/recovery-cli.mjs, dist/server.mjs, dist/adapters.mjs')
+  } else {
+    console.warn(
+      '[node-port] adapters deps not installed (cd adapters && npm install) — ' +
+        'skipped dist/adapters.mjs; core artifacts are complete. ' +
+        'Stage B needs nothing here: the prebuilt chunks ship in runtime/node-fallback/.',
+    )
+    console.log('[node-port] build complete → dist/cli.mjs, dist/recovery-cli.mjs, dist/server.mjs')
+  }
 }
 
 main().catch(err => {

@@ -11,7 +11,15 @@ parses the PE + NSIS byte stream), but enables it only on macOS Catalina+.
 Loosen that condition to every non-Windows host: the two-pass makensis flow
 is preserved and no exe is executed during uninstaller extraction.
 
-Location after `npm install`/`bun install` (any reinstall overwrites it —
+NOTE: patch 001 pins electron-builder to exactly 26.8.1 because the hunk
+context below drifts between app-builder-lib versions. If you ever install
+a different version, re-generate the context (the semantic change is the
+single `if` line).
+
+NOT NEEDED when restoring node_modules from the committed snapshot:
+  vendor/desktop-node-modules/restore.sh
+ships the tree with this patch PRE-APPLIED. Only the plain `npm install`
+path needs this patch, applied AFTER install (any reinstall overwrites it —
 build scripts must re-apply and verify, see repack/build-repack.sh):
   desktop/node_modules/app-builder-lib/out/targets/nsis/NsisTarget.js
 

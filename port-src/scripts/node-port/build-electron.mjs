@@ -16,12 +16,35 @@
  * 10.0.19041) resolve from node_modules at runtime.
  */
 
-import { build } from 'esbuild'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const root = path.resolve(here, '..', '..')
+// Works from both <root>/port-src/scripts/node-port/ (documented overlay
+// layout) and <root>/scripts/node-port/ (legacy copied layout).
+const root = existsSync(path.join(here, '..', '..', 'package.json'))
+  ? path.resolve(here, '..', '..')
+  : path.resolve(here, '..', '..', '..')
+
+// esbuild: vendored copy in port-src/vendor/node_modules/ first (pinned
+// 0.28.2, zero registry access on a fresh clone), repo node_modules second.
+async function loadEsbuild() {
+  const vendored = [
+    path.join(here, '..', '..', 'vendor', 'node_modules', 'esbuild', 'lib', 'main.js'),
+    path.join(here, '..', '..', 'port-src', 'vendor', 'node_modules', 'esbuild', 'lib', 'main.js'),
+  ].find(existsSync)
+  const specs = vendored ? [pathToFileURL(vendored).href, 'esbuild'] : ['esbuild']
+  for (const spec of specs) {
+    try {
+      const m = await import(spec)
+      if (m.build) return m
+      if (m.default?.build) return m.default
+    } catch {}
+  }
+  throw new Error('esbuild not found (neither vendored nor in repo node_modules)')
+}
+const { build } = await loadEsbuild()
 const desktopDir = path.join(root, 'desktop')
 const outDir = path.join(desktopDir, 'electron-dist')
 

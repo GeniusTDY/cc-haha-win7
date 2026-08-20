@@ -195,4 +195,4 @@ bin\server-haha.cmd --host 127.0.0.1 --port 3456
 
 ---
 
-*构建复现：在含 Node ≥22.5 与 npm 的机器上，于仓库根目录执行 `npm i && node scripts/node-port/build.mjs && node scripts/node-port/build-electron.mjs`（`port-src/` 内为全部移植侧脚本与兼容层）。*
+*构建复现：在含 Node ≥22.5 的机器上，于仓库根目录执行 `node scripts/node-port/build.mjs && node scripts/node-port/build-electron.mjs`（`port-src/` 内为全部移植侧脚本与兼容层，esbuild 0.28.2 及双平台二进制已内置于 `port-src/vendor/node_modules/`，零联网、无需先 `npm i`；如需完整 adapters.mjs，先 `cd adapters && npm install`）。*

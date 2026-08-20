@@ -5,9 +5,14 @@ repack/Claude-Code-Haha-0.5.4-win7-x64-setup.exe
 repack/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe
 repack/app-icon.ico
 repack/modern-wizard.bmp
+repack/latest.yml
 
 # runtime payloads committed in git: node/ python/ vxkex/ git/ kb-patches/
 # (~545MB total, see runtime/README.md)
 # NOT in git (optional / machine-specific):
 runtime/node-fallback/wheels/
 runtime/node-fallback/server.mjs.pre-cu.bak
+
+# reassembled on demand by port-src/desktop/offline-win.cjs from the
+# committed electron.exe.00/01.part split parts (GitHub 100MB file cap)
+vendor/electron/electron.exe
