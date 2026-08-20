@@ -258,7 +258,8 @@ pywin32 306+ / psutil 5.9.8+ / mss 9.0.2 / pyautogui 0.9.54 及纯 Python 依赖
 
 ## 9. 离线一体安装包（NSIS 重打包）
 
-`Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`（约 175MB，LZMA solid），
+`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`（约 241MB，LZMA solid；Release
+资产原名 `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`），
 原生 makensis 重打包。源脚本 `repack/installer.nsi`，payload 为原安装包
 解包树 + dist 回退产物 + wheels + `._pth` 修复 − sidecar。
 

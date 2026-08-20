@@ -23,7 +23,7 @@ SetCompressor /SOLID lzma
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ClaudeCodeHaha"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe"
+OutFile "Claude-Code-Haha-0.5.4-win7-x64-setup.exe"
 InstallDir "C:\cc-haha"
 InstallDirRegKey HKLM "${UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel admin

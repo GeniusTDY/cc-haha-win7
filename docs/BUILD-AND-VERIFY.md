@@ -15,7 +15,7 @@ Stage B  repack/build-repack.sh (this repo)
          -> deploy node-fallback dist -> remove broken sidecar -> overlay
          runtime payloads (node/python/vxkex/git) -> guarantee node-pty
          payload -> makensis
-        │  -> Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe
+        │  -> Claude-Code-Haha-0.5.4-win7-x64-setup.exe
         ▼
 Verify   QEMU Win7 SP1 x64 (offline guest)
          fresh install + 77-check E2E suite
@@ -90,7 +90,7 @@ regardless.
 ```bash
 # unpack the built installer and assert the complete fix set
 # (NSIS layout: the app tree sits at the archive top level):
-7z x -o/tmp/v3 Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe
+7z x -o/tmp/v3 Claude-Code-Haha-0.5.4-win7-x64-setup.exe
 cd /tmp/v3
 
 node /path/to/repack/asar-tool/node_modules/.bin/asar \

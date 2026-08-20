@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# build-repack.sh — rebuild Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe
+# build-repack.sh — rebuild Claude-Code-Haha-0.5.4-win7-x64-setup.exe
 #
 # Stage B of the Win7 offline build: repackage the electron-builder output
 # (Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe, Stage A) into the all-in-one
@@ -47,7 +47,7 @@ SETUP="${1:-$HERE/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe}"
 NODE_FALLBACK_DIR="${NODE_FALLBACK_DIR:-$HERE/../runtime/node-fallback}"
 RUNTIME_DIR="${RUNTIME_DIR:?set RUNTIME_DIR to the offline runtime payloads dir (node/ python/ vxkex/ ...)}"
 
-OUT_EXE="$HERE/Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe"
+OUT_EXE="$HERE/Claude-Code-Haha-0.5.4-win7-x64-setup.exe"
 WORK="$HERE/.work"
 ORIG="$WORK/orig"    # NSIS shell from Stage A installer
 APP="$WORK/app"      # final payload tree

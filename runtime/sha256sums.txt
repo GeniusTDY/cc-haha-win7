@@ -12,7 +12,8 @@ e1cb26d868c954ba26817bedf3e4a5744e4ca2030adf51a7156e5ff2fadb881b  node-pty-win32
 c3a65716f53fed0135a8a633373d5f9c2ab092544d651f27ef0a67096dd3bcd9  node-pty-win32-x64/lib/windowsTerminal.js
 8e02be8b3a1ef53fc33d77d7182e8a765b501c34c9dca459300a2cc6ac38a074  node-fallback/cli.mjs
 e01ab77e7002b095ffa3a7a0bed513eca3bc88379ee379db3a488f252303dd3a  node-fallback/server.mjs
-# v3 installer (2026-08-20, current Release asset):
-# c22f57ebc9894af593487162c98480e1a9b51954e612c2456cc63f89888eacbc  Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe
+# v3 installer (2026-08-20, current Release asset, renamed from
+# Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe):
+# c22f57ebc9894af593487162c98480e1a9b51954e612c2456cc63f89888eacbc  Claude-Code-Haha-0.5.4-win7-x64-setup.exe
 # patched main.cjs inside its app.asar:
 # bcff1e9c10ff5767dc046b305a654ed09e6bf968a8c9886d1f82ee46a87e95e2  electron-dist/main.cjs

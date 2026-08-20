@@ -54,7 +54,7 @@ resources/runtime/
 ## In-git payload provenance & checksums
 
 The committed node/python/vxkex trees were extracted from the released
-`Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe` (the build that passed
+`Claude-Code-Haha-0.5.4-win7-x64-setup.exe` (the build that passed
 the 77-check QEMU Win7 E2E suite), so the fixed `python38._pth` and
 the 16 wheels are already applied — no post-clone fixup needed.
 
@@ -96,14 +96,14 @@ ready-made installer — the newest build:
 
 | attachment | purpose | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe` | 2026-08-19 v2 rebuild: CU custom python path + Win32 CLI spawn fix + provider-env fix (older v1 / Stage A Setup.exe assets were removed) | `03286eaf…a716be` |
+| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-20 v3 "most complete" rebuild**: full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload (older v1 / v2 / Stage A Setup.exe assets were removed; asset renamed from `…-Win7-x64-Offline.exe`) | `c22f57eb…88eacbc` |
 
 ## node-pty-win32-x64/ (in git, ~1 MB)
 
 Vendored node-pty 1.1.0 runtime subset (lib/ JS + `prebuilds/win32-x64/`
 N-API `pty.node` + `winpty-agent.exe` + `winpty.dll`; conpty bits omitted —
 the app forces the winpty backend on Win7/8 via patch 006). The repack
-script (step 6/8) overlays it onto
+script (step 7/9) overlays it onto
 `resources/app.asar.unpacked/node_modules/node-pty` whenever the Stage A
 payload is missing or pruned that module, so the desktop terminal keeps
 full TTY emulation (winpty works natively on Win7 — no VxKex registration

@@ -3,9 +3,9 @@
 Restored source of the **Windows 7 offline edition** of
 [NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4 —
 the compatibility work behind the original
-`Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe` release (the Release now
-ships only the newest rebuild, the **2026-08-20 v3** "most complete"
-installer).
+`Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe` release (now renamed
+`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`; the Release ships only the
+newest rebuild, the **2026-08-20 v3** "most complete" installer).
 
 The original fix sources were lost; this repo reconstructs them from the
 shipped installers + the development log, and re-verifies the result on an
@@ -39,7 +39,7 @@ runtime/       offline runtime payloads — node/, python/, vxkex/,
                git/ (PortableGit 2.45.2), kb-patches/ and
                node-pty-win32-x64/ are all committed in git (~545 MB);
                Release carries installers only
-repack/        Stage B: build-repack.sh + installer.nsi → Offline.exe;
+repack/        Stage B: build-repack.sh + installer.nsi → win7-x64-setup.exe;
                patch-app-asar.mjs surgically adds the winpty forcing to the
                shipped main.cjs inside app.asar (asar-tool/ vendors
                @electron/asar); asar surgery preserves the node-runtime
@@ -56,11 +56,11 @@ docs/          Technical-Support.md (technical porting solution) ·
    `runtime/` (verify with `cd runtime && sha256sum -c sha256sums.txt`).
 2. Build: [docs/BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md) —
    Stage A (upstream + patches → Setup.exe), Stage B (`repack/build-repack.sh`
-   → Offline.exe).
+   → win7-x64-setup.exe).
 3. Install on Win7 SP1 x64 (offline OK; on a clean system install the two
    KB patches from `runtime/kb-patches/` first — installer bundles VxKex),
    or grab the ready-made **v3** installer
-   (`Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`, 2026-08-20) from Releases.
+   (`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`, 2026-08-20) from Releases.
 
 ## Reproducibility
 
