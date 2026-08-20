@@ -45,7 +45,8 @@ npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 # (97 MB, SHASUMS256-verified) is committed at vendor/electron/ in this repo;
 # offline-win.cjs auto-resolves it from the sibling cc-haha-win7 clone
 # (override with $ELECTRON_DIST; see vendor/sha256sums.txt).
-# First Stage A run still fetches the ~15 MB NSIS toolchain into
+# First Stage A run still fetches the NSIS toolchain (~2 MB download:
+# nsis-3.0.4.1.7z + nsis-resources-3.4.1.7z, unpacks to ~11 MB) into
 # ELECTRON_BUILDER_CACHE unless the cache is pre-populated — see
 # Technical-Support.md §10; rg.exe + sidecar come from src-tauri/binaries
 ```
