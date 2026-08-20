@@ -14,14 +14,20 @@ root (`desktop/` is the Electron app subproject).
 | 6 | `electron-builder/006-nsis-target-nowine.patch` | `node_modules/app-builder-lib/.../NsisTarget.js` | wine-free uninstaller extraction on Linux (UninstallerReader for all non-Windows hosts) |
 
 The Electron main-process node-runtime fallback layer is not a numbered
-patch: it ships as the compiled artifact `port-src/desktop-electron/main.cjs`
-(byte-identical to the shipped `app.asar`), documented in
-`port-src/desktop-electron/README.md`. It is overlaid together with the
-`port-src` copy (between patch 004 and the node-port bundle build).
-Rebuilding it from TS requires the full desktop toolchain; overlaying the
-artifact is the reproducible path. (Patch 003 ports that artifact's pipe
-fallback into the TS source, so rebuilds from source keep it; the shipped
-main.cjs already carries it.)
+patch: it ships as the compiled artifacts `port-src/desktop-electron/*.cjs`
+(byte-identical to the shipped `app.asar`; `main.cjs` carries BOTH the
+fallback layer AND the winpty forcing — the same hunk patch 003 adds to
+the TS source). In a Stage A source rebuild they must be **overlaid onto
+`desktop/electron-dist/` before electron-builder packs the asar** (see
+the `cp ../port-src/desktop-electron/*.cjs electron-dist/` step in the
+root README's Stage A walkthrough) — the upstream TS sources do not
+contain the fallback layer, and a rebuild without the overlay produces
+an app.asar whose server cannot start once Stage B removes the broken
+sidecar. Rebuilding main.cjs from TS requires re-adding the fallback
+layer by hand; overlaying the committed artifact is the reproducible
+path. (Patch 003 ports that artifact's pipe fallback into the TS source,
+so rebuilds from source keep that half; the node-runtime fallback half
+exists only in the compiled artifact.)
 
 ## Apply
 

@@ -118,6 +118,13 @@ node port-src/scripts/node-port/build.mjs
 git apply ../cc-haha-win7/patches/cli/005-server-mjs-computer-use-offline.patch
 
 cd desktop
+
+# 主进程产物覆盖（关键）：上游 TS 源码不含 node 回退层与 winpty 强制，
+# 两者仅存在于编译产物中——必须以仓库内置真身覆盖 electron-dist/，
+# 否则打出的 app.asar 缺回退层，Stage B 删除 sidecar 后 server 无法启动
+mkdir -p electron-dist
+cp ../port-src/desktop-electron/*.cjs electron-dist/
+
 bash ../../cc-haha-win7/vendor/desktop-node-modules-0.5.4/restore.sh
 
 export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-cache-26.8.1"
@@ -139,7 +146,7 @@ RUNTIME_DIR=../runtime \
 
 产物：`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`，刻录或拷贝至 U 盘后，可在 Win7 SP1 x64 离线机器上直接安装。
 
-若使用 Stage A 产物作为输入：
+若使用 Stage A 产物作为输入（注意：Stage A 产物名为 `win-x64.exe`，与 Stage B 默认种子 `Win7-x64-Setup.exe` 不同，需显式传参）：
 
 ```bash
 ./build-repack.sh ../../cc-haha/desktop/build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe
