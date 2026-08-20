@@ -148,7 +148,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 | `CC_HAHA_NODE_EXE` / `CC_HAHA_SERVER_MJS` / `CC_HAHA_ADAPTERS_MJS` | 桌面壳回退链覆盖：node 解释器 / server / adapters 入口 |
 | `CC_HAHA_CLI_ENTRY` | server / cron 派生 CLI 的直连入口覆盖 |
 | `CC_HAHA_NODE` | 仅 .cmd 启动器：指定 node.exe 全路径 |
-| `CC_HAHA_BASH_EXE` / `CC_HAHA_RUNTIME_DIR` | Bash 工具解析链覆盖（§9） |
+| `CC_HAHA_BASH_EXE` / `CC_HAHA_RUNTIME_DIR` | Bash 工具解析链覆盖 |
 | `CC_HAHA_DESKTOP_SERVER_URL` | 远程模式（Win7 只跑 Electron 壳，后端在局域网他机） |
 | `CC_HAHA_FEATURES` | 特性开关（默认 TRANSCRIPT_CLASSIFIER，设空禁用） |
 | `CC_HAHA_SKIP_DOTENV` | 跳过根目录 .env 加载（.cmd 默认置 1） |
