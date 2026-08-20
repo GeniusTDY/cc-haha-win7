@@ -56,4 +56,4 @@ also adds a firewall allow rule for it. On Win7, node.exe only starts
 under the VxKex compatibility layer (registered with
 `WINVERSPOOF:NONE`; see `runtime/setup-vxkex.bat`).
 
-Reference: docs/Technical-Support.md §3, §4.4, §6.
+Reference: Technical-Support.md (repo root) §3, §4.4, §6.

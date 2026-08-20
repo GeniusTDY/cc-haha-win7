@@ -34,7 +34,7 @@ resources/runtime/
 ├── kb-patches/      Windows6.1-KB2533623-x64.msu + KB2670838-x64.msu
 │                    (install both on a clean Win7 SP1 BEFORE VxKex setup;
 │                    SHA1 matches Microsoft's official values — §2 of
-│                    docs/Technical-Support.md) [in git, 14MB]
+│                    Technical-Support.md in the repo root) [in git, 14MB]
 ├── setup-vxkex.bat  manual KexCfg registration (installer does it
 │                    automatically; this is the fallback)
 ├── requirements-win.txt / requirements.txt / win_helper.py
