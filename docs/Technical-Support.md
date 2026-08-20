@@ -291,7 +291,7 @@ git apply patches/desktop/002-index-html-css-shim.patch       # 7.1 运行时求
 cp -r port-src ./
 node port-src/scripts/node-port/build.mjs                     # CLI bundle（esbuild，4.2 节）
 git apply patches/cli/004-server-mjs-computer-use-offline.patch
-cd desktop && npm install                                     # npmRebuild:false（见下）
+cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install    # npmRebuild:false（见下）；skip 标志跳过 electron 包 postinstall 的 ~100MB 冗余下载
 git apply ../patches/electron-builder/005-nsis-target-nowine.patch
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 ```
@@ -314,12 +314,16 @@ npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
   grep -q 'process.platform !== "win32"' \
     node_modules/app-builder-lib/out/targets/nsis/NsisTarget.js
   ```
-- `ELECTRON_BUILDER_CACHE` 指向本地 NSIS 工具链缓存（首次联网构建生成后可迁移）
+- `ELECTRON_BUILDER_CACHE` 指向已入仓的 NSIS 工具链缓存
+  `vendor/electron-builder-cache/`（nsis-3.0.4.1 + nsis-resources-3.4.1，
+  ~11MB，见 vendor/sha256sums.txt）——构建步骤零下载
 - CLI 入口脚本无扩展名被 node 按 CJS 解析，需移除残留 TS 类型注解（`(): string` 等）
 
 **Stage B（离线重打包）**：`repack/build-repack.sh` 解包 Setup.exe（7z）→
 注入 `runtime/node-fallback` dist 产物 → 去 sidecar → 叠加 node/python/vxkex
-运行时树 → makensis → `Offline.exe`。
+运行时树 → makensis → `Claude-Code-Haha-0.5.4-win7-x64-setup.exe`。
+Setup.exe 无需自备：缺失时第 0/9 步自动从入仓分片 `repack/setup-exe/`
+（≤95MB/片）重组并校验 sha256——克隆仓库即可零联网重建。
 
 完整命令序列见 [BUILD-AND-VERIFY.md](BUILD-AND-VERIFY.md)。
 

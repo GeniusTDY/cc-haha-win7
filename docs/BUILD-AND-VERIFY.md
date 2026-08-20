@@ -92,7 +92,7 @@ RUNTIME_DIR=../runtime \
 ```
 
 Reproducibility: rebuilding from the shipped Setup.exe + shipped runtime
-tree reproduces the released Offline.exe family
+tree reproduces the released installer family
 (v1 `3221d5e9…` · v2 `971df9d5…` · 2026-08-19 `03286eaf…` ·
 2026-08-20 v3 `c22f57eb…88eacbc`); NSIS stores file mtimes, so
 byte-identity additionally requires matching input timestamps —
