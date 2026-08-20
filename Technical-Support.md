@@ -14,7 +14,6 @@
 6. [Sidecar 缺陷与 main.cjs 回退](#6-sidecar-缺陷与-maincjs-回退)
 7. [Electron 22 / Chromium 108 适配](#7-electron-22--chromium-108-适配)
 8. [Computer Use 离线适配](#8-computer-use-离线适配)
-9. [已知限制](#9-已知限制)
 
 ---
 
@@ -42,7 +41,6 @@ node.exe / python.exe / rg.exe 均经 VxKex 注入补齐 Win8+ API
 | §6 | Sidecar 缺陷与 main.cjs 回退 |
 | §7 | Electron 22 / Chromium 108 适配（CSS 降级、API 边界） |
 | §8 | Computer Use 离线适配（Python 载荷与 pip 引导） |
-| §9 | 已知限制 |
 
 ## 2. Win7 系统前置
 
@@ -240,13 +238,3 @@ runCommand(py, ["-m","pip","install","--no-index","--no-build-isolation",
 ```
 
 版本锁定（Python 3.8 兼容）：`Pillow>=11.3.0` → `Pillow>=10.0.0,<11`（`requirements-win.txt`）。离线轮子（`runtime\python\wheels\`，16 个）：pip 24.3.1（解压引导）/ setuptools 75.3.0 / wheel 0.42.0 / Pillow 10.4.0 / pywin32 306+ / psutil 5.9.8+ / mss 9.0.2 / pyautogui 0.9.54 及纯 Python 依赖链（pygetwindow / pyrect / pyscreeze / pytweening / mouseinfo / pymsgbox）/ pyperclip 1.10.0+ / screeninfo 0.8.1。二进制轮均为 cp38 win_amd64 / cp37-abi3。
-
-## 9. 已知限制
-
-| 项 | 表现 | 说明 |
-|---|---|---|
-| 桌面终端 | 完整 TTY（winpty 后端） | Win7/8 强制 `useConpty:false`（补丁 003），winpty 载荷由 repack 步骤 6/8 保证；仅当载荷损坏时降级为管道式回退（启动有提示，vim 等全屏程序降级） |
-| Bash 工具 | 可用（需 Git Bash） | shell 解析链（补丁 004）：用户 Git for Windows → 内置 PortableGit 2.45.2（`runtime/git`，已入库，最后支持 Win7 的 Git 版本）→ PATH bash；三者皆无时报错并提示安装 / 设置 `CC_HAHA_BASH_EXE` |
-| 自动更新 | 指向本仓库 Releases | 需联网：Release 须挂 `latest.yml`（`repack/make-latest-yml.mjs` 生成）+ setup.exe，且版本号大于已装版本才会提示更新；离线时静默视为无更新 |
-| GPU | 软件合成 | Win7 自动禁硬件加速，防老驱动崩溃 |
-| 离线不可达 | 真实外网 API、OAuth 回调、IM 真实推送、在线市场 | 物理离线豁免 |
