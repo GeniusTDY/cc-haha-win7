@@ -91,6 +91,26 @@ echo "== 2/9 extract app payload =="
 mkdir -p "$APP"
 7z x -y -o"$APP" "$ORIG/\$PLUGINSDIR/app-64.7z" >/dev/null
 
+# The Stage A installer embeds the upstream feed config (NanmiCoder/cc-haha,
+# from desktop/package.json publish). Rewrite it so the update channel points
+# at THIS repo's GitHub Releases — where the Win7 installers are actually
+# published. electron-updater then resolves:
+#   https://github.com/<owner>/<repo>/releases/latest            (latest tag)
+#   https://github.com/<owner>/<repo>/releases/download/<tag>/latest.yml
+# Release checklist: attach latest.yml (repack/make-latest-yml.mjs) + the
+# setup.exe to the latest non-prerelease release; its version must be
+# semver-greater than the installed one for the update to be offered.
+UPDATE_OWNER="${UPDATE_OWNER:-GeniusTDY}"
+UPDATE_REPO="${UPDATE_REPO:-cc-haha-win7}"
+echo "== 2b/9 point electron-updater at $UPDATE_OWNER/$UPDATE_REPO Releases =="
+cat > "$APP/resources/app-update.yml" <<EOF
+owner: $UPDATE_OWNER
+repo: $UPDATE_REPO
+provider: github
+updaterCacheDirName: claude-code-desktop-updater
+EOF
+echo "  update feed -> https://github.com/$UPDATE_OWNER/$UPDATE_REPO/releases/download/<tag>/latest.yml"
+
 DIST="$APP/resources/app.asar.unpacked/dist"
 BIN="$APP/resources/app.asar.unpacked/src-tauri/binaries"
 RT="$APP/resources/runtime"

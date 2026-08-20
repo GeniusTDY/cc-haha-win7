@@ -1,9 +1,23 @@
 # Stage A build dependencies committed in git.
-# Verify: cd vendor && sha256sum -c sha256sums.txt
 #
-# The Electron zip matches the official release manifest:
-# https://github.com/electron/electron/releases/download/v22.3.27/SHASUMS256.txt
-ad723ed7dad32f9459f7a9de1fd6d718cf713c4809c2431503bea62ce8f786e6  electron/electron-v22.3.27-win32-x64.zip
+# Electron 22.3.27 win32-x64 distribution: committed as PLAIN FILES in
+# electron/ (the extracted official zip — no archives in the repo).
+# Provenance: extracted from electron-v22.3.27-win32-x64.zip
+#   sha256 ad723ed7dad32f9459f7a9de1fd6d718cf713c4809c2431503bea62ce8f786e6
+# which matches the official release manifest:
+#   https://github.com/electron/electron/releases/download/v22.3.27/SHASUMS256.txt
+# (verified 2026-08-20, before extraction; the zip itself was then deleted).
+# electron.exe (157,602,304 bytes, sha256
+#   2ed9543796e0962bfcaae175794cfb1b3293f4f9e14fb1c3b37628f7cfd339cb)
+# exceeds GitHub's 100MB file cap, so it is committed as two raw byte-slice
+# parts (electron.exe.00.part 95MB + electron.exe.01.part ~55MB, checksums
+# in electron.exe.parts.sha256 — same scheme as repack/setup-exe/).
+# port-src/desktop/offline-win.cjs reassembles and verifies it on first run;
+# the assembled file is gitignored. Parts are byte slices, not archives.
+# `version` and `resources/default_app.asar` are absent from the tree on
+# purpose — app-builder's unpack-electron removes both, so the extracted
+# form reproduces the zip-path output byte-for-byte (verified: identical
+# file set, 18076 asar entries, 122,023,120-byte installer).
 
 # electron-builder NSIS toolchain cache (pre-populated, ~11 MB unpacked):
 #   electron-builder-cache/nsis/nsis-3.0.4.1-nsis-3.0.4.1/
