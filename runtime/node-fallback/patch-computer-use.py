@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# Patch the node-port server bundle (dist/server.mjs) for Win7 Computer Use
-# offline support. Every replacement asserts exactly-once match; aborts with
+# Patch the node-port bundles for Win7: Computer Use offline support in
+# dist/server.mjs (P1-P9b) plus the VT-input gate in the sibling dist/cli.mjs
+# (P10). Every replacement asserts exactly-once match; aborts with
 # no changes on failure.
 #
 # Identifier-adaptive: esbuild renames top-level import aliases per build
@@ -18,6 +19,44 @@ PATH = sys.argv[1] if len(sys.argv) > 1 else "server.mjs"
 BAK = PATH + ".pre-cu.bak"
 
 src = open(PATH, encoding="utf-8").read()
+
+# --------------------------------------------------------------------------
+# P10: cli.mjs VT-input gate (sibling of server.mjs; patched first so the
+# server-side "already patched" early-exit below cannot skip it on re-runs).
+# Win7 conhost has no VT *input*; upstream defaultBindings enables VT mode on
+# Windows from the node version alone, so the bundled node 22.17.0 wrongly
+# turns it on under Win7 (mode-cycle/keys misbehave). Restore the v2 port
+# gate: SUPPORTS_TERMINAL_VT_MODE = !windows || parseFloat(osN.release()) >= 10 && <runtime check>.
+# Adaptive: esbuild renumbers os aliases per build; pick the first free osN.
+import os as _osp
+
+CLI_PATH = _osp.path.join(_osp.path.dirname(_osp.path.abspath(PATH)), "cli.mjs")
+if not _osp.path.exists(CLI_PATH):
+    print("[NOTE] no sibling cli.mjs next to server.mjs - P10 skipped")
+else:
+    cli_src = open(CLI_PATH, encoding="utf-8").read()
+    if re.search(r"parseFloat\(os\d+\.release\(\)\) >= 10 && \(isRunningWithBun\(\)", cli_src):
+        print("[SKIP] cli.mjs already patched (P10 VT gate present)")
+    else:
+        _marker = "// src/keybindings/defaultBindings.ts\n"
+        _target = 'SUPPORTS_TERMINAL_VT_MODE = getPlatform() !== "windows" || (isRunningWithBun()'
+        if cli_src.count(_marker) != 1 or cli_src.count(_target) != 1:
+            print("[FAIL] cli.mjs P10 anchors not exactly-once - aborting, no changes written")
+            sys.exit(2)
+        _taken = {int(m) for m in re.findall(r"\bos(\d+)\b", cli_src)}
+        _n = 1
+        while _n in _taken:
+            _n += 1
+        _alias = f"os{_n}"
+        cli_src = cli_src.replace(_marker, _marker + f'import {_alias} from "node:os";\n', 1)
+        cli_src = cli_src.replace(
+            _target,
+            f'SUPPORTS_TERMINAL_VT_MODE = getPlatform() !== "windows" || parseFloat({_alias}.release()) >= 10 && (isRunningWithBun()',
+            1,
+        )
+        shutil.copyfile(CLI_PATH, CLI_PATH + ".pre-vt.bak")
+        open(CLI_PATH, "w", encoding="utf-8", newline="").write(cli_src)
+        print(f"[OK] P10 cli.mjs VT gate restored (os alias: {_alias})")
 
 if "getBundledPythonDirsWin" in src and "const cliMjs2" in src:
     print("[SKIP] server.mjs already patched (CU + win32 spawn chain present)")

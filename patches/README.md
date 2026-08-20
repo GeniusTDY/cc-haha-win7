@@ -10,7 +10,7 @@ root (`desktop/` is the Electron app subproject).
 | 2 | `desktop/002-index-html-css-shim.patch` | `desktop/index.html` | Chromium 108 CSS shim: color-mix()/lab()/oklch()/lch()/oklab() evaluation + scrollbar fallbacks, re-runs on theme change |
 | 3 | `desktop/003-terminal-winpty-fallback.patch` | `desktop/electron/services/terminal.ts` | force node-pty's winpty backend on Win7/8 (`useConpty:false`) + line-based pipe fallback when node-pty cannot load/spawn |
 | 4 | `cli/004-shell-win32-bash-resolution.patch` | `src/utils/Shell.ts`, `src/utils/windowsPaths.ts` | Windows shell chain for the Bash tool: user Git → bundled `runtime/git-2.45.2` PortableGit (`CC_HAHA_BASH_EXE`/`CC_HAHA_RUNTIME_DIR`/relative probes) → PATH bash |
-| 5 | `cli/005-server-mjs-computer-use-offline.patch` | `dist/server.mjs` (node-port bundle) | bundled-Python detection, offline wheel install (--no-index), venv fallback to bundled python.exe. **Historical**: diff against the 2026-08-18 build; the 844024a9 rebuild changed line offsets so `git apply` fails on current build.mjs output — fresh rebuilds use `runtime/node-fallback/patch-computer-use.py` (identifier-adaptive, full P1–P9b set incl. the win32 CLI spawn chain) |
+| 5 | `cli/005-server-mjs-computer-use-offline.patch` | `dist/server.mjs` (node-port bundle) | bundled-Python detection, offline wheel install (--no-index), venv fallback to bundled python.exe. **Historical**: diff against the 2026-08-18 build; the 844024a9 rebuild changed line offsets so `git apply` fails on current build.mjs output — fresh rebuilds use `runtime/node-fallback/patch-computer-use.py` (identifier-adaptive, full P1–P10 set incl. the win32 CLI spawn chain and the cli.mjs VT-input gate) |
 | 6 | `electron-builder/006-nsis-target-nowine.patch` | `node_modules/app-builder-lib/.../NsisTarget.js` | wine-free uninstaller extraction on Linux (UninstallerReader for all non-Windows hosts) |
 
 The Electron main-process node-runtime fallback layer is not a numbered
@@ -41,7 +41,8 @@ git apply ../patches/cli/004-shell-win32-bash-resolution.patch
 # after building the node-port bundle (dist/server.mjs):
 python3 ../runtime/node-fallback/patch-computer-use.py dist/server.mjs
 #   (patch 005 is the historical 2026-08-18 diff — see its STATUS NOTE;
-#    the adaptive script applies the same CU set + the win32 spawn chain)
+#    the adaptive script applies the same CU set + the win32 spawn chain
+#    and also restores the VT-input gate in the sibling dist/cli.mjs)
 # after `npm install` in desktop/ (any reinstall overwrites node_modules):
 git apply ../patches/electron-builder/006-nsis-target-nowine.patch
 ```

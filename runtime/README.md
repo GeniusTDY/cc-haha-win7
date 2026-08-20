@@ -113,6 +113,10 @@ needed for the agent).
 
 The Node-port server/CLI bundle deployed to
 `resources/app.asar.unpacked/dist/` (server.mjs + adapters.mjs +
-cli.mjs + recovery-cli.mjs + adapters-chunks/). `remove-sidecar.bat`
-and `patch-computer-use.py` are the historical deployment/patch tools;
-the repack build script performs the same steps directly.
+cli.mjs + recovery-cli.mjs + adapters-chunks/). The files committed
+here are already fully patched; the repack build script deploys them
+as-is. `remove-sidecar.bat` is the historical pre-repack cleanup
+(superseded by build-repack.sh step 5), while `patch-computer-use.py`
+remains the active identifier-adaptive patcher (P1–P10, incl. the
+cli.mjs VT-input gate) used to re-derive these bundles from a fresh
+Stage A build.

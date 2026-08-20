@@ -37,8 +37,8 @@ port-src/
 # upstream repo root, after applying patches 001-004
 node port-src/scripts/node-port/build.mjs     # -> dist/*.mjs
 # then run the identifier-adaptive post-build patcher (CU offline +
-# win32 CLI spawn chain — patch 005 is the historical 08-18 diff and
-# no longer applies to fresh builds):
+# win32 CLI spawn chain + cli.mjs VT-input gate — patch 005 is the
+# historical 08-18 diff and no longer applies to fresh builds):
 python3 runtime/node-fallback/patch-computer-use.py dist/server.mjs
 ```
 
