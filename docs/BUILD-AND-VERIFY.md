@@ -53,7 +53,8 @@ contents of the shipped installer).
 
 ```bash
 cd repack
-# put Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe here (or pass path);
+# put the Stage A output Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe here
+# (built above; or pass its path as the first argument);
 # runtime/ payloads (node/ python/ vxkex/ git/) are already in this repo
 NODE_FALLBACK_DIR=../runtime/node-fallback \
 RUNTIME_DIR=../runtime \

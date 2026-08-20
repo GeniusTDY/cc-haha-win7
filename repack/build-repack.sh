@@ -12,6 +12,9 @@
 # v2 (improvement: CU setup accepts a custom python path that resolves to the
 #     bundled interpreter; see patches/cli/004 runSetup venv fallback):
 #   sha256 971df9d518f0d567c4a6a759835d99882cac1fc5abeabac51abce91dbe766ae1
+# v2 2026-08-19 rebuild (also fixes Win32 CLI spawn + provider-env
+#     over-stripping; the only installer kept in the GitHub Release):
+#   sha256 03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils
 #
@@ -123,4 +126,6 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected (v2): 971df9d518f0d567c4a6a759835d99882cac1fc5abeabac51abce91dbe766ae1
+# expected (2026-08-19 v2 rebuild, current Release asset):
+#   03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
+# historical: v1 3221d5e9… · v2 971df9d5…

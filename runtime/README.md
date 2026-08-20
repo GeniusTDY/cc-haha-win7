@@ -89,15 +89,14 @@ Notes:
   optional way to get the full upstream treatment (it is idempotent
   and deletes itself when done).
 
-## Remaining attachments (GitHub Release — installers only)
+## Remaining attachment (GitHub Release — installer only)
 
-All runtime payloads are committed in git; the Release carries only the
-ready-made installers:
+All runtime payloads are committed in git; the Release carries a single
+ready-made installer — the newest build:
 
 | attachment | purpose | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe` | Stage A input for `repack/build-repack.sh` (skip Stage A path) | see release notes |
-| `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe` | rebuilt all-in-one offline installer (v2) | `971df9d5…e766ae1` |
+| `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe` | 2026-08-19 v2 rebuild: CU custom python path + Win32 CLI spawn fix + provider-env fix (older v1 / Stage A Setup.exe assets were removed) | `03286eaf…a716be` |
 
 ## node-pty-win32-x64/ (in git, ~1 MB)
 

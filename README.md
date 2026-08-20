@@ -2,8 +2,10 @@
 
 Restored source of the **Windows 7 offline edition** of
 [NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4 —
-the compatibility work behind `Claude-Code-Haha-0.5.4-win7-setup.exe`
-(a.k.a. `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`).
+the compatibility work behind the original
+`Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe` release (the Release now
+ships only the newest rebuild,
+`Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe`).
 
 The original fix sources were lost; this repo reconstructs them from the
 shipped installers + the development log, and re-verifies the result on an
@@ -56,8 +58,13 @@ docs/          Technical-Support.md (technical porting solution) ·
 
 ## Reproducibility
 
-Rebuilding from the shipped Setup.exe + runtime tree reproduces the released
+Rebuilding from the Stage A Setup.exe + runtime tree reproduces the released
 Offline.exe (v1 sha256 `3221d5e9…a025b40`). The **v2** rebuild adds one
 improvement — Computer Use setup accepts a custom python path that resolves
 to the bundled interpreter (`bundledCandidateMatch`) — sha256
 `971df9d5…e766ae1`. Both passed the offline QEMU Win7 E2E (§15.4).
+
+The Release now carries only the newest build — the **2026-08-19 v2
+rebuild** (adds Win32 CLI spawn fix + provider-env fix, sha256
+`03286eaf…a716be`); the older v1 and Stage A Setup.exe assets were
+removed (both are reproducible from this repo).
