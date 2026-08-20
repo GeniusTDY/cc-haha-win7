@@ -20,7 +20,7 @@
 #     Win7/8 (ConPTY is Win10 1809+) — patch-app-asar.mjs surgery inside
 #     app.asar, preserving the node-runtime fallback layer byte-exactly
 #   + Bash tool on a clean offline box: cli.mjs probes CC_HAHA_RUNTIME_DIR /
-#     <resources>/runtime/git/bin/bash.exe (bundled PortableGit 2.45.2)
+#     <resources>/runtime/git-2.45.2/bin/bash.exe (bundled PortableGit 2.45.2)
 #   + Computer Use fully offline: server.mjs CU patch (identifier-adaptive
 #     patch-computer-use.py) installs Python deps from bundled wheels
 #   + node-pty payload guaranteed in app.asar.unpacked/node_modules
@@ -44,7 +44,8 @@
 #   NODE_FALLBACK_DIR  dir with server.mjs adapters.mjs cli.mjs
 #                      recovery-cli.mjs adapters-chunks/   (built by
 #                      port-src/scripts/node-port/build.mjs + patch 005)
-#   RUNTIME_DIR        dir with node/ python/ vxkex/ setup-vxkex.bat
+#   RUNTIME_DIR        dir with node-v22.17.0/ python-3.8.10/
+#                      vxkex-1.2.1.2229/ setup-vxkex.bat
 #                      requirements-win.txt win_helper.py   (release payloads)
 #
 # Usage:
@@ -82,7 +83,7 @@ fi
 for f in server.mjs adapters.mjs cli.mjs recovery-cli.mjs adapters-chunks; do
   [ -e "$NODE_FALLBACK_DIR/$f" ] || { echo "[FAIL] node-fallback missing: $NODE_FALLBACK_DIR/$f"; exit 1; }
 done
-for d in node python vxkex; do
+for d in node-v22.17.0 python-3.8.10 vxkex-1.2.1.2229; do
   [ -d "$RUNTIME_DIR/$d" ] || { echo "[FAIL] runtime payload missing: $RUNTIME_DIR/$d"; exit 1; }
 done
 
@@ -139,8 +140,9 @@ rm -f "$BIN/claude-sidecar-x86_64-pc-windows-msvc.exe"
 ls "$BIN"
 
 echo "== 6/9 overlay offline runtime payloads =="
-# node/ python/ (with fixed python38._pth + whl wheels) vxkex/ + scripts
-for d in node python vxkex; do
+# node-v22.17.0/ python-3.8.10/ (with fixed python38._pth + whl wheels)
+# vxkex-1.2.1.2229/ + scripts
+for d in node-v22.17.0 python-3.8.10 vxkex-1.2.1.2229; do
   rm -rf "$RT/$d"
   cp -a "$RUNTIME_DIR/$d" "$RT/$d"
 done
@@ -161,22 +163,22 @@ if [ ! -f "$NODE_PTY_DST/lib/windowsTerminal.js" ] || \
    [ ! -f "$NODE_PTY_DST/prebuilds/win32-x64/winpty-agent.exe" ]; then
   echo "  node-pty missing/pruned in Stage A payload — overlaying vendored copy"
   mkdir -p "$NODE_PTY_DST"
-  cp -a "$HERE/../runtime/node-pty-win32-x64/." "$NODE_PTY_DST/"
+  cp -a "$HERE/../runtime/node-pty-1.1.0-win32-x64/." "$NODE_PTY_DST/"
 fi
 ls "$NODE_PTY_DST/prebuilds/win32-x64" | sed 's/^/  node-pty: /'
 
 echo "== 8/9 bundled PortableGit (Bash tool on a clean offline Win7) =="
 # The CLI's findSuitableShell resolves, in order: user-installed Git for
-# Windows, then <resources>/runtime/git/bin/bash.exe (this overlay), then PATH.
-# PortableGit 2.45.2 is the last Git line that still runs on Win7 — a pristine
-# extraction is committed under runtime/git/ (see runtime/README.md), so the
-# default RUNTIME_DIR=../runtime ships it fully offline.
-if [ -d "$RUNTIME_DIR/git" ]; then
-  echo "  overlaying bundled PortableGit -> resources/runtime/git"
-  rm -rf "$RT/git"
-  cp -a "$RUNTIME_DIR/git" "$RT/git"
+# Windows, then <resources>/runtime/git-2.45.2/bin/bash.exe (this overlay),
+# then PATH. PortableGit 2.45.2 is the last Git line that still runs on Win7 —
+# a pristine extraction is committed under runtime/git-2.45.2/ (see
+# runtime/README.md), so the default RUNTIME_DIR=../runtime ships it offline.
+if [ -d "$RUNTIME_DIR/git-2.45.2" ]; then
+  echo "  overlaying bundled PortableGit -> resources/runtime/git-2.45.2"
+  rm -rf "$RT/git-2.45.2"
+  cp -a "$RUNTIME_DIR/git-2.45.2" "$RT/git-2.45.2"
 else
-  echo "  (no RUNTIME_DIR/git — Bash tool needs Git for Windows installed)"
+  echo "  (no RUNTIME_DIR/git-2.45.2 — Bash tool needs Git for Windows installed)"
 fi
 
 echo "== 9/9 makensis (native, no wine) =="

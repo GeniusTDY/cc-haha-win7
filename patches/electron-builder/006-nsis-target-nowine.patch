@@ -17,7 +17,7 @@ a different version, re-generate the context (the semantic change is the
 single `if` line).
 
 NOT NEEDED when restoring node_modules from the committed snapshot:
-  vendor/desktop-node-modules/restore.sh
+  vendor/desktop-node-modules-0.5.4/restore.sh
 ships the tree with this patch PRE-APPLIED. Only the plain `npm install`
 path needs this patch, applied AFTER install (any reinstall overwrites it —
 build scripts must re-apply and verify, see repack/build-repack.sh):

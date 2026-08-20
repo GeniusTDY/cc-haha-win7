@@ -61,7 +61,7 @@ echo [OK] install dir: %INST%
 set "APPUNP=%INST%\resources\app.asar.unpacked"
 set "DIST=%APPUNP%\dist"
 set "SIDECAR=%APPUNP%\src-tauri\binaries\%SIDECAR_NAME%"
-set "NODE=%INST%\resources\runtime\node\node.exe"
+set "NODE=%INST%\resources\runtime\node-v22.17.0\node.exe"
 
 rem --- stop running app ---------------------------------------
 taskkill /f /im "Claude Code Haha.exe" >nul 2>&1
@@ -97,8 +97,8 @@ if "%CNT%"=="0" (
 echo [OK] fallback bundle deployed - %CNT% chunk files.
 
 rem --- step 1b: merge offline python wheels (Computer Use) -----
-set "PYWHEELS=%INST%\resources\runtime\python\wheels"
-set "PYDIR=%INST%\resources\runtime\python"
+set "PYWHEELS=%INST%\resources\runtime\python-3.8.10\wheels"
+set "PYDIR=%INST%\resources\runtime\python-3.8.10"
 if exist "%PYDIR%\python.exe" (
     if exist "%SELFDIR%wheels\" (
         xcopy "%SELFDIR%wheels\*.whl" "%PYWHEELS%\" /y /q >nul 2>nul

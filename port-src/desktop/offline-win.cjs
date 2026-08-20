@@ -12,8 +12,10 @@
 //   officially-named zip / extracted Electron root with electron.exe).
 //   Resolution order (first existing wins):
 //     1. $ELECTRON_DIST            — explicit override (zip or dir)
-//     2. <cc-haha>/vendor/electron — copied/extracted next to the source
-//     3. ../cc-haha-win7/vendor/electron — the recipe repo clone
+//     2. <cc-haha>/vendor/electron-v22.3.27-win32-x64 — copied/extracted
+//        next to the source
+//     3. ../cc-haha-win7/vendor/electron-v22.3.27-win32-x64 — the recipe
+//        repo clone
 //        (sibling of the cc-haha checkout; ships the official
 //        electron-v22.3.27-win32-x64 distribution committed as PLAIN
 //        FILES — the extracted zip root with electron.exe, no archives
@@ -46,7 +48,7 @@ function resolveBaseConfig() {
   )
 }
 
-const DEFAULT_DIST = path.join(__dirname, '..', '..', 'vendor', 'electron')
+const DEFAULT_DIST = path.join(__dirname, '..', '..', 'vendor', 'electron-v22.3.27-win32-x64')
 const crypto = require('crypto')
 
 // Reassemble electron.exe from the committed split parts (raw byte slices
@@ -92,7 +94,7 @@ function resolveElectronDist() {
   const candidates = [
     process.env.ELECTRON_DIST,
     DEFAULT_DIST,
-    path.join(__dirname, '..', '..', '..', 'cc-haha-win7', 'vendor', 'electron'),
+    path.join(__dirname, '..', '..', '..', 'cc-haha-win7', 'vendor', 'electron-v22.3.27-win32-x64'),
   ].filter(Boolean)
   for (const c of candidates) {
     if (fs.existsSync(c)) {
