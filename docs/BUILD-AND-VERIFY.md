@@ -37,18 +37,23 @@ node port-src/scripts/node-port/build.mjs
 git apply patches/cli/004-server-mjs-computer-use-offline.patch
 
 # desktop: install deps, patch electron-builder, build offline
-cd desktop && npm install
+# ELECTRON_SKIP_BINARY_DOWNLOAD=1: the npm electron package's postinstall
+# would download the ~100MB Electron binary — redundant here, because
+# offline-win.cjs points electronDist at the committed vendor/electron zip.
+cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install
 git apply ../patches/electron-builder/005-nsis-target-nowine.patch
-export ELECTRON_BUILDER_CACHE="$PWD/../vendor/electron-builder-cache"
+# NSIS toolchain cache (nsis-3.0.4.1 + nsis-resources-3.4.1, ~11 MB
+# unpacked) is committed in this repo — point the cache there and
+# electron-builder downloads nothing during the build:
+export ELECTRON_BUILDER_CACHE="<path-to>/cc-haha-win7/vendor/electron-builder-cache"
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 # Electron dist: zero downloads — the official electron-v22.3.27-win32-x64.zip
 # (97 MB, SHASUMS256-verified) is committed at vendor/electron/ in this repo;
 # offline-win.cjs auto-resolves it from the sibling cc-haha-win7 clone
 # (override with $ELECTRON_DIST; see vendor/sha256sums.txt).
-# First Stage A run still fetches the NSIS toolchain (~2 MB download:
-# nsis-3.0.4.1.7z + nsis-resources-3.4.1.7z, unpacks to ~11 MB) into
-# ELECTRON_BUILDER_CACHE unless the cache is pre-populated — see
-# Technical-Support.md §10; rg.exe + sidecar come from src-tauri/binaries
+# Remaining network use in Stage A: npm install itself (registry) —
+# everything the BUILD step fetches is committed.
+# rg.exe + sidecar come from src-tauri/binaries
 ```
 
 Stage A output provenance note: the shipped Setup.exe (225,684,328 bytes)
@@ -69,8 +74,11 @@ byte-identical.
 
 ```bash
 cd repack
-# put the Stage A output Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe here
-# (built above; or pass its path as the first argument);
+# NO downloads needed: when Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe is
+# absent, step 0/9 reassembles it from the git-committed split parts in
+# setup-exe/ (225,684,328 bytes, sha256 33f20bbf…ff1d9b; GitHub caps single
+# files at 100MB, hence 95MB parts) — the whole Stage B pipeline runs
+# network-free from a fresh clone. An explicit path argument still wins.
 # runtime/ payloads (node/ python/ vxkex/ git/) are already in this repo
 NODE_FALLBACK_DIR=../runtime/node-fallback \
 RUNTIME_DIR=../runtime \
@@ -89,7 +97,13 @@ tree reproduces the released Offline.exe family
 2026-08-20 v3 `c22f57eb…88eacbc`); NSIS stores file mtimes, so
 byte-identity additionally requires matching input timestamps —
 structural identity (same file set, sizes, install logic) is preserved
-regardless.
+regardless. Zero-network proof (2026-08-20): a fresh-clone rebuild with
+the Setup.exe reassembled from the committed split parts
+(`repack/setup-exe/`, step 0/9) produced
+`76a635d9456c9760cb3da5decebe37288bab63244279b137520430626a5ee8ec` —
+same v3 fix set (winpty ×1 · fallback ×6 · CC_HAHA_RUNTIME_DIR ×1 ·
+getBundledPythonDirsWin ×6 · node-pty prebuilds · PortableGit · node/
+python payloads), differing from v3 only by NSIS-embedded mtimes.
 
 ## Verify the v3 build (Linux host, structural)
 
