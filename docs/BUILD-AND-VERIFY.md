@@ -88,9 +88,10 @@ regardless.
 ## Verify the v3 build (Linux host, structural)
 
 ```bash
-# unpack the built installer and assert the complete fix set:
+# unpack the built installer and assert the complete fix set
+# (NSIS layout: the app tree sits at the archive top level):
 7z x -o/tmp/v3 Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe
-cd /tmp/v3 && 7z x -oapp 'resources' >/dev/null  # app tree is at top level
+cd /tmp/v3
 
 node /path/to/repack/asar-tool/node_modules/.bin/asar \
   extract-file resources/app.asar electron-dist/main.cjs
