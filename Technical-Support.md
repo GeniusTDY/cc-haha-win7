@@ -160,7 +160,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ### 5.1 Win32 CLI spawn 路径
 
-服务端启动 CLI 子进程原用 Bun 专属 `--preload` 参数，Node 22 报 `bad option`（exit 9），WS 会话与 cron 全部失败。win32 分支改为三级解析：直接执行 `dist/cli.mjs` → 兜底 `bin/claude-haha.cmd` 启动器 → 仅非 win32 保留 preload 路径。
+服务端启动 CLI 子进程原用 Bun 专属 `--preload` 参数，Node 22 报 `bad option`（exit 9），WS 会话与 cron 全部失败。`resolveCliArgs` 改为逐级解析：`CC_HAHA_CLI_ENTRY` 直连（自动补 sqlite 旗标）→ `../bin/claude-haha` JS 启动器 → win32 下直接执行 `dist/cli.mjs` → 兜底 `bin/claude-haha.cmd` 启动器 → 源码树布局的 preload 路径（安装布局下 cli.mjs 恒存在，实际不可达）。
 
 ### 5.2 继承环境变量剥离条件化
 
@@ -194,7 +194,7 @@ createServerPlan():
   return sidecar plan
 ```
 
-NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作并入重打包 payload（Stage B），不依赖装后脚本。发行包必须附带 `runtime\node-fallback\`（server.mjs / adapters.mjs / cli.mjs / recovery-cli.mjs / adapters-chunks\）。
+NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作并入重打包 payload（Stage B），不依赖装后脚本。发行包必须附带 node-port bundle（server.mjs / adapters.mjs / cli.mjs / recovery-cli.mjs / adapters-chunks\，由 Stage B 从仓库 `runtime/node-fallback/` 部署至安装布局 `resources\app.asar.unpacked\dist\`）。
 
 ## 7. Electron 22 / Chromium 108 适配
 
@@ -247,4 +247,4 @@ runCommand(py, ["-m","pip","install","--no-index","--no-build-isolation",
   "--find-links",wheelsDir, "-r",requirementsPath])
 ```
 
-版本锁定（Python 3.8 兼容）：`Pillow>=11.3.0` → `Pillow>=10.0.0,<11`（`requirements-win.txt`）。离线轮子（`runtime\python-3.8.10\wheels\`，16 个）：pip 24.3.1（解压引导）/ setuptools 75.3.0 / wheel 0.42.0 / Pillow 10.4.0 / pywin32 306+ / psutil 5.9.8+ / mss 9.0.2 / pyautogui 0.9.54 及纯 Python 依赖链（pygetwindow / pyrect / pyscreeze / pytweening / mouseinfo / pymsgbox）/ pyperclip 1.10.0+ / screeninfo 0.8.1。二进制轮均为 cp38 win_amd64 / cp37-abi3。
+版本锁定（Python 3.8 兼容）：`Pillow>=11.3.0` → `Pillow>=10.0,<10.5`（`requirements-win.txt`）。离线轮子（`runtime\python-3.8.10\wheels\`，16 个）：pip 24.3.1（解压引导）/ setuptools 75.3.0 / wheel 0.42.0 / Pillow 10.4.0 / pywin32 311 / psutil 7.2.2 / mss 9.0.2 / pyautogui 0.9.54 及纯 Python 依赖链（pygetwindow / pyrect / pyscreeze / pytweening / mouseinfo / pymsgbox）/ pyperclip 1.11.0 / screeninfo 0.8.1。二进制轮均为 cp38 win_amd64 / cp37-abi3。

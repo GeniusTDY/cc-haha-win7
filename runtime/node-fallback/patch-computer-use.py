@@ -19,11 +19,14 @@ BAK = PATH + ".pre-cu.bak"
 
 src = open(PATH, encoding="utf-8").read()
 
-if "getBundledPythonDirsWin" in src:
-    print("[SKIP] server.mjs already patched (getBundledPythonDirsWin present)")
+if "getBundledPythonDirsWin" in src and "const cliMjs2" in src:
+    print("[SKIP] server.mjs already patched (CU + win32 spawn chain present)")
     sys.exit(0)
+if "getBundledPythonDirsWin" in src:
+    print("[NOTE] CU patches present but win32 spawn chain (P9) missing — continuing")
 
 shutil.copyfile(PATH, BAK)
+backed_up = True
 
 # --------------------------------------------------------------------------
 # Auto-detect esbuild-generated identifiers (import aliases + renamed locals)
@@ -102,7 +105,13 @@ if m:
     SUB["pathExists2"] = m.group(1)
     print(f"[detect] pathExists (pythonBridge) = {m.group(1)}")
 else:
-    detect_fail.append("pathExists2")
+    # P7c already applied: probe the runtimeRoots loop shape instead
+    m = re.search(r"if \(await (\w+)\(reqCandidate\)\) \{", src)
+    if m:
+        SUB["pathExists2"] = m.group(1)
+        print(f"[detect] pathExists (pythonBridge, patched shape) = {m.group(1)}")
+    else:
+        detect_fail.append("pathExists2")
 
 # pythonBridge module-level var list (__dirname2 drifted to __dirname3 etc.)
 m = re.search(r"var (__dirname\d+), projectRoot, runtimeStateRoot", src)
@@ -119,6 +128,42 @@ if m:
     print(f"[detect] runPipInstallWithFallback alias = {m.group(1)}")
 else:
     detect_fail.append("runPipInstallWithFallback2")
+
+# --- P9 (win32 CLI spawn chain) identifiers -------------------------------
+# path alias inside resolveCliArgs (matches `pathNN.resolve(import.meta.dir, ...)`)
+m = re.search(r"(path\d+)\.resolve\(import\.meta\.dir, \"\.\./\.\./\.\./preload\.ts\"\)", src)
+if m:
+    SUB["path38"] = m.group(1)
+    print(f"[detect] resolveCliArgs path alias = {m.group(1)}")
+else:
+    # already applied (P9 replaced import.meta.dir with moduleDir): find the
+    # alias from the patched call shape instead
+    m = re.search(r"const moduleDir = (path\d+)\.dirname\(", src)
+    if m:
+        SUB["path38"] = m.group(1)
+        print(f"[detect] resolveCliArgs path alias (patched shape) = {m.group(1)}")
+    else:
+        detect_fail.append("path38")
+# fs alias visible in the ConversationService scope (any node:fs import alias
+# works — they all refer to the same module)
+m = re.search(r"if \(!((?:fs\d+))\.existsSync\(lockFile\)\)", src)
+if m:
+    SUB["fs26"] = m.group(1)
+    print(f"[detect] fs alias = {m.group(1)}")
+else:
+    m = re.search(r"import \* as ((?:fs\d+)) from \"node:fs\";", src)
+    if m:
+        SUB["fs26"] = m.group(1)
+        print(f"[detect] fs alias (first import) = {m.group(1)}")
+    else:
+        detect_fail.append("fs26")
+# fileURLToPath alias (any node:url import alias works)
+m = re.search(r"import \{ fileURLToPath as ((?:fileURLToPath\d+)) \}", src)
+if m:
+    SUB["fileURLToPath7"] = m.group(1)
+    print(f"[detect] fileURLToPath alias = {m.group(1)}")
+else:
+    detect_fail.append("fileURLToPath7")
 
 if detect_fail:
     print(f"\ndetection failed for: {detect_fail} - aborting, no changes written")
@@ -151,6 +196,9 @@ def rep(old, new, label):
     old = adapt(old)
     new = adapt(new)
     cnt = src.count(old)
+    if cnt == 0 and new in src:
+        print(f"[SKIP] {label} (already applied)")
+        return
     if cnt != 1:
         print(f"[FAIL] {label}: matched {cnt} times (expected 1)")
         n_fail += 1
@@ -451,14 +499,14 @@ function getBundledPythonDirsWin() {
   try {
     if (process.platform !== "win32") return [];
     return [
-      path17.resolve(__dirname2, "..", "runtime", "python"),
-      path17.resolve(__dirname2, "..", "..", "runtime", "python"),
-      path17.resolve(__dirname2, "..", "..", "..", "runtime", "python")
+      path17.resolve(__dirname2, "..", "runtime", "python-3.8.10"),
+      path17.resolve(__dirname2, "..", "..", "runtime", "python-3.8.10"),
+      path17.resolve(__dirname2, "..", "..", "..", "runtime", "python-3.8.10")
     ];
   } catch {
     return [];
   }
-}""", "P7b pythonBinPath override + dirs helper")
+}""", "P7b pythonBinPath override + dirs helper (versioned python dir)")
 
 # ---------------------------------------------------------------- P7c: ensureRuntimeFiles multi-root
 rep("""  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.txt";
@@ -602,8 +650,86 @@ rep("""    try {
       logForDebugging("installing python runtime dependencies", { level: "debug" });""", "P7g runtime deps self-heal probe")
 
 # ---------------------------------------------------------------- P8: Pillow py38-compatible range (win)
+# (matches runtime/requirements-win.txt exactly: Pillow>=10.0,<10.5)
 rep("""Pillow>=11.3.0,<12\\npyautogui>=0.9.54\\npywin32>=306""",
-    """Pillow>=10.0.0,<11\\npyautogui>=0.9.54\\npywin32>=306""", "P8 win requirements Pillow >=10,<11 (py38)")
+    """Pillow>=10.0,<10.5\\npyautogui>=0.9.54\\npywin32>=306""", "P8 win requirements Pillow >=10,<10.5 (py38)")
+
+# ---------------------------------------------------------------- P9: win32 CLI spawn chain (resolveCliArgs)
+# The node-port build emits Bun-flavored fallbacks (`--preload` +
+# import.meta.dir) that Node 22 rejects (`bad option`, exit 9) or crashes on
+# (import.meta.dir is undefined). Restore the chain shipped in
+# runtime/node-fallback/server.mjs: CC_HAHA_CLI_ENTRY direct entry (with the
+# node:sqlite flag) -> ../bin/claude-haha JS launcher -> dist/cli.mjs direct
+# execution -> bin/claude-haha.cmd -> source-tree preload fallback.
+rep("""  resolveCliArgs(baseArgs) {
+    const launcher = resolveClaudeCliLauncher({
+      cliPath: process.env.CLAUDE_CLI_PATH,
+      execPath: process.execPath
+    });
+    if (!launcher) {
+      if (process.platform === "win32") {
+        return [
+          process.execPath,
+          "--preload",
+          path38.resolve(import.meta.dir, "../../../preload.ts"),
+          path38.resolve(import.meta.dir, "../../entrypoints/cli.tsx"),
+          ...baseArgs
+        ];
+      }
+      return [path38.resolve(import.meta.dir, "../../../bin/claude-haha"), ...baseArgs];
+    }
+    return buildClaudeCliArgs(launcher, baseArgs, process.env.CLAUDE_APP_ROOT);
+  }""",
+    """  resolveCliArgs(baseArgs) {
+    const moduleDir = path38.dirname(fileURLToPath7(import.meta.url));
+    const nodePortEntry = process.env.CC_HAHA_CLI_ENTRY;
+    if (nodePortEntry) {
+      return [process.execPath, ...nodeSqliteFlagArgs(), nodePortEntry, ...baseArgs];
+    }
+    const launcher = resolveClaudeCliLauncher({
+      cliPath: process.env.CLAUDE_CLI_PATH,
+      execPath: process.execPath
+    });
+    if (!launcher) {
+      const distLauncher = path38.resolve(moduleDir, "../bin/claude-haha");
+      if (fs26.existsSync(distLauncher)) {
+        return [process.execPath, distLauncher, ...baseArgs];
+      }
+      if (process.platform === "win32") {
+        const cliMjs2 = path38.resolve(moduleDir, "./cli.mjs");
+        if (fs26.existsSync(cliMjs2)) {
+          return [process.execPath, cliMjs2, ...baseArgs];
+        }
+        const cmdLauncher = path38.resolve(moduleDir, "../bin/claude-haha.cmd");
+        if (fs26.existsSync(cmdLauncher)) {
+          return ["cmd", "/c", cmdLauncher, ...baseArgs];
+        }
+        return [
+          process.execPath,
+          "--preload",
+          path38.resolve(moduleDir, "../../../preload.ts"),
+          path38.resolve(moduleDir, "../../entrypoints/cli.tsx"),
+          ...baseArgs
+        ];
+      }
+      return [path38.resolve(moduleDir, "../../../bin/claude-haha"), ...baseArgs];
+    }
+    return buildClaudeCliArgs(launcher, baseArgs, process.env.CLAUDE_APP_ROOT);
+  }""", "P9 resolveCliArgs win32 spawn chain")
+
+# ---------------------------------------------------------------- P9b: nodeSqliteFlagArgs helper
+rep("""var ConversationService = class {
+  sessions = /* @__PURE__ */ new Map();""",
+    """function nodeSqliteFlagArgs(version4 = process.versions.node) {
+  const [major2, minor] = version4.trim().replace(/^v/, "").split(".").map(Number);
+  if (Number.isFinite(major2) && Number.isFinite(minor)) {
+    if (major2 === 22 && minor >= 5 && minor < 13) return ["--experimental-sqlite"];
+    if (major2 === 23 && minor < 4) return ["--experimental-sqlite"];
+  }
+  return [];
+}
+var ConversationService = class {
+  sessions = /* @__PURE__ */ new Map();""", "P9b nodeSqliteFlagArgs helper")
 
 if n_fail:
     print(f"\n{n_fail} patch(es) FAILED - restoring backup, no changes written")

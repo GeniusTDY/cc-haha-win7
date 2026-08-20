@@ -6,7 +6,7 @@ offline installer's `resources/app.asar`:
 
 | file | sha256 (first 16) | role |
 |---|---|---|
-| `main.cjs` | `bcff1e9c10ff5767` | main process (node-fallback layer + winpty forcing, see below) |
+| `main.cjs` | `b42ba76eed1eb658` | main process (node-fallback layer + winpty forcing, see below) |
 | `preload.cjs` | `17710337ae27feb7` | renderer preload |
 | `pet-preload.cjs` | `7d73778fe069d0d8` | pet window preload |
 | `preview-preload.cjs` | `819aae02d816873d` | preview window preload |
@@ -59,9 +59,13 @@ server.mjs | adapters.mjs, ...]` with entry resolution overridable via
 `CC_HAHA_SERVER_MJS` / `CC_HAHA_ADAPTERS_MJS`.
 
 The bundled `resources/runtime/node-v22.17.0/node.exe` (Node 22.17.0 win-x64) is
-found via PATH augmentation done by `buildSidecarEnv` — the installer
-also adds a firewall allow rule for it. On Win7, node.exe only starts
-under the VxKex compatibility layer (registered with
-`WINVERSPOOF:NONE`; see `runtime/setup-vxkex.bat`).
+resolved directly by `resolveNodeRuntimeExecutable` (probe order:
+`CC_HAHA_NODE_EXE` → `desktopRoot/runtime/node-v22.17.0/node.exe` →
+`../runtime/node-v22.17.0/node.exe` → `process.resourcesPath/runtime/
+node-v22.17.0/node.exe` → PATH); `buildSidecarEnv` additionally puts the
+runtime dir on PATH for child processes — the installer also adds a
+firewall allow rule for it. On Win7, node.exe only starts under the VxKex
+compatibility layer (registered with `WINVERSPOOF:NONE`; see
+`runtime/setup-vxkex.bat`).
 
 Reference: Technical-Support.md (repo root) §3, §4.4, §6.
