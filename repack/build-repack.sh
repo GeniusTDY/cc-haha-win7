@@ -15,8 +15,17 @@
 # v2 2026-08-19 rebuild (also fixes Win32 CLI spawn + provider-env
 #     over-stripping; the only installer kept in the GitHub Release):
 #   sha256 03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
+# v3 2026-08-20 "most complete" rebuild (current):
+#   + desktop terminal full TTY: main.cjs forces node-pty's winpty backend on
+#     Win7/8 (ConPTY is Win10 1809+) — patch-app-asar.mjs surgery inside
+#     app.asar, preserving the node-runtime fallback layer byte-exactly
+#   + Bash tool on a clean offline box: cli.mjs probes CC_HAHA_RUNTIME_DIR /
+#     <resources>/runtime/git/bin/bash.exe (bundled PortableGit 2.45.2)
+#   + Computer Use fully offline: server.mjs CU patch (identifier-adaptive
+#     patch-computer-use.py) installs Python deps from bundled wheels
+#   + node-pty payload guaranteed in app.asar.unpacked/node_modules
 #
-# Prereqs: 7z, makensis (>= 3.08), bash, coreutils
+# Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #
 # Inputs (relative to this script's directory):
 #   Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe  Stage A output (electron-builder)
@@ -51,12 +60,12 @@ for d in node python vxkex; do
   [ -d "$RUNTIME_DIR/$d" ] || { echo "[FAIL] runtime payload missing: $RUNTIME_DIR/$d"; exit 1; }
 done
 
-echo "== 1/6 unpack Stage A installer shell =="
+echo "== 1/9 unpack Stage A installer shell =="
 rm -rf "$WORK"; mkdir -p "$ORIG"
 7z x -y -o"$ORIG" "$SETUP" >/dev/null
 [ -f "$ORIG/\$PLUGINSDIR/app-64.7z" ] || { echo "[FAIL] app-64.7z not found in installer"; exit 1; }
 
-echo "== 2/6 extract app payload =="
+echo "== 2/9 extract app payload =="
 mkdir -p "$APP"
 7z x -y -o"$APP" "$ORIG/\$PLUGINSDIR/app-64.7z" >/dev/null
 
@@ -64,18 +73,26 @@ DIST="$APP/resources/app.asar.unpacked/dist"
 BIN="$APP/resources/app.asar.unpacked/src-tauri/binaries"
 RT="$APP/resources/runtime"
 
-echo "== 3/6 deploy node-fallback bundle (forces node.exe server) =="
+echo "== 3/9 patch app.asar main.cjs (force winpty terminal backend) =="
+# Surgical in-place asar rewrite (see patch-app-asar.mjs header comment): the
+# shipped main.cjs carries the Win7 node-runtime fallback layer that is not in
+# the current desktop sources, so we only insert the one missing runtime hunk
+# of patches/desktop/006 — `ptySpawnOptions.useConpty = false` on legacy
+# Windows — and leave every other archived file at its original offset.
+node "$HERE/patch-app-asar.mjs" "$APP/resources/app.asar"
+
+echo "== 4/9 deploy node-fallback bundle (forces node.exe server) =="
 for f in server.mjs adapters.mjs cli.mjs recovery-cli.mjs; do
   cp -f "$NODE_FALLBACK_DIR/$f" "$DIST/$f"
 done
 rm -rf "$DIST/adapters-chunks"
 cp -a "$NODE_FALLBACK_DIR/adapters-chunks" "$DIST/adapters-chunks"
 
-echo "== 4/6 remove broken compiled sidecar =="
+echo "== 5/9 remove broken compiled sidecar =="
 rm -f "$BIN/claude-sidecar-x86_64-pc-windows-msvc.exe"
 ls "$BIN"
 
-echo "== 5/6 overlay offline runtime payloads =="
+echo "== 6/9 overlay offline runtime payloads =="
 # node/ python/ (with fixed python38._pth + whl wheels) vxkex/ + scripts
 for d in node python vxkex; do
   rm -rf "$RT/$d"
@@ -87,7 +104,7 @@ done
 # drop Stage A dev leftovers not meant to ship
 rm -f "$RT/WIN7-SETUP.txt" "$RT/mac_helper.py" "$RT/test_helpers.py"
 
-echo "== 6/8 guarantee node-pty winpty payload (full TTY terminal on Win7) =="
+echo "== 7/9 guarantee node-pty winpty payload (full TTY terminal on Win7) =="
 # The desktop terminal loads node-pty from app.asar.unpacked/node_modules and
 # forces its winpty backend on Win7/8 (main.cjs useConpty:false). electron-
 # builder may prune or omit that module from the payload — overlay the vendored
@@ -102,7 +119,7 @@ if [ ! -f "$NODE_PTY_DST/lib/windowsTerminal.js" ] || \
 fi
 ls "$NODE_PTY_DST/prebuilds/win32-x64" | sed 's/^/  node-pty: /'
 
-echo "== 7/8 bundled PortableGit (Bash tool on a clean offline Win7) =="
+echo "== 8/9 bundled PortableGit (Bash tool on a clean offline Win7) =="
 # The CLI's findSuitableShell resolves, in order: user-installed Git for
 # Windows, then <resources>/runtime/git/bin/bash.exe (this overlay), then PATH.
 # PortableGit 2.45.2 is the last Git line that still runs on Win7 — a pristine
@@ -116,8 +133,7 @@ else
   echo "  (no RUNTIME_DIR/git — Bash tool needs Git for Windows installed)"
 fi
 
-echo "== 8/8 makensis (native, no wine) =="
-cd "$HERE"
+echo "== 9/9 makensis (native, no wine) =="
 # installer.nsi expects app/, app-icon.ico, modern-wizard.bmp next to it
 ln -sfn "$APP" "$HERE/app"
 cp -f assets/app-icon.ico assets/modern-wizard.bmp .
@@ -126,6 +142,5 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected (2026-08-19 v2 rebuild, current Release asset):
-#   03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
-# historical: v1 3221d5e9… · v2 971df9d5…
+# expected: v3 2026-08-20 rebuild — see docs/BUILD.md for the full matrix
+# historical: v1 3221d5e9… · v2 971df9d5… · v2-rebuild 03286eaf…

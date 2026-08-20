@@ -1,18 +1,155 @@
 #!/usr/bin/env python3
-# Patch runtime/node-fallback/server.mjs for Win7 Computer Use offline support.
-# Every replacement asserts exactly-once match; abort with no changes on failure.
-import sys, shutil
+# Patch the node-port server bundle (dist/server.mjs) for Win7 Computer Use
+# offline support. Every replacement asserts exactly-once match; aborts with
+# no changes on failure.
+#
+# Identifier-adaptive: esbuild renames top-level import aliases per build
+# (join187 -> join183, __dirname2 -> __dirname3, ...) because its renamer
+# numbers colliding symbols by frequency histogram. All esbuild-generated
+# aliases used below are therefore auto-detected from the bundle instead of
+# hard-coded, so this script survives rebuilds of dist/server.mjs.
+#
+# Usage: python3 patch-computer-use.py [path/to/server.mjs]
+import re
+import shutil
+import sys
 
-PATH = "server.mjs"
-BAK = "server.mjs.pre-cu.bak"
+PATH = sys.argv[1] if len(sys.argv) > 1 else "server.mjs"
+BAK = PATH + ".pre-cu.bak"
 
 src = open(PATH, encoding="utf-8").read()
+
+if "getBundledPythonDirsWin" in src:
+    print("[SKIP] server.mjs already patched (getBundledPythonDirsWin present)")
+    sys.exit(0)
+
 shutil.copyfile(PATH, BAK)
+
+# --------------------------------------------------------------------------
+# Auto-detect esbuild-generated identifiers (import aliases + renamed locals)
+# --------------------------------------------------------------------------
+detect_fail = []
+
+
+def module_prologue(marker):
+    """Return the import block that follows a module comment marker."""
+    m = re.search(
+        re.escape(marker) + r"\n(?:init_define_MACRO\(\);\n)?((?:import [^\n]+\n)+)",
+        src,
+    )
+    return m.group(1) if m else ""
+
+
+# --- src/server/api/computer-use.ts prologue (CU api module) --------------
+cu_pro = module_prologue("// src/server/api/computer-use.ts")
+cu_join = re.search(r"\bjoin as (\w+)\b", cu_pro)
+cu_readfile = re.search(r"\breadFile as (\w+)\b", cu_pro)
+cu_writefile = re.search(r"\bwriteFile as (\w+)\b", cu_pro)
+cu_path = re.search(r"import (\w+) from \"(?:node:)?path\";", cu_pro)
+cu_futp = re.search(r"\bfileURLToPath as (\w+)\b", cu_pro)
+if not (cu_join and cu_readfile and cu_writefile and cu_path and cu_futp):
+    detect_fail.append("computer-use.ts prologue aliases")
+    print(f"[FAIL] computer-use.ts prologue incomplete: {cu_pro!r}")
+
+# --- src/utils/computerUse/pythonBridge.ts prologue -----------------------
+pb_pro = module_prologue("// src/utils/computerUse/pythonBridge.ts")
+pb_path = re.search(r"import (\w+) from \"(?:node:)?path\";", pb_pro)
+pb_readfile = re.search(r"\breadFile as (\w+)\b", pb_pro)
+pb_writefile = re.search(r"\bwriteFile as (\w+)\b", pb_pro)
+if not (pb_path and pb_readfile and pb_writefile):
+    detect_fail.append("pythonBridge.ts prologue aliases")
+    print(f"[FAIL] pythonBridge.ts prologue incomplete: {pb_pro!r}")
+
+# --- context-bound identifiers --------------------------------------------
+m = re.search(r"async function detectPythonRuntime\((\w+), (\w+), (\w+), (\w+)\) \{", src)
+if m:
+    cu_platform, cu_runcmd = m.group(1), m.group(2)
+    print(f"[detect] detectPythonRuntime({cu_platform}, {cu_runcmd}, ...)")
+else:
+    cu_platform = cu_runcmd = None
+    detect_fail.append("detectPythonRuntime signature")
+
+# identifiers as used inside the patch contexts below
+SUB = {}
+for old, detected, label in [
+    ("join187", cu_join and cu_join.group(1), "join (computer-use.ts)"),
+    ("readFile85", cu_readfile and cu_readfile.group(1), "readFile (computer-use.ts)"),
+    ("writeFile64", cu_writefile and cu_writefile.group(1), "writeFile (computer-use.ts)"),
+    ("path59", cu_path and cu_path.group(1), "path default (computer-use.ts)"),
+    ("fileURLToPath9", cu_futp and cu_futp.group(1), "fileURLToPath (computer-use.ts)"),
+    ("path17", pb_path and pb_path.group(1), "path default (pythonBridge.ts)"),
+    ("readFile28", pb_readfile and pb_readfile.group(1), "readFile (pythonBridge.ts)"),
+    ("writeFile24", pb_writefile and pb_writefile.group(1), "writeFile (pythonBridge.ts)"),
+    ("platform5", cu_platform, "detectPythonRuntime platform param"),
+    ("runCommand2", cu_runcmd, "detectPythonRuntime runCommand param"),
+]:
+    if detected is None:
+        detect_fail.append(label)
+        print(f"[FAIL] could not detect identifier for {old} ({label})")
+    else:
+        SUB[old] = detected
+        print(f"[detect] {old} -> {detected}  ({label})")
+
+# pathExists aliases differ per module (pathExists3 = CU api, pathExists2 = pythonBridge)
+m = re.search(r"let venvExists = await (\w+)\(venvPython\);", src)
+if m:
+    SUB["pathExists3"] = m.group(1)
+    print(f"[detect] pathExists (CU api) = {m.group(1)}")
+else:
+    detect_fail.append("pathExists3")
+m = re.search(r"if \(await (\w+)\(devRequirements\)\) \{", src)
+if m:
+    SUB["pathExists2"] = m.group(1)
+    print(f"[detect] pathExists (pythonBridge) = {m.group(1)}")
+else:
+    detect_fail.append("pathExists2")
+
+# pythonBridge module-level var list (__dirname2 drifted to __dirname3 etc.)
+m = re.search(r"var (__dirname\d+), projectRoot, runtimeStateRoot", src)
+if m:
+    SUB["__dirname2"] = m.group(1)
+    print(f"[detect] pythonBridge __dirname var = {m.group(1)}")
+else:
+    detect_fail.append("pythonBridge __dirname var")
+
+# installSetupDependencies default install fn alias
+m = re.search(r"installSetupDependencies\(\w+, \w+, install = (\w+)\) \{", src)
+if m:
+    SUB["runPipInstallWithFallback2"] = m.group(1)
+    print(f"[detect] runPipInstallWithFallback alias = {m.group(1)}")
+else:
+    detect_fail.append("runPipInstallWithFallback2")
+
+if detect_fail:
+    print(f"\ndetection failed for: {detect_fail} - aborting, no changes written")
+    sys.exit(2)
+
+# identifiers that are semantic source names (stable across builds); verify
+# they exist so a failure is loud instead of a silent no-op
+for stable in ["venvRoot", "venvRoot2", "installStampPath", "installStampPath2",
+               "config4", "helperPath2", "reqPath", "projectRoot", "pythonRuntime",
+               "baseInterpreterMarkerPath", "effectiveVenvCreated", "helperFileName",
+               "getVenvCreationPythonCommand", "venvBaseInterpreterMatches",
+               "runPipInstallWithFallback", "execFileNoThrow", "runOrThrow",
+               "logForDebugging", "requirements-win.txt"]:
+    if stable not in src:
+        print(f"[FAIL] stable identifier missing from bundle: {stable}")
+        sys.exit(2)
+
+word_sub = re.compile(r"\b(" + "|".join(sorted(SUB, key=len, reverse=True)) + r")\b")
+
+
+def adapt(s):
+    return word_sub.sub(lambda mm: SUB[mm.group(1)], s)
+
 
 n_fail = 0
 
+
 def rep(old, new, label):
     global src, n_fail
+    old = adapt(old)
+    new = adapt(new)
     cnt = src.count(old)
     if cnt != 1:
         print(f"[FAIL] {label}: matched {cnt} times (expected 1)")
@@ -21,15 +158,16 @@ def rep(old, new, label):
     src = src.replace(old, new)
     print(f"[OK] {label}")
 
+
 # ---------------------------------------------------------------- P1: min python 3.9 -> 3.8
 rep("""var MIN_PYTHON_MAJOR = 3;
 var MIN_PYTHON_MINOR = 9;""",
-"""var MIN_PYTHON_MAJOR = 3;
+    """var MIN_PYTHON_MAJOR = 3;
 var MIN_PYTHON_MINOR = 8;""", "P1 MIN_PYTHON_MINOR 9->8")
 
 # ---------------------------------------------------------------- P2: bundled python helpers + detection
 rep("""async function detectPythonRuntime(platform5, runCommand2, venvPythonPath, customPythonPath) {""",
-"""function getBundledPythonCandidatesWin() {
+    """function getBundledPythonCandidatesWin() {
   try {
     if (process.platform !== "win32") return [];
     const selfDir = path59.dirname(fileURLToPath9(import.meta.url));
@@ -59,7 +197,7 @@ async function detectPythonRuntime(platform5, runCommand2, venvPythonPath, custo
 
 rep("""  for (const candidate of getPythonCandidates(platform5)) {
     const versionResult = await runCommand2(candidate.command, [...candidate.prefixArgs, "--version"]);""",
-"""  for (const bundledPath of getBundledPythonCandidatesWin()) {
+    """  for (const bundledPath of getBundledPythonCandidatesWin()) {
     const bundledResult = await runCommand2(bundledPath, ["--version"]);
     if (!bundledResult.ok) continue;
     return {
@@ -79,7 +217,7 @@ ${bundledResult.stderr}`),
 # ---------------------------------------------------------------- P3: runSetup effective python var
 rep("""  const venvPython = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
   let venvExists = await pathExists3(venvPython);""",
-"""  const venvPython = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
+    """  const venvPython = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
   let effectivePythonCmd = venvPython;
   let venvExists = await pathExists3(venvPython);""", "P3 effectivePythonCmd declared")
 
@@ -103,7 +241,7 @@ rep("""    if (!venvResult.ok) {
       return { success: false, steps };
     }
     steps.push({ name: "venv", ok: true, message: "\\u865A\\u62DF\\u73AF\\u5883\\u5DF2\\u521B\\u5EFA" });""",
-"""    if (!venvResult.ok) {
+    """    if (!venvResult.ok) {
       const bundledCandidateMatch = getBundledPythonCandidatesWin().some((candidate) => {
         try {
           return path59.resolve(String(pythonRuntime.path ?? "")).toLowerCase() === path59.resolve(candidate).toLowerCase();
@@ -160,7 +298,7 @@ rep("""  if (!await pathExists3(pipPath)) {
       return { success: false, steps };
     }
   }""",
-"""  if (!await pathExists3(pipPath)) {
+    """  if (!await pathExists3(pipPath)) {
     const pipResult = await runCommand(effectivePythonCmd, [
       "-m",
       "ensurepip",
@@ -228,7 +366,8 @@ rep("""  if (!await pathExists3(pipPath)) {
 
 # ---------------------------------------------------------------- P3d: deps install with effective python
 rep("""    const installResult = await installSetupDependencies(venvPython, reqPath);""",
-"""    const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""", "P3d installSetupDependencies effective")
+    """    const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""", "P3d installSetupDependencies effective")
+
 # ---------------------------------------------------------------- P3e: runSetup deps self-heal probe
 rep("""  try {
     installedDigest = (await readFile85(installStampPath2, "utf8")).trim();
@@ -236,7 +375,7 @@ rep("""  try {
   }
   if (installedDigest !== digest) {
     const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""",
-"""  try {
+    """  try {
     installedDigest = (await readFile85(installStampPath2, "utf8")).trim();
   } catch {
   }
@@ -253,7 +392,7 @@ rep("""async function installSetupDependencies(venvPython, reqPath, install = ru
   await install(venvPython, ["-m", "pip", "install", "--upgrade", "pip"]);
   return install(venvPython, ["-m", "pip", "install", "-r", reqPath]);
 }""",
-"""async function installSetupDependencies(pythonCmd, reqPath, install = runPipInstallWithFallback2) {
+    """async function installSetupDependencies(pythonCmd, reqPath, install = runPipInstallWithFallback2) {
   const wheelsDir = await getBundledWheelsDir();
   if (wheelsDir) {
     return install(pythonCmd, [
@@ -272,7 +411,7 @@ rep("""  let effectiveVenvCreated = venvCreated;
     const matches = await venvBaseInterpreterMatches(config4.pythonPath);
     if (!matches) effectiveVenvCreated = false;
   }""",
-"""  let effectiveVenvCreated = venvCreated;
+    """  let effectiveVenvCreated = venvCreated;
   if (venvCreated) {
     const matches = await venvBaseInterpreterMatches(config4.pythonPath);
     if (!matches) effectiveVenvCreated = false;
@@ -285,7 +424,7 @@ rep("""  const pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.ex
   if (!await pathExists3(pythonBin) || !await pathExists3(helperPath2)) {
     return [];
   }""",
-"""  let pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
+    """  let pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
   if (!await pathExists3(pythonBin)) {
     pythonBin = null;
     for (const cand of getBundledPythonCandidatesWin()) {
@@ -298,13 +437,13 @@ rep("""  const pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.ex
 
 # ---------------------------------------------------------------- P7: pythonBridge — var list
 rep("""var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise;""",
-"""var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise, basePythonOverride;""", "P7a basePythonOverride var")
+    """var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise, basePythonOverride;""", "P7a basePythonOverride var")
 
 # ---------------------------------------------------------------- P7b: pythonBinPath + bundled dirs helper
 rep("""function pythonBinPath() {
   return isWindows2 ? path17.join(venvRoot, "Scripts", "python.exe") : path17.join(venvRoot, "bin", "python3");
 }""",
-"""function pythonBinPath() {
+    """function pythonBinPath() {
   if (basePythonOverride) return basePythonOverride;
   return isWindows2 ? path17.join(venvRoot, "Scripts", "python.exe") : path17.join(venvRoot, "bin", "python3");
 }
@@ -331,7 +470,7 @@ rep("""  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.
   if (await pathExists2(devHelper)) {
     await writeFile24(helperPath, await readFile28(devHelper, "utf8"), "utf8");
   }""",
-"""  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.txt";
+    """  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.txt";
   const runtimeRoots = [
     path17.join(projectRoot, "runtime"),
     path17.resolve(__dirname2, "..", "..", "runtime")
@@ -357,7 +496,7 @@ rep("""    if (!await pathExists2(pythonBinPath())) {
       const pythonCmd = await getVenvCreationPythonCommand();
       await runOrThrow(pythonCmd, ["-m", "venv", venvRoot], "python venv creation");
     }""",
-"""    if (!await pathExists2(pythonBinPath())) {
+    """    if (!await pathExists2(pythonBinPath())) {
       logForDebugging("creating runtime venv at %s", { level: "debug" });
       const pythonCmd = await getVenvCreationPythonCommand();
       try {
@@ -379,7 +518,7 @@ rep("""    const pipBin = isWindows2 ? path17.join(venvRoot, "Scripts", "pip.exe
       logForDebugging("bootstrapping pip with ensurepip", { level: "debug" });
       await runOrThrow(pythonBinPath(), ["-m", "ensurepip", "--upgrade"], "ensurepip");
     }""",
-"""    const pipBin = isWindows2 ? path17.join(venvRoot, "Scripts", "pip.exe") : path17.join(venvRoot, "bin", "pip");
+    """    const pipBin = isWindows2 ? path17.join(venvRoot, "Scripts", "pip.exe") : path17.join(venvRoot, "bin", "pip");
     if (!basePythonOverride && !await pathExists2(pipBin)) {
       logForDebugging("bootstrapping pip with ensurepip", { level: "debug" });
       await runOrThrow(pythonBinPath(), ["-m", "ensurepip", "--upgrade"], "ensurepip");
@@ -425,7 +564,7 @@ rep("""async function installRuntimeDependencies(requirementsPath2, install = ru
   await install(["-m", "pip", "install", "--upgrade", "pip"], "pip upgrade");
   await install(["-m", "pip", "install", "-r", requirementsPath2], "python dependency install");
 }""",
-"""async function installRuntimeDependencies(requirementsPath2, install = runPipInstallWithFallback) {
+    """async function installRuntimeDependencies(requirementsPath2, install = runPipInstallWithFallback) {
   let wheelsDir = null;
   for (const dir of getBundledPythonDirsWin()) {
     const cand = path17.join(dir, "wheels");
@@ -442,6 +581,7 @@ rep("""async function installRuntimeDependencies(requirementsPath2, install = ru
   await install(["-m", "pip", "install", "--upgrade", "pip"], "pip upgrade");
   await install(["-m", "pip", "install", "-r", requirementsPath2], "python dependency install");
 }""", "P7f installRuntimeDependencies offline")
+
 # ---------------------------------------------------------------- P7g: runtime deps self-heal probe
 rep("""    try {
       installedDigest = (await readFile28(installStampPath, "utf8")).trim();
@@ -449,7 +589,7 @@ rep("""    try {
     }
     if (installedDigest !== digest) {
       logForDebugging("installing python runtime dependencies", { level: "debug" });""",
-"""    try {
+    """    try {
       installedDigest = (await readFile28(installStampPath, "utf8")).trim();
     } catch {
     }
@@ -461,10 +601,9 @@ rep("""    try {
     if (needsRuntimeInstall) {
       logForDebugging("installing python runtime dependencies", { level: "debug" });""", "P7g runtime deps self-heal probe")
 
-
 # ---------------------------------------------------------------- P8: Pillow py38-compatible range (win)
 rep("""Pillow>=11.3.0,<12\\npyautogui>=0.9.54\\npywin32>=306""",
-"""Pillow>=10.0.0,<11\\npyautogui>=0.9.54\\npywin32>=306""", "P8 win requirements Pillow >=10,<11 (py38)")
+    """Pillow>=10.0.0,<11\\npyautogui>=0.9.54\\npywin32>=306""", "P8 win requirements Pillow >=10,<11 (py38)")
 
 if n_fail:
     print(f"\n{n_fail} patch(es) FAILED - restoring backup, no changes written")

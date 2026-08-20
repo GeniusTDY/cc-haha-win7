@@ -6,3 +6,13 @@ ea70169decdb4787b7503b899495a1edfa27e9077f8bc5e0ef5980cb42fef3e8  git/bin/bash.e
 3fe4878d8399f6fb7632b9325559d1bb38c3a17aac7a60f667c1e5f90b865248  git/mingw64/bin/git.exe
 58b8b00113fa8b9657d8da5b14bae93f765f29651c81055e3d127d4a22e5c0d6  kb-patches/Windows6.1-KB2533623-x64.msu
 9fe71e7dcd2280ce323880b075ade6e56c49b68fc702a9b4c0a635f0f1fb9db8  kb-patches/Windows6.1-KB2670838-x64.msu
+0c4834a0ab2a4f8c855a2f1db9b21fa6e5fc324ae8e3c82addd53d503d999825  node-pty-win32-x64/prebuilds/win32-x64/winpty-agent.exe
+ae323edd0835ee7b9e18cc96a7b2bb4b8173ff768317d178af2788406feb71ff  node-pty-win32-x64/prebuilds/win32-x64/pty.node
+e1cb26d868c954ba26817bedf3e4a5744e4ca2030adf51a7156e5ff2fadb881b  node-pty-win32-x64/prebuilds/win32-x64/winpty.dll
+c3a65716f53fed0135a8a633373d5f9c2ab092544d651f27ef0a67096dd3bcd9  node-pty-win32-x64/lib/windowsTerminal.js
+8e02be8b3a1ef53fc33d77d7182e8a765b501c34c9dca459300a2cc6ac38a074  node-fallback/cli.mjs
+e01ab77e7002b095ffa3a7a0bed513eca3bc88379ee379db3a488f252303dd3a  node-fallback/server.mjs
+# v3 installer (2026-08-20, current Release asset):
+# c22f57ebc9894af593487162c98480e1a9b51954e612c2456cc63f89888eacbc  Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe
+# patched main.cjs inside its app.asar:
+# bcff1e9c10ff5767dc046b305a654ed09e6bf968a8c9886d1f82ee46a87e95e2  electron-dist/main.cjs
