@@ -41,7 +41,12 @@ cd desktop && npm install
 git apply ../patches/electron-builder/005-nsis-target-nowine.patch
 export ELECTRON_BUILDER_CACHE="$PWD/../vendor/electron-builder-cache"
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
-# requires vendor/electron (Electron 22.3.27 win-x64 dist) — see
+# Electron dist: zero downloads — the official electron-v22.3.27-win32-x64.zip
+# (97 MB, SHASUMS256-verified) is committed at vendor/electron/ in this repo;
+# offline-win.cjs auto-resolves it from the sibling cc-haha-win7 clone
+# (override with $ELECTRON_DIST; see vendor/sha256sums.txt).
+# First Stage A run still fetches the ~15 MB NSIS toolchain into
+# ELECTRON_BUILDER_CACHE unless the cache is pre-populated — see
 # Technical-Support.md §10; rg.exe + sidecar come from src-tauri/binaries
 ```
 

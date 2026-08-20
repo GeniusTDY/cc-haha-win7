@@ -301,8 +301,11 @@ npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 - `build.npmRebuild: false`：Linux 上 node-gyp 不能交叉编译 Windows 原生模块
   （node-pty），直接用 node_modules 内预编译二进制
 - `offline-win.cjs`：`electronDist` 指向本地 Electron win-x64 分发（zip 路径 /
-  目录 / 解压根三选一，构建不下载）；`signAndEditExecutable: false` 跳过
-  rcedit（依赖 wine）
+  目录 / 解压根三选一，构建不下载）。官方
+  `electron-v22.3.27-win32-x64.zip`（97MB，SHASUMS256 校验一致）已入仓
+  `vendor/electron/`，配置按 `$ELECTRON_DIST` → `cc-haha/vendor/electron` →
+  同级 `cc-haha-win7/vendor/electron` 顺序自动定位——Stage A 无需下载
+  Electron；`signAndEditExecutable: false` 跳过 rcedit（依赖 wine）
 - **免 wine 补丁（005）**：`app-builder-lib/.../NsisTarget.js` 中
   `UninstallerReader`（纯 Node 解析 PE + NSIS 字节流提取卸载器）的启用条件
   从仅 macOS Catalina 放宽为 `process.platform !== "win32"`。补丁在

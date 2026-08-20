@@ -39,6 +39,11 @@ runtime/       offline runtime payloads — node/, python/, vxkex/,
                git/ (PortableGit 2.45.2), kb-patches/ and
                node-pty-win32-x64/ are all committed in git (~545 MB);
                Release carries installers only
+vendor/        Stage A build dependency committed in git: the official
+               electron-v22.3.27-win32-x64.zip (97 MB, matches upstream
+               SHASUMS256.txt) — offline-win.cjs auto-resolves it, so
+               Stage A needs zero Electron downloads
+               (verify: cd vendor && sha256sum -c sha256sums.txt)
 repack/        Stage B: build-repack.sh + installer.nsi → win7-x64-setup.exe;
                patch-app-asar.mjs surgically adds the winpty forcing to the
                shipped main.cjs inside app.asar (asar-tool/ vendors
@@ -53,7 +58,10 @@ docs/          Technical-Support.md (technical porting solution) ·
 
 1. `git clone` this repo — node/, python/, vxkex/, git/ (PortableGit
    2.45.2, Bash tool shell) and kb-patches/ payloads are already inside
-   `runtime/` (verify with `cd runtime && sha256sum -c sha256sums.txt`).
+   `runtime/` (verify with `cd runtime && sha256sum -c sha256sums.txt`),
+   and the Electron 22.3.27 win-x64 dist zip for Stage A is inside
+   `vendor/electron/` (verify with `cd vendor && sha256sum -c
+   sha256sums.txt`) — no downloads from the Release needed at all.
 2. Build: [docs/BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md) —
    Stage A (upstream + patches → Setup.exe), Stage B (`repack/build-repack.sh`
    → win7-x64-setup.exe).
