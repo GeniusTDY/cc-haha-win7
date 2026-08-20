@@ -10,7 +10,7 @@ ea70169decdb4787b7503b899495a1edfa27e9077f8bc5e0ef5980cb42fef3e8  git-2.45.2/bin
 ae323edd0835ee7b9e18cc96a7b2bb4b8173ff768317d178af2788406feb71ff  node-pty-1.1.0-win32-x64/prebuilds/win32-x64/pty.node
 e1cb26d868c954ba26817bedf3e4a5744e4ca2030adf51a7156e5ff2fadb881b  node-pty-1.1.0-win32-x64/prebuilds/win32-x64/winpty.dll
 c3a65716f53fed0135a8a633373d5f9c2ab092544d651f27ef0a67096dd3bcd9  node-pty-1.1.0-win32-x64/lib/windowsTerminal.js
-1ccad4b88cd0d0ed573d5e4d7103091f6c39440885d6fb1ac4dcc1734571148d  node-fallback/cli.mjs
+925cc9af8d906a5681779c85b4500b80c0d490b41b071bc612783cd872cdca40  node-fallback/cli.mjs
 895a237efb7aa4a9c01169f885551051a66edd1e5a4aedb1e3d760aaa080cc5b  node-fallback/server.mjs
 # 2026-08-20 feed-rewrite rebuild (v3 fix set + app-update.yml repointed
 # at GeniusTDY/cc-haha-win7; current Release asset, renamed from

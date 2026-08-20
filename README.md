@@ -115,8 +115,9 @@ cp -r ../cc-haha-win7/port-src ./
 
 node port-src/scripts/node-port/build.mjs
 
-# CU 离线 + Win32 CLI spawn 链修补（标识符自适应，可重现 shipped 产物；
-# patch 005 是 2026-08-18 旧构建的 diff 存档，对新构建 git apply 会失败）：
+# CU 离线 + Win32 CLI spawn 链 + cli.mjs VT 门控修补（标识符自适应，
+# 可重现 shipped 产物；patch 005 是 2026-08-18 旧构建的 diff 存档，
+# 对新构建 git apply 会失败）：
 python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.mjs
 
 cd desktop
