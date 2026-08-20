@@ -5,8 +5,8 @@ Applied to the node-port CLI/server bundle (dist/server.mjs, produced by
 port-src/scripts/node-port/build.mjs). Makes Computer Use work fully offline
 on Win7:
   - pythonBinPath(): honor basePythonOverride first
-  - getBundledPythonDirsWin(): locate resources/runtime/python relative to
-    the dist bundle (three fallback depths cover asar-unpacked layouts)
+  - getBundledPythonDirsWin(): locate resources/runtime/python-3.8.10 relative
+    to the dist bundle (three fallback depths cover asar-unpacked layouts)
   - installRuntimeDependencies(): when a bundled wheels/ dir exists, run
     pip with --no-index --no-build-isolation --find-links (never touches
     the network); upstream path (pip upgrade + online install) preserved
@@ -18,9 +18,17 @@ on Win7:
     path that resolves to the bundled interpreter (embeddable python has
     no venv module; report the bundled fallback instead of failing setup)
 
-Companion: patch-computer-use.py applies P1 (MIN_PYTHON_MINOR 9->8) and the
-bundled-detection prologue; this diff is the full cumulative delta
-(pre-CU backup -> shipped server.mjs).
+STATUS NOTE (2026-08-20): this diff was generated against the 2026-08-18
+build of dist/server.mjs. The 844024a9 source rebuild changed the bundle
+layout (line offsets), so `git apply` of this patch FAILS on current
+build.mjs output. For fresh Stage A rebuilds use the identifier-adaptive
+script instead — runtime/node-fallback/patch-computer-use.py — which
+applies the full cumulative set (P1-P8 CU hunks + P9/P9b win32 CLI spawn
+chain) against any rebuild and reproduces the shipped
+runtime/node-fallback/server.mjs byte-for-byte from its .pre-cu.bak
+baseline. Keep this patch for history/audit of the 08-18 build only;
+Stage B always deploys the prebuilt runtime/node-fallback/ bundle, so
+installers are unaffected either way.
 
 --- a/dist/server.mjs	2026-08-18 20:30:13.313716035 +0000
 +++ b/dist/server.mjs	2026-08-18 20:30:13.365716629 +0000

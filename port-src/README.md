@@ -12,10 +12,19 @@ port-src/
 │   ├── build-electron.mjs     desktop electron build helper (Stage A)
 │   ├── build-preview-agent.mjs
 │   └── cli-entry-wrapper.mjs
-├── src/compat/               Bun runtime-API shims (node:child_process based)
-│   ├── bunSpawn.ts            Bun.spawn subset: hybrid ReadableStream w/
-│   │                          .text()/.json(), exited promise, onExit
-│   ├── bunBundle.ts bunFile.ts bunServe.ts bunSqlite.ts
+├── src/
+│   ├── compat/               Bun runtime-API shims (node:child_process based)
+│   │   ├── bunSpawn.ts        Bun.spawn subset: hybrid ReadableStream w/
+│   │   │                      .text()/.json(), exited promise, onExit
+│   │   └── bunBundle.ts bunFile.ts bunServe.ts bunSqlite.ts
+│   └── entrypoints/
+│       └── serverNode.ts     Node server entry wrapper (import.meta.main
+│                              is undefined under Node — this file is the
+│                              explicit self-start entry for server.mjs)
+├── adapters/
+│   └── index.ts              IM-adapter dispatcher overlay (code-splitting
+│                              entry; copied to <root>/adapters/index.ts by
+│                              build.mjs when adapters deps are installed)
 ├── desktop/
 │   └── offline-win.cjs       electron-builder offline config (Stage A)
 └── desktop-electron/         canonical compiled main-process artifacts
@@ -27,9 +36,10 @@ port-src/
 ```bash
 # upstream repo root, after applying patches 001-004
 node port-src/scripts/node-port/build.mjs     # -> dist/*.mjs
-# then apply patches/cli/005-server-mjs-computer-use-offline.patch
-# (or run runtime/node-fallback/patch-computer-use.py which applies the
-#  same P1/P2 hunks idempotently)
+# then run the identifier-adaptive post-build patcher (CU offline +
+# win32 CLI spawn chain — patch 005 is the historical 08-18 diff and
+# no longer applies to fresh builds):
+python3 runtime/node-fallback/patch-computer-use.py dist/server.mjs
 ```
 
 Node target is 22 (`--experimental-sqlite` flag is auto-probed by

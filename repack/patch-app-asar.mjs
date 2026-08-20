@@ -3,12 +3,15 @@
  * patch-app-asar.mjs — surgical app.asar patcher (Win7 port, Stage B).
  *
  * Replaces `electron-dist/main.cjs` inside an electron-builder app.asar and
- * applies the terminal winpty fix (patch 003) to it in one pass, without a
- * full extract/repack roundtrip:
+ * applies two idempotent fixes to it in one pass, without a full
+ * extract/repack roundtrip:
  *
  *   1. read the asar header (size pickle + header pickle)
  *   2. read the packed main.cjs bytes from the data section
  *   3. insert the `useConpty = false` forcing (exact-once anchor match)
+ *      + re-stamp the node-runtime probe dirs to the versioned layout
+ *      (`"runtime", "node"` -> `"runtime", "node-v22.17.0"`), so seeds
+ *      built before the version-stamp refactor keep resolving node.exe
  *   4. append the patched bytes to the END of the data section and repoint
  *      the header entry (offset/size/integrity) — every other file keeps its
  *      original offset, so the rest of the archive stays byte-identical
@@ -60,16 +63,25 @@ const INSERTION =
   '      } catch (error) {\n' +
   '        if (!isLegacyWindows(this.platform)) throw error;'
 
+// Node-runtime probe dirs were re-stamped with their versions during the
+// version-stamp refactor; older asar seeds still probe `runtime/node`.
+const NODE_DIR_OLD = '"runtime", "node", "node.exe"'
+const NODE_DIR_NEW = '"runtime", "node-v22.17.0", "node.exe"'
+
 function patchMainCjs(src) {
-  if (src.includes('ptySpawnOptions.useConpty = false')) {
-    return { src, already: true }
+  let didWinpty = false
+  if (!src.includes('ptySpawnOptions.useConpty = false')) {
+    const first = src.indexOf(ANCHOR)
+    if (first === -1) throw new Error('[FAIL] main.cjs spawn anchor not found')
+    if (src.indexOf(ANCHOR, first + 1) !== -1) {
+      throw new Error('[FAIL] main.cjs spawn anchor is not unique')
+    }
+    src = src.slice(0, first) + INSERTION + src.slice(first + ANCHOR.length)
+    didWinpty = true
   }
-  const first = src.indexOf(ANCHOR)
-  if (first === -1) throw new Error('[FAIL] main.cjs spawn anchor not found')
-  if (src.indexOf(ANCHOR, first + 1) !== -1) {
-    throw new Error('[FAIL] main.cjs spawn anchor is not unique')
-  }
-  return { src: src.slice(0, first) + INSERTION + src.slice(first + ANCHOR.length), already: false }
+  const didPaths = src.includes(NODE_DIR_OLD)
+  if (didPaths) src = src.split(NODE_DIR_OLD).join(NODE_DIR_NEW)
+  return { src, already: !didWinpty && !didPaths, didWinpty, didPaths }
 }
 
 // ---------------------------------------------------------------------------
@@ -141,11 +153,12 @@ try {
     throw new Error('[FAIL] main.cjs content does not match its integrity hash — asar corrupt?')
   }
 
-  const { src: patched, already } = patchMainCjs(mainBuf.toString('utf8'))
+  const { src: patched, already, didWinpty, didPaths } = patchMainCjs(mainBuf.toString('utf8'))
   if (verifyOnly || already) {
-    console.log(already ? '[SKIP] main.cjs already patched (useConpty forcing present)' : '[OK] patch would apply')
+    console.log(already ? '[SKIP] main.cjs already patched (useConpty forcing + versioned node dir present)' : '[OK] patch would apply')
     process.exit(0)
   }
+  console.log(`[PATCH] main.cjs: winpty forcing ${didWinpty ? 'inserted' : 'already present'}, node runtime dir ${didPaths ? 'version-stamped (node -> node-v22.17.0)' : 'already version-stamped'}`)
   const patchedBuf = Buffer.from(patched, 'utf8')
   new Function(patched) // syntax check without executing
 
@@ -192,6 +205,9 @@ try {
     if (checkHash !== checkEntry.integrity.hash) throw new Error('re-verify: integrity mismatch')
     if (!checkBuf.toString('utf8').includes('ptySpawnOptions.useConpty = false')) {
       throw new Error('re-verify: useConpty forcing missing')
+    }
+    if (checkBuf.toString('utf8').includes(NODE_DIR_OLD)) {
+      throw new Error('re-verify: unversioned runtime/node probe path still present')
     }
     for (const marker of ['resolveNodeRuntimeExecutable', 'sqliteFlagArgsForVersion', 'server.mjs']) {
       if (!checkBuf.toString('utf8').includes(marker)) {

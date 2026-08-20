@@ -555,14 +555,14 @@ function resolveNodeRuntimeExecutable(env = process.env, desktopRoot) {
   }
   if (desktopRoot) {
     for (const candidate of [
-      import_node_path.default.join(desktopRoot, "runtime", "node", "node.exe"),
-      import_node_path.default.join(desktopRoot, "..", "runtime", "node", "node.exe")
+      import_node_path.default.join(desktopRoot, "runtime", "node-v22.17.0", "node.exe"),
+      import_node_path.default.join(desktopRoot, "..", "runtime", "node-v22.17.0", "node.exe")
     ]) {
       if ((0, import_node_fs.existsSync)(candidate)) return candidate;
     }
   }
   try {
-    const resourcesNode = import_node_path.default.join(process.resourcesPath, "runtime", "node", "node.exe");
+    const resourcesNode = import_node_path.default.join(process.resourcesPath, "runtime", "node-v22.17.0", "node.exe");
     if ((0, import_node_fs.existsSync)(resourcesNode)) return resourcesNode;
   } catch {
   }

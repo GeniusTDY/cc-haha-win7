@@ -11,10 +11,14 @@ ae323edd0835ee7b9e18cc96a7b2bb4b8173ff768317d178af2788406feb71ff  node-pty-1.1.0
 e1cb26d868c954ba26817bedf3e4a5744e4ca2030adf51a7156e5ff2fadb881b  node-pty-1.1.0-win32-x64/prebuilds/win32-x64/winpty.dll
 c3a65716f53fed0135a8a633373d5f9c2ab092544d651f27ef0a67096dd3bcd9  node-pty-1.1.0-win32-x64/lib/windowsTerminal.js
 1ccad4b88cd0d0ed573d5e4d7103091f6c39440885d6fb1ac4dcc1734571148d  node-fallback/cli.mjs
-cf0813b464de421db3d9cb79e5e8d8b6e6d72e5cd2162202fd60b7158eb19c9f  node-fallback/server.mjs
+895a237efb7aa4a9c01169f885551051a66edd1e5a4aedb1e3d760aaa080cc5b  node-fallback/server.mjs
 # 2026-08-20 feed-rewrite rebuild (v3 fix set + app-update.yml repointed
 # at GeniusTDY/cc-haha-win7; current Release asset, renamed from
 # Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe, paired with latest.yml):
 # b3665af60989fead7f4a2b36c555a1d0074859782cafb30f500340ee55371f4c  Claude-Code-Haha-0.5.4-win7-x64-setup.exe
 # patched main.cjs inside its app.asar:
 # bcff1e9c10ff5767dc046b305a654ed09e6bf968a8c9886d1f82ee46a87e95e2  electron-dist/main.cjs
+# (that was the released v3 build; after the version-stamp path fix
+# the source artifact port-src/desktop-electron/main.cjs is
+# b42ba76eed1eb658e9d0812bdc3ac43c965c1298a87160c1d3f7aa96be49aeee,
+# and patch-app-asar.mjs re-stamps old seeds to match)
