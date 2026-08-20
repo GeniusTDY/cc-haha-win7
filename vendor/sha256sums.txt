@@ -4,3 +4,19 @@
 # The Electron zip matches the official release manifest:
 # https://github.com/electron/electron/releases/download/v22.3.27/SHASUMS256.txt
 ad723ed7dad32f9459f7a9de1fd6d718cf713c4809c2431503bea62ce8f786e6  electron/electron-v22.3.27-win32-x64.zip
+
+# electron-builder NSIS toolchain cache (pre-populated, ~11 MB unpacked):
+#   electron-builder-cache/nsis/nsis-3.0.4.1-nsis-3.0.4.1/
+#   electron-builder-cache/nsis/nsis-resources-3.4.1-nsis-resources-3.4.1/
+# Point ELECTRON_BUILDER_CACHE at vendor/electron-builder-cache/ and the
+# Stage A build downloads nothing. Provenance: fetched by app-builder
+# (download-artifact, sha512-verified against the checksums pinned in
+# app-builder-lib 26.8.1 nsisUtil.js) from
+#   https://github.com/electron-userland/electron-builder-binaries
+#     releases/download/nsis-3.0.4.1/nsis-3.0.4.1.7z      (1,287,512 bytes)
+#     releases/download/nsis-resources-3.4.1/nsis-resources-3.4.1.7z
+#                                                          (  730,800 bytes)
+# To re-verify from scratch: delete the cache dir and rebuild — app-builder
+# re-downloads and sha512-checks both archives, then unpacks the same tree
+# (cache hit is directory-presence; second run returns in ~16 ms).
+# Layout verified on 2026-08-20 with app-builder 5.0.0-alpha.11.

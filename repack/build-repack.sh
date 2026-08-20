@@ -15,7 +15,7 @@
 # v2 2026-08-19 rebuild (also fixes Win32 CLI spawn + provider-env
 #     over-stripping; the only installer kept in the GitHub Release):
 #   sha256 03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
-# v3 2026-08-20 "most complete" rebuild (current):
+# v3 2026-08-20 "most complete" rebuild:
 #   + desktop terminal full TTY: main.cjs forces node-pty's winpty backend on
 #     Win7/8 (ConPTY is Win10 1809+) — patch-app-asar.mjs surgery inside
 #     app.asar, preserving the node-runtime fallback layer byte-exactly
@@ -24,11 +24,18 @@
 #   + Computer Use fully offline: server.mjs CU patch (identifier-adaptive
 #     patch-computer-use.py) installs Python deps from bundled wheels
 #   + node-pty payload guaranteed in app.asar.unpacked/node_modules
+# 2026-08-20 rebuild-from-parts (v3 fix set, zero network):
+#   sha256 76a635d9456c9760cb3da5decebe37288bab63244279b137520430626a5ee8ec
+#   — built from the git-committed split parts (setup-exe/) + runtime tree
+#   only; differs from v3 c22f57eb… solely by NSIS-embedded file mtimes
+#   (structural identity asserted: same fix set, see docs/BUILD-AND-VERIFY.md)
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #
 # Inputs (relative to this script's directory):
-#   Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe  Stage A output (electron-builder)
+#   Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe  Stage A output — OPTIONAL:
+#     auto-reassembled from the committed split parts in setup-exe/
+#     (0/9 step) when missing, so a fresh clone needs zero downloads
 #   assets/app-icon.ico, assets/modern-wizard.bmp
 #   NODE_FALLBACK_DIR  dir with server.mjs adapters.mjs cli.mjs
 #                      recovery-cli.mjs adapters-chunks/   (built by
@@ -52,6 +59,21 @@ WORK="$HERE/.work"
 ORIG="$WORK/orig"    # NSIS shell from Stage A installer
 APP="$WORK/app"      # final payload tree
 
+# Stage A input: prefer a local Setup.exe; when absent and the caller did not
+# pass an explicit path, reassemble it from the git-committed split parts in
+# repack/setup-exe/ (225,684,328 bytes split at 95MB — GitHub caps single
+# files at 100MB). This keeps the whole Stage B pipeline network-free:
+# clone -> build-repack.sh -> installer, no Release downloads needed.
+if [ ! -f "$SETUP" ] && [ -z "${1:-}" ]; then
+  PARTS_DIR="$HERE/setup-exe"
+  if ls "$PARTS_DIR"/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe.*.part >/dev/null 2>&1; then
+    echo "== 0/9 reassemble Stage A installer from committed split parts =="
+    (cd "$PARTS_DIR" && sha256sum -c parts.sha256)
+    cat "$PARTS_DIR"/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe.*.part > "$SETUP"
+    echo "33f20bbf2bbc3b0c0dc9decf5f53ac70943614a78e9e6eb77a9ad1eb8aff1d9b  $SETUP" \
+      | sha256sum -c -
+  fi
+fi
 [ -f "$SETUP" ] || { echo "[FAIL] Stage A installer not found: $SETUP"; exit 1; }
 for f in server.mjs adapters.mjs cli.mjs recovery-cli.mjs adapters-chunks; do
   [ -e "$NODE_FALLBACK_DIR/$f" ] || { echo "[FAIL] node-fallback missing: $NODE_FALLBACK_DIR/$f"; exit 1; }

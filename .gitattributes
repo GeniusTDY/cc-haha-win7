@@ -1,0 +1,12 @@
+# Binary payloads committed in git — never let git touch line endings
+# (core.autocrlf would corrupt executables/archives on Windows hosts).
+*.exe -text
+*.part -text
+*.7z -text
+*.zip -text
+*.msu -text
+*.whl -text
+*.node -text
+*.dll -text
+vendor/electron-builder-cache/** -text
+runtime/** -text

@@ -39,16 +39,21 @@ runtime/       offline runtime payloads — node/, python/, vxkex/,
                git/ (PortableGit 2.45.2), kb-patches/ and
                node-pty-win32-x64/ are all committed in git (~545 MB);
                Release carries installers only
-vendor/        Stage A build dependency committed in git: the official
+vendor/        Stage A build deps committed in git: the official
                electron-v22.3.27-win32-x64.zip (97 MB, matches upstream
-               SHASUMS256.txt) — offline-win.cjs auto-resolves it, so
-               Stage A needs zero Electron downloads
+               SHASUMS256.txt) + the electron-builder NSIS toolchain cache
+               (nsis-3.0.4.1 + nsis-resources-3.4.1, ~11 MB) — offline-win.cjs
+               auto-resolves the former, ELECTRON_BUILDER_CACHE the latter,
+               so the Stage A build step downloads nothing
                (verify: cd vendor && sha256sum -c sha256sums.txt)
 repack/        Stage B: build-repack.sh + installer.nsi → win7-x64-setup.exe;
                patch-app-asar.mjs surgically adds the winpty forcing to the
                shipped main.cjs inside app.asar (asar-tool/ vendors
                @electron/asar); asar surgery preserves the node-runtime
-               fallback layer byte-exactly
+               fallback layer byte-exactly. setup-exe/ carries the Stage A
+               input installer split into ≤95MB parts (GitHub file cap) —
+               when Setup.exe is absent, step 0/9 reassembles + sha256-
+               verifies it, so a fresh clone rebuilds fully offline
 docs/          Technical-Support.md (technical porting solution) ·
                VERIFICATION-REPORT.md (L1–L4 + 15 review rounds + QEMU E2E) ·
                BUILD-AND-VERIFY.md · WIN7-DEPLOY.md
@@ -56,15 +61,19 @@ docs/          Technical-Support.md (technical porting solution) ·
 
 ## Quick start
 
-1. `git clone` this repo — node/, python/, vxkex/, git/ (PortableGit
-   2.45.2, Bash tool shell) and kb-patches/ payloads are already inside
-   `runtime/` (verify with `cd runtime && sha256sum -c sha256sums.txt`),
-   and the Electron 22.3.27 win-x64 dist zip for Stage A is inside
-   `vendor/electron/` (verify with `cd vendor && sha256sum -c
-   sha256sums.txt`) — no downloads from the Release needed at all.
+1. `git clone` this repo — everything needed to rebuild the installer is
+   inside: runtime payloads in `runtime/` (verify with `cd runtime &&
+   sha256sum -c sha256sums.txt`), the Stage A input installer in
+   `repack/setup-exe/` (split parts, auto-reassembled by the build),
+   and Stage A build deps (Electron zip + NSIS toolchain cache) in
+   `vendor/` (verify with `cd vendor && sha256sum -c sha256sums.txt`).
+   Zero downloads, zero network.
 2. Build: [docs/BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md) —
-   Stage A (upstream + patches → Setup.exe), Stage B (`repack/build-repack.sh`
-   → win7-x64-setup.exe).
+   Stage B alone (`cd repack && RUNTIME_DIR=../runtime ./build-repack.sh`
+   → win7-x64-setup.exe) needs only 7z + makensis + node on the host and
+   runs fully offline; Stage A (upstream + patches → Setup.exe) is the
+   optional from-source path (needs `npm install`; its build step itself
+   downloads nothing — Electron zip + NSIS cache are committed).
 3. Install on Win7 SP1 x64 (offline OK; on a clean system install the two
    KB patches from `runtime/kb-patches/` first — installer bundles VxKex),
    or grab the ready-made **v3** installer
