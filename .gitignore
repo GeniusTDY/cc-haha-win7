@@ -6,9 +6,8 @@ repack/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe
 repack/app-icon.ico
 repack/modern-wizard.bmp
 
-# runtime payloads committed in git: node/ python/ vxkex/ git/
-# (~530MB total, see runtime/README.md)
+# runtime payloads committed in git: node/ python/ vxkex/ git/ kb-patches/
+# (~545MB total, see runtime/README.md)
 # NOT in git (optional / machine-specific):
-runtime/kb-patches/
 runtime/node-fallback/wheels/
 runtime/node-fallback/server.mjs.pre-cu.bak

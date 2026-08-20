@@ -26,6 +26,9 @@
 | KB2533623 x64 | kernel32 SafeDLL 加载 API（AddDllDirectory 等），Chromium 延迟加载必需 | `8a59ea3c7378895791e6cdca38cc2ad9e83bebff` |
 | KB2670838 x64 | 平台更新：Direct2D/DirectWrite/D3D11/WIC，Chromium GPU 合成必需 | `9f667ff60e80b64cbed2774681302baeaf0fc6a6` |
 
+两个 MSU 已入库（`runtime/kb-patches/`，SHA1 与微软官方值一致），
+无需再从 Release 下载。
+
 VxKex 1.2.1.2229：安装器内嵌 `KexSetup_Release_1_2_1_2229.exe` 离线安装。
 
 ## 3. VxKex 注册
@@ -274,7 +277,8 @@ pywin32 306+ / psutil 5.9.8+ / mss 9.0.2 / pyautogui 0.9.54 及纯 Python 依赖
 卸载对称清理（同 `SetRegView 64`）：实例、防火墙规则、快捷方式、安装目录、
 64 位卸载项；用户数据 `%USERPROFILE%\.claude` 保留。支持 `/S` 静默安装与覆盖升级。
 
-目标机部署两步：装 KB2533623 + KB2670838（重启）→ 运行安装器。
+目标机部署两步：装 KB2533623 + KB2670838（`runtime/kb-patches/`，重启）→
+运行安装器。
 
 ## 10. 构建流水线（Linux 主机，免 wine，全程可离网）
 

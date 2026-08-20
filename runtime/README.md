@@ -11,9 +11,10 @@ NODE_FALLBACK_DIR=../runtime/node-fallback RUNTIME_DIR=../runtime \
   ./build-repack.sh
 ```
 
-`git/` (PortableGit 2.45.2) is committed too — so the Bash tool has a
-shell on a clean offline Win7 with zero downloads. Only the optional
-KB patches remain a release attachment (see below).
+`git/` (PortableGit 2.45.2) and `kb-patches/` (KB2533623 +
+KB2670838 MSU) are committed too — so a clean offline Win7 needs
+zero downloads from this repo: install the two KB patches, run the
+installer, done.
 
 ## Layout shipped inside the installer
 
@@ -30,6 +31,10 @@ resources/runtime/
 ├── vxkex/           KexSetup_Release_1_2_1_2229.exe (VxKex 1.2.1) [in git, 13MB]
 ├── git/             PortableGit 2.45.2 extraction — Bash tool shell on a
 │                    clean offline Win7 (2.46+ dropped Win7) [in git, 404MB]
+├── kb-patches/      Windows6.1-KB2533623-x64.msu + KB2670838-x64.msu
+│                    (install both on a clean Win7 SP1 BEFORE VxKex setup;
+│                    SHA1 matches Microsoft's official values — §2 of
+│                    docs/Technical-Support.md) [in git, 14MB]
 ├── setup-vxkex.bat  manual KexCfg registration (installer does it
 │                    automatically; this is the fallback)
 ├── requirements-win.txt / requirements.txt / win_helper.py
@@ -59,6 +64,7 @@ the 16 wheels are already applied — no post-clone fixup needed.
 | `python/` | `python/python.exe` | `5275c42f…b074581` |
 | `vxkex/` | `vxkex/KexSetup_Release_1_2_1_2229.exe` | `7db81065…6c8708cd` |
 | `git/` | `git/bin/bash.exe` | see `sha256sums.txt` |
+| `kb-patches/` | both `.msu` files | see `sha256sums.txt` |
 
 Verify with `cd runtime && sha256sum -c sha256sums.txt`.
 
@@ -83,11 +89,13 @@ Notes:
   optional way to get the full upstream treatment (it is idempotent
   and deletes itself when done).
 
-## Optional / remaining attachments (GitHub Release)
+## Remaining attachments (GitHub Release — installers only)
 
-| attachment | unpack to | sha256 |
+All runtime payloads are committed in git; the Release carries only the
+ready-made installers:
+
+| attachment | purpose | sha256 |
 |---|---|---|
-| `win7-kb-patches.tar.gz` (KB2533623 + KB2670838 MSU) | anywhere; install both **before** VxKex setup on a clean Win7 | see release notes |
 | `Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe` | Stage A input for `repack/build-repack.sh` (skip Stage A path) | see release notes |
 | `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe` | rebuilt all-in-one offline installer (v2) | `971df9d5…e766ae1` |
 

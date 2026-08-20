@@ -32,9 +32,9 @@ patches/       source deltas against upstream cc-haha v0.5.4 (d52bbec7)
 port-src/      Bun→Node port sources (compat layer, build scripts,
                offline electron-builder config, canonical desktop .cjs)
 runtime/       offline runtime payloads — node/, python/, vxkex/,
-               git/ (PortableGit 2.45.2) and node-pty-win32-x64/ are
-               all committed in git (~530 MB); only optional KB patches
-               remain a release attachment
+               git/ (PortableGit 2.45.2), kb-patches/ and
+               node-pty-win32-x64/ are all committed in git (~545 MB);
+               Release carries installers only
 repack/        Stage B: build-repack.sh + installer.nsi → Offline.exe
 docs/          Technical-Support.md (technical porting solution) ·
                VERIFICATION-REPORT.md (L1–L4 + 15 review rounds + QEMU E2E) ·
@@ -43,15 +43,15 @@ docs/          Technical-Support.md (technical porting solution) ·
 
 ## Quick start
 
-1. `git clone` this repo — node/, python/, vxkex/ and git/ (PortableGit
-   2.45.2, Bash tool shell) payloads are already inside `runtime/`
-   (verify with `cd runtime && sha256sum -c sha256sums.txt`).
-   Optional: KB patches from release attachments.
+1. `git clone` this repo — node/, python/, vxkex/, git/ (PortableGit
+   2.45.2, Bash tool shell) and kb-patches/ payloads are already inside
+   `runtime/` (verify with `cd runtime && sha256sum -c sha256sums.txt`).
 2. Build: [docs/BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md) —
    Stage A (upstream + patches → Setup.exe), Stage B (`repack/build-repack.sh`
    → Offline.exe).
-3. Install on Win7 SP1 x64 (offline OK; installer offers bundled VxKex and
-   KB patches), or grab the ready-made
+3. Install on Win7 SP1 x64 (offline OK; on a clean system install the two
+   KB patches from `runtime/kb-patches/` first — installer bundles VxKex),
+   or grab the ready-made
    `Claude-Code-Haha-0.5.4-Win7-x64-Offline-v2.exe` from Releases.
 
 ## Reproducibility
