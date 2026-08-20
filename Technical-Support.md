@@ -230,7 +230,7 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 | 无 `ensurepip` / `pip` | pip wheel **解压**到 `Lib\site-packages` 引导（见下） |
 | `python38._pth` 隔离 | 重写 `._pth`：追加 `Lib\site-packages` + `import site` |
 
-> **载荷说明**：`runtime/python/python38.zip`（2.4MB，617 个 stdlib `.pyc`）是 embeddable 布局的**标准库本体**——`python38._pth` 首行即指向它，python.exe 靠 zipimport 从中导入；`.pyd` / exe / DLL 只是二进制半边。它不是 python 目录的重复副本，**不能删**（删后 `import os` 都会失败）。`wheels/*.whl` 同理必须保留原格式（pip `--no-index --find-links` 只认 .whl）。仓库内仅这两处与 `repack/setup-exe/` 成品分片保留压缩类文件；全部构建期依赖（esbuild / desktop node_modules / Electron 分发）均已为普通文件。
+> **载荷说明**：`runtime/python/python38.zip`（2.4MB，617 个 stdlib `.pyc`）是 embeddable 布局的**标准库本体**——`python38._pth` 首行即指向它，python.exe 靠 zipimport 从中导入；`.pyd` / exe / DLL 只是二进制半边。它不是 python 目录的重复副本，**不能删**（删后 `import os` 都会失败）。`wheels/*.whl` 同理必须保留原格式（pip `--no-index --find-links` 只认 .whl）。仓库内仅这两处与两处分片（`repack/setup-exe/` 成品分片、`vendor/electron/electron.exe.00/01.part`）保留压缩 / 切分类文件；其余构建期依赖（esbuild / desktop node_modules / Electron 分发）均已为普通文件。两处分片均为原始字节切片而非压缩包，超 GitHub 100MB 单文件上限所致：前者由 build-repack.sh 步骤 0 重组，后者由 offline-win.cjs 在构建时自动重组并 sha256 校验。
 
 pip 引导坑：pip ≥21.2 自修改保护，wheel 路径直接执行安装 pip 自身会被拒绝。最终方案（server.mjs，patch 005）：
 

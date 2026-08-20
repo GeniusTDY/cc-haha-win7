@@ -110,7 +110,7 @@ bash ../../cc-haha-win7/vendor/desktop-node-modules/restore.sh
 
 export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-cache"
 
-npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
+npx electron-builder --config ../port-src/desktop/offline-win.cjs --win --publish never
 ```
 
 产物：`build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe`（约 122 MB）
@@ -118,7 +118,7 @@ npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 #### Stage B · 重打包为离线安装器
 
 ```bash
-cd ../cc-haha-win7/repack
+cd ../../cc-haha-win7/repack
 
 NODE_FALLBACK_DIR=../runtime/node-fallback \
 RUNTIME_DIR=../runtime \
@@ -132,6 +132,14 @@ RUNTIME_DIR=../runtime \
 ```bash
 ./build-repack.sh ../../cc-haha/desktop/build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe
 ```
+
+#### 发布新版本（自动更新分发）
+
+```bash
+node make-latest-yml.mjs Claude-Code-Haha-0.5.5-win7-x64-setup.exe 0.5.5
+```
+
+将生成的 `latest.yml` 与新 setup.exe 一并挂到本仓库最新的非预发布 Release，版本号大于已装版本时，存量用户会收到更新提示。
 
 ---
 
