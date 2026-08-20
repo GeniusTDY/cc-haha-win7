@@ -1,5 +1,5 @@
 From: Win7 port restore
-Subject: [PATCH 4/5] server.mjs: bundled-Python detection + offline wheel install
+Subject: [PATCH 5/6] server.mjs: bundled-Python detection + offline wheel install
 
 Applied to the node-port CLI/server bundle (dist/server.mjs, produced by
 port-src/scripts/node-port/build.mjs). Makes Computer Use work fully offline

@@ -27,7 +27,7 @@ port-src/
 ```bash
 # upstream repo root, after applying patches 001-004
 node port-src/scripts/node-port/build.mjs     # -> dist/*.mjs
-# then apply patches/cli/004-server-mjs-computer-use-offline.patch
+# then apply patches/cli/005-server-mjs-computer-use-offline.patch
 # (or run runtime/node-fallback/patch-computer-use.py which applies the
 #  same P1/P2 hunks idempotently)
 ```

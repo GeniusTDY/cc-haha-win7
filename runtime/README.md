@@ -78,7 +78,7 @@ Pristine extraction of the upstream self-extracting archive
 
 Notes:
 
-- The Bash tool shell chain (patch 007) probes `runtime/git/bin/bash.exe`
+- The Bash tool shell chain (patch 004) probes `runtime/git/bin/bash.exe`
   — present at the extraction root, so the tree works as committed.
 - Upstream's `post-install.bat` step is *not* pre-applied: its one
   critical effect (hard-linking `mingw64/bin/*.dll` into
@@ -102,7 +102,7 @@ ready-made installer — the newest build:
 
 Vendored node-pty 1.1.0 runtime subset (lib/ JS + `prebuilds/win32-x64/`
 N-API `pty.node` + `winpty-agent.exe` + `winpty.dll`; conpty bits omitted —
-the app forces the winpty backend on Win7/8 via patch 006). The repack
+the app forces the winpty backend on Win7/8 via patch 003). The repack
 script (step 7/9) overlays it onto
 `resources/app.asar.unpacked/node_modules/node-pty` whenever the Stage A
 payload is missing or pruned that module, so the desktop terminal keeps

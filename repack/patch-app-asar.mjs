@@ -3,7 +3,7 @@
  * patch-app-asar.mjs — surgical app.asar patcher (Win7 port, Stage B).
  *
  * Replaces `electron-dist/main.cjs` inside an electron-builder app.asar and
- * applies the terminal winpty fix (patch 006) to it in one pass, without a
+ * applies the terminal winpty fix (patch 003) to it in one pass, without a
  * full extract/repack roundtrip:
  *
  *   1. read the asar header (size pickle + header pickle)
@@ -38,7 +38,7 @@ const BLOCK_SIZE = 4 * 1024 * 1024 // must match electron-builder's integrity bl
 
 // ---------------------------------------------------------------------------
 // The winpty patch applied to the compiled main.cjs (mirrors the runtime part
-// of patches/desktop/006-terminal-winpty-fallback.patch).
+// of patches/desktop/003-terminal-winpty-fallback.patch).
 // ---------------------------------------------------------------------------
 const ANCHOR =
   '      };\n' +
