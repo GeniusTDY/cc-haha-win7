@@ -12,7 +12,7 @@
 | Computer Use | 系统 Python + pip | 捆绑 Python 3.8.10 + 16 个离线 wheel |
 | Win8+ API 缺口 | — | VxKex 兼容层（node / python / rg 自动注册） |
 
-> 移植原理见 [Technical-Support.md](docs/Technical-Support.md) · 完整验证记录见 [VERIFICATION-REPORT.md](docs/VERIFICATION-REPORT.md)
+> 移植原理见 [Technical-Support.md](Technical-Support.md)
 
 ## 使用教程
 
@@ -135,4 +135,4 @@ RUNTIME_DIR=../runtime \
 
 ---
 
-克隆即彻底零联网：esbuild、desktop 依赖树（替代 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓。构建细节见 [BUILD-AND-VERIFY.md](docs/BUILD-AND-VERIFY.md)。
+克隆即彻底零联网：esbuild、desktop 依赖树（替代 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓。

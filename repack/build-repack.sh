@@ -28,7 +28,7 @@
 #   sha256 76a635d9456c9760cb3da5decebe37288bab63244279b137520430626a5ee8ec
 #   — built from the git-committed split parts (setup-exe/) + runtime tree
 #   only; differs from v3 c22f57eb… solely by NSIS-embedded file mtimes
-#   (structural identity asserted: same fix set, see docs/BUILD-AND-VERIFY.md)
+#   (structural identity asserted: same fix set)
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #

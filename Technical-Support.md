@@ -2,7 +2,7 @@
 
 > **上游**：[NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4（Bun + Electron 42 + Tauri sidecar 架构，`d52bbec7`）
 > **目标**：Windows 7 SP1 x64，安装与使用全程离线
-> **定位**：本文档只描述 Win7 移植的技术方案本身。项目简介与使用教程见 [README](../README.md)；构建流水线与安装器行为见 [BUILD-AND-VERIFY.md](BUILD-AND-VERIFY.md)；验证记录见 [VERIFICATION-REPORT.md](VERIFICATION-REPORT.md)。
+> **定位**：本文档只描述 Win7 移植的技术方案本身。项目简介与使用教程见 [README](README.md)。
 
 ## 目录
 
@@ -86,7 +86,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 约束：注册按路径生效，把 node.exe 拷贝到其他路径运行会以 `0xC0000139` 退出（无注入），换路径必须重新注册。
 
-完整脚本：`runtime\setup-vxkex.bat`（安装检测 + 三注册 + 双自检）；安装器在安装期自动完成三注册（见 [BUILD-AND-VERIFY.md](BUILD-AND-VERIFY.md) 的 Installer behavior 一节）。
+完整脚本：`runtime\setup-vxkex.bat`（安装检测 + 三注册 + 双自检）；安装器在安装期自动完成三注册。
 
 ## 4. Bun→Node 全量移植
 
@@ -186,7 +186,7 @@ createServerPlan():
   return sidecar plan
 ```
 
-NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作并入重打包 payload（Stage B，见 [BUILD-AND-VERIFY.md](BUILD-AND-VERIFY.md)），不依赖装后脚本。发行包必须附带 `runtime\node-fallback\`（server.mjs / adapters.mjs / cli.mjs / recovery-cli.mjs / adapters-chunks\）。
+NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作并入重打包 payload（Stage B），不依赖装后脚本。发行包必须附带 `runtime\node-fallback\`（server.mjs / adapters.mjs / cli.mjs / recovery-cli.mjs / adapters-chunks\）。
 
 ## 7. Electron 22 / Chromium 108 适配
 
