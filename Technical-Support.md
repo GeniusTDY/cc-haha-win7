@@ -30,6 +30,18 @@ GUI 主进程（Electron 22，原生兼容 Win7）
 node.exe / python.exe / rg.exe 均经 VxKex 注入补齐 Win8+ API
 ```
 
+技术模块与章节索引：
+
+| 模块 | 章节 |
+|---|---|
+| Win7 系统前置（KB 补丁） | [2](#2-win7-系统前置) |
+| VxKex 兼容层注册 | [3](#3-vxkex-注册) |
+| Bun→Node 全量移植（API 兼容层、esbuild 构建链、运行时派生链） | [4](#4-bunnode-全量移植) |
+| server.mjs 关键补丁 | [5](#5-servermjs-关键补丁) |
+| Sidecar 缺陷与 main.cjs 回退 | [6](#6-sidecar-缺陷与-maincjs-回退) |
+| Electron 22 / Chromium 108 适配（CSS 降级、API 边界） | [7](#7-electron-22--chromium-108-适配) |
+| Computer Use 离线适配（Python 载荷与 pip 引导） | [8](#8-computer-use-离线适配) |
+
 ## 2. Win7 系统前置
 
 | KB | 作用 | SHA1 |
