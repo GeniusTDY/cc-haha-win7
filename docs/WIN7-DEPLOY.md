@@ -148,10 +148,10 @@ node dist\adapters.mjs --telegram   rem 另有 --feishu / --wechat / --dingtalk 
 |---|---|---|
 | `node:sqlite` 实验特性 | Node 侧仍标记 experimental（启动时一条警告，已由启动器抑制）；**22.5–22.12 / 23.0–23.3 需 `--experimental-sqlite`**，全部启动器已自动附加 | 用启动器即无感；仅裸跑 `node dist\*.mjs` 时需自查 Node 版本（推荐 ≥22.13） |
 | ripgrep 二进制 | **已内置**：包内 `dist/vendor/ripgrep/x64-win32/rg.exe`（ripgrep 14.1.0，PE 导入表已验证仅含 Win7 可用 API，SubsystemVersion 6.0），CLI 自动发现 | Grep 工具开箱即用；2024-05 后的 rg 版本不再支持 Win7，勿自行升级替换 |
-| 桌面终端（node-pty） | **已修（winpty 后端）**：Win7/8 强制 `useConpty:false`（补丁 006）走 node-pty 1.1.0 自带的 winpty 载荷（N-API `pty.node` + `winpty-agent.exe`/`winpty.dll`，vendored 于 `runtime/node-pty-win32-x64/`，repack 步骤 6/8 保证不被裁剪） | 完整 TTY 仿真——vim/htop 等全屏程序、resize 均正常；仅当 winpty 载荷损坏时才降级为管道式终端（启动有提示，行式 shell 仍可用） |
+| 桌面终端（node-pty） | **已修（winpty 后端）**：Win7/8 强制 `useConpty:false`（补丁 003）走 node-pty 1.1.0 自带的 winpty 载荷（N-API `pty.node` + `winpty-agent.exe`/`winpty.dll`，vendored 于 `runtime/node-pty-win32-x64/`，repack 步骤 6/8 保证不被裁剪） | 完整 TTY 仿真——vim/htop 等全屏程序、resize 均正常；仅当 winpty 载荷损坏时才降级为管道式终端（启动有提示，行式 shell 仍可用） |
 | 交互式 TUI 按键 | **已修**：VT 模式判定加入 OS 版本门控（Win7 conhost 无 VT 输入），自动使用非 VT 按键绑定 | 交互模式在 cmd.exe/conhost 中按键可用；建议配合 ConEmu/mintty（Win7 上支持 VT）获得完整体验 |
 | 沙箱隔离（sandbox-runtime） | 平台门控为 macOS/Linux/WSL2——**上游原版在任何 Windows 上都不启用**，非移植回归 | Windows 上（含 Win10/11）一律使用常规权限模式 |
-| Shell 工具 | bash（Git Bash）或 PowerShell 二选一；Win7 原生仅 PS 2.0 | **装 WMF 5.1**（Win7 SP1 支持）或 Git Bash；Bash 工具的 shell 解析链（补丁 007）：用户 Git for Windows → 内置 PortableGit 2.45.2（`runtime/git`，已入库，repack 步骤 7/8 自动打包）→ PATH bash，均无时提示安装或设 `CC_HAHA_BASH_EXE`；桌面终端 shell 无 Git Bash 时自动用 PowerShell |
+| Shell 工具 | bash（Git Bash）或 PowerShell 二选一；Win7 原生仅 PS 2.0 | **装 WMF 5.1**（Win7 SP1 支持）或 Git Bash；Bash 工具的 shell 解析链（补丁 004）：用户 Git for Windows → 内置 PortableGit 2.45.2（`runtime/git`，已入库，repack 步骤 7/8 自动打包）→ PATH bash，均无时提示安装或设 `CC_HAHA_BASH_EXE`；桌面终端 shell 无 Git Bash 时自动用 PowerShell |
 | 可选集成（sharp / AWS Bedrock / Vertex / OTel 导出器 / audio-capture） | 未打进 bundle（与官方 Bun 构建一致的可选依赖策略） | 需要时在部署目录 `npm install <包>` 后自动生效 |
 | IM 桥接（adapters） | **已打包**：飞书/Telegram/微信/钉钉/WhatsApp 五个适配器（真实 baileys 等依赖已内联，按需分块加载） | 凭证就绪即可用；沙箱内已验证 chunk 加载与缺凭证校验路径 |
 | Electron 22 = Chromium 108 | 桌面壳渲染层为 2022 引擎 | JS 已按 chrome108 目标构建（无 108 之后的语法/内置）；CSS 经 lightningcss 降级 + `index.html` 内置运行时补丁（`CSS.supports` 探测触发）：var() 型 `color-mix`、`lab()/oklch()` 系色彩函数在 108 上运行时求值为等价 `rgb()`，`scrollbar-color` 降级为 `::-webkit-scrollbar-*`，`overlay` 过渡词剔除；另注入 Set 七方法 polyfill（cytoscape/mermaid 依赖）。现代引擎自动跳过，零开销 |

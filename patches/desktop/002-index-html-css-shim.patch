@@ -1,5 +1,5 @@
 From: Win7 port restore
-Subject: [PATCH 2/5] desktop/index.html: Chromium 108 CSS shim
+Subject: [PATCH 2/6] desktop/index.html: Chromium 108 CSS shim
 
 Electron 22 renders with Chromium 108. The UI (Tailwind v4 + design tokens)
 uses color-mix() (111+), scrollbar-color (121+), transition:overlay (114+) and

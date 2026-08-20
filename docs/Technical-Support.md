@@ -215,7 +215,7 @@ payload（第 9 节），不依赖装后脚本。发行包必须附带 `runtime\
 | 文件拖入 | `webUtils.getPathForFile`（29+）双代兼容：29+ 走 webUtils，≤31 走 `File.path` |
 | 自动更新 | `electron-updater` 懒加载 + no-op 回退（缺失时告警禁用，不崩溃） |
 | GPU 合成 | win32 且 `os.release()` 主版本 <10 自动 `app.disableHardwareAcceleration()`（防老驱动 GPU 进程崩溃循环） |
-| 桌面终端 | Win7/8 强制 node-pty 的 winpty 后端（`useConpty:false`，补丁 006）——winpty 原生支持 Win7，完整 TTY 仿真（vim/htop 可用）；repack 步骤 6/8 保证 winpty 载荷不被裁剪；仅载荷损坏时才降级管道式回退（有提示） |
+| 桌面终端 | Win7/8 强制 node-pty 的 winpty 后端（`useConpty:false`，补丁 003）——winpty 原生支持 Win7，完整 TTY 仿真（vim/htop 可用）；repack 步骤 6/8 保证 winpty 载荷不被裁剪；仅载荷损坏时才降级管道式回退（有提示） |
 | TUI 按键 | VT 模式判定加 `parseFloat(os.release()) >= 10` 门控（Win7 conhost 无 VT 输入） |
 | 通知 | `isSupported()` 门控，无 toast 时优雅拒绝 |
 | 工作区搜索 | 内置 ripgrep 14.1.0（PE 导入表仅 Win7 可用 API + SubsystemVersion 6.0 双重验证；运行需 VxKex 注册） |
@@ -234,7 +234,7 @@ venv + ensurepip + PyPI 流程在嵌入式发行版上全部不可用。
 | `python38._pth` 隔离 | 重写 `._pth`：追加 `Lib\site-packages` + `import site` |
 
 pip 引导坑：pip ≥21.2 自修改保护，wheel 路径直接执行安装 pip 自身会被拒绝。
-最终方案（server.mjs，patch 004）：
+最终方案（server.mjs，patch 005）：
 
 ```js
 // 1) pip 是纯 Python 包，解压 wheel 到 purelib 即可被 -m pip 使用
@@ -290,9 +290,9 @@ git apply patches/desktop/001-package-json-electron22.patch   # Electron 22.3.27
 git apply patches/desktop/002-index-html-css-shim.patch       # 7.1 运行时求值器
 cp -r port-src ./
 node port-src/scripts/node-port/build.mjs                     # CLI bundle（esbuild，4.2 节）
-git apply patches/cli/004-server-mjs-computer-use-offline.patch
+git apply patches/cli/005-server-mjs-computer-use-offline.patch
 cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install    # npmRebuild:false（见下）；skip 标志跳过 electron 包 postinstall 的 ~100MB 冗余下载
-git apply ../patches/electron-builder/005-nsis-target-nowine.patch
+git apply ../patches/electron-builder/006-nsis-target-nowine.patch
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win
 ```
 
@@ -331,8 +331,8 @@ Setup.exe 无需自备：缺失时第 0/9 步自动从入仓分片 `repack/setup
 
 | 项 | 表现 | 说明 |
 |---|---|---|
-| 桌面终端 | 完整 TTY（winpty 后端） | Win7/8 强制 `useConpty:false`（补丁 006），winpty 载荷由 repack 步骤 6/8 保证；仅当载荷损坏时降级为管道式回退（启动有提示，vim 等全屏程序降级） |
-| Bash 工具 | 可用（需 Git Bash） | shell 解析链（补丁 007）：用户 Git for Windows → 内置 PortableGit 2.45.2（`runtime/git`，已入库，最后支持 Win7 的 Git 版本）→ PATH bash；三者皆无时报错并提示安装/设置 `CC_HAHA_BASH_EXE` |
+| 桌面终端 | 完整 TTY（winpty 后端） | Win7/8 强制 `useConpty:false`（补丁 003），winpty 载荷由 repack 步骤 6/8 保证；仅当载荷损坏时降级为管道式回退（启动有提示，vim 等全屏程序降级） |
+| Bash 工具 | 可用（需 Git Bash） | shell 解析链（补丁 004）：用户 Git for Windows → 内置 PortableGit 2.45.2（`runtime/git`，已入库，最后支持 Win7 的 Git 版本）→ PATH bash；三者皆无时报错并提示安装/设置 `CC_HAHA_BASH_EXE` |
 | 自动更新 | no-op | 离线无更新源，属设计行为 |
 | GPU | 软件合成 | Win7 自动禁硬件加速，防老驱动崩溃 |
 | 离线不可达 | 真实外网 API、OAuth 回调、IM 真实推送、在线市场 | 物理离线豁免 |

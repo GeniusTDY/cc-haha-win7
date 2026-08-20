@@ -7,7 +7,7 @@ upstream cc-haha v0.5.4 (d52bbec7)
         │  patches 001/002 + port-src TS/JS sources
         ▼
 Stage A  desktop build (electron-builder + Electron 22.3.27, offline-win.cjs,
-         NsisTarget nowine patch 005, CLI cross-built via node-port)
+         NsisTarget nowine patch 006, CLI cross-built via node-port)
         │  -> Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe
         ▼
 Stage B  repack/build-repack.sh (this repo)
@@ -28,20 +28,20 @@ git clone https://github.com/NanmiCoder/cc-haha && cd cc-haha
 git checkout d52bbec7
 git apply patches/desktop/001-package-json-electron22.patch
 git apply patches/desktop/002-index-html-css-shim.patch
-git apply patches/desktop/006-terminal-winpty-fallback.patch
-git apply patches/cli/007-shell-win32-bash-resolution.patch
+git apply patches/desktop/003-terminal-winpty-fallback.patch
+git apply patches/cli/004-shell-win32-bash-resolution.patch
 cp -r port-src ./
 
 # CLI bundle (Bun-free, esbuild):
 node port-src/scripts/node-port/build.mjs
-git apply patches/cli/004-server-mjs-computer-use-offline.patch
+git apply patches/cli/005-server-mjs-computer-use-offline.patch
 
 # desktop: install deps, patch electron-builder, build offline
 # ELECTRON_SKIP_BINARY_DOWNLOAD=1: the npm electron package's postinstall
 # would download the ~100MB Electron binary — redundant here, because
 # offline-win.cjs points electronDist at the committed vendor/electron zip.
 cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install
-git apply ../patches/electron-builder/005-nsis-target-nowine.patch
+git apply ../patches/electron-builder/006-nsis-target-nowine.patch
 # NSIS toolchain cache (nsis-3.0.4.1 + nsis-resources-3.4.1, ~11 MB
 # unpacked) is committed in this repo — point the cache there and
 # electron-builder downloads nothing during the build:

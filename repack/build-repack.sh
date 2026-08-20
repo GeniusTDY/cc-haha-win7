@@ -39,7 +39,7 @@
 #   assets/app-icon.ico, assets/modern-wizard.bmp
 #   NODE_FALLBACK_DIR  dir with server.mjs adapters.mjs cli.mjs
 #                      recovery-cli.mjs adapters-chunks/   (built by
-#                      port-src/scripts/node-port/build.mjs + patch 004)
+#                      port-src/scripts/node-port/build.mjs + patch 005)
 #   RUNTIME_DIR        dir with node/ python/ vxkex/ setup-vxkex.bat
 #                      requirements-win.txt win_helper.py   (release payloads)
 #

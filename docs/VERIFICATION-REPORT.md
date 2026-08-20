@@ -86,7 +86,7 @@ EXIT=0
 
 | 问题 | 定性 | 处置 |
 |---|---|---|
-| node-pty 1.x 默认走 ConPTY（Win10 1809+）→ 桌面终端在 Win7 失败 | 功能缺失 | **已修（两轮）**：第一轮加管道式 PTY 回退（`loadNodePtyFactory` catch / spawn 点位 catch 且主版本 <10 时降级 `child_process` 管道实现）；第二轮升级为 winpty 完整方案——node-pty 1.1.0 的 prebuilds/win32-x64 实际仍附带 winpty（`pty.node` N-API + `winpty-agent.exe` + `winpty.dll`），补丁 006 在 Win7/8 强制 `useConpty:false` 走 winpty 后端（完整 TTY，vim/htop 可用），vendored 载荷（`runtime/node-pty-win32-x64/`）由 repack 步骤 6/8 保证不被 electron-builder 裁剪；管道回退仅保留为载荷损坏时的最后防线 |
+| node-pty 1.x 默认走 ConPTY（Win10 1809+）→ 桌面终端在 Win7 失败 | 功能缺失 | **已修（两轮）**：第一轮加管道式 PTY 回退（`loadNodePtyFactory` catch / spawn 点位 catch 且主版本 <10 时降级 `child_process` 管道实现）；第二轮升级为 winpty 完整方案——node-pty 1.1.0 的 prebuilds/win32-x64 实际仍附带 winpty（`pty.node` N-API + `winpty-agent.exe` + `winpty.dll`），补丁 003 在 Win7/8 强制 `useConpty:false` 走 winpty 后端（完整 TTY，vim/htop 可用），vendored 载荷（`runtime/node-pty-win32-x64/`）由 repack 步骤 6/8 保证不被 electron-builder 裁剪；管道回退仅保留为载荷损坏时的最后防线 |
 | 无内置 ripgrep；2024-05 后构建的 rg.exe 要求 Win10+ → Grep 工具在 Win7 不可用 | 功能缺失 | **已修**：vendor 进 ripgrep 14.1.0 x64（`dist/vendor/ripgrep/x64-win32/rg.exe`）。双重验证：① PE 导入表解析确认仅含 ADVAPI32/KERNEL32/bcrypt/ntdll/USERENV，无任何 Win8+ API（无 `GetSystemTimePreciseAsFileTime`/`SetProcessMitigationPolicy`）；② SubsystemVersion=6.0。CLI 的 `builtinRipgrepConfig` 按该路径自动发现 |
 | VT 模式判定只看 Node 版本（≥22.17），Win7 conhost 无 VT 输入处理 → 新 Node 上按键绑定错乱 | 渲染缺陷 | **已修**：`defaultBindings.ts` 的 `SUPPORTS_TERMINAL_VT_MODE` 增加 `parseFloat(os.release()) >= 10` 门控；Win7 自动使用非 VT 按键绑定（如 mode 切换用 meta+m） |
 | PowerShell 目标 5.1，Win7 原生仅 2.0 | 部署前提 | **澄清**：shell 检测已有 Git Bash→PowerShell 回退链；装 WMF 5.1（Win7 SP1 支持）或 Git Bash 即满配，非代码缺陷 |
@@ -286,7 +286,7 @@ CLI / Server / 桌面壳 / IM 桥接四条产品线均已完成 Bun → Node 迁
 
 - 缺陷（v1 边角）：设置页将 Python 路径显式配置为内置解释器（`C:\cc-haha\resources\runtime\python\python.exe`）时，`pythonRuntime.source` 判为 custom，venv 失败（嵌入式 Python 无 venv 模块）后不走内置回退，setup 报 `success:false`
 - 修复：`runSetup` 增加 `bundledCandidateMatch`——自定义路径经 `path.resolve` 归一化后与 `getBundledPythonCandidatesWin()` 逐一比对，命中即等同 `source === "bundled"`，直接使用内置解释器并落 base-interpreter 标记
-- 补丁形态：`patches/cli/004-server-mjs-computer-use-offline.patch`（runSetup venv fallback 段）；`runtime/node-fallback/patch-computer-use.py` P3c/P3e/P7e/P7g 同步携带离线 wheel 引导与运行时依赖自愈探针
+- 补丁形态：`patches/cli/005-server-mjs-computer-use-offline.patch`（runSetup venv fallback 段）；`runtime/node-fallback/patch-computer-use.py` P3c/P3e/P7e/P7g 同步携带离线 wheel 引导与运行时依赖自愈探针
 - 验证（round21c，离线）：`cu-setup-probe.mjs` 以自定义路径触发 setup → `success:true`，步骤含 `嵌入式 Python 无 venv 模块，直接使用内置解释器`
 
 ### 15.4 全量 E2E 结果（77 检查 × 三轮）

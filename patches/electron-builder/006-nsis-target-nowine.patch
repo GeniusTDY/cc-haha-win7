@@ -1,5 +1,5 @@
 From: Win7 port restore
-Subject: [PATCH 5/5] NsisTarget: extract uninstaller without wine on Linux
+Subject: [PATCH 6/6] NsisTarget: extract uninstaller without wine on Linux
 
 Stock electron-builder 26.8.1 runs the intermediate installer under wine on
 non-Windows hosts to slice out the embedded uninstaller (`execWine` in the
