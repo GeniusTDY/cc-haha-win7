@@ -38,8 +38,11 @@ port-src/
 node port-src/scripts/node-port/build.mjs     # -> dist/*.mjs
 # then run the identifier-adaptive post-build patcher (CU offline +
 # win32 CLI spawn chain + cli.mjs VT-input gate — patch 005 is the
-# historical 08-18 diff and no longer applies to fresh builds):
-python3 runtime/node-fallback/patch-computer-use.py dist/server.mjs
+# historical 08-18 diff and no longer applies to fresh builds).
+# Layout as in the root README's Stage A: cc-haha and cc-haha-win7 are
+# siblings, so from the upstream repo root the patcher lives at
+# ../cc-haha-win7/runtime/node-fallback/:
+python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.mjs
 ```
 
 Node target is 22 (`--experimental-sqlite` flag is auto-probed by

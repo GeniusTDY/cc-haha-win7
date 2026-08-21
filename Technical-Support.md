@@ -135,7 +135,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 | server 入口 | `CC_HAHA_SERVER_MJS` → `<inst>\resources\app.asar.unpacked\dist\server.mjs` |
 | node 解释器 | `CC_HAHA_NODE_EXE` → `<inst>\resources\runtime\node-v22.17.0\node.exe` → PATH |
 
-捆绑 node.exe 经 `buildSidecarEnv` 的 PATH 增强定位；安装器为其建防火墙入站规则。
+捆绑 node.exe 由 `resolveNodeRuntimeExecutable()` 直探定位（上表顺序，不依赖 PATH）；sidecar 子进程环境另经 `withBundledRipgrepPath` 把捆绑 ripgrep 所在目录注入 PATH（`buildSidecarEnv` 只补 `CLAUDE_H5_*` / `CLAUDE_CONFIG_DIR` / `XDG_CACHE_HOME`，不改 PATH）；安装器为 node.exe 建防火墙入站规则。
 
 **server / cron → CLI**：dist 布局下 launcher 解析为 null 时（会话服务与 cron 调度器两处），回退探测 `../bin/claude-haha` 启动器（自带 sqlite 旗标 / CALLER_DIR / 特性注入）；`CC_HAHA_CLI_ENTRY` 直连分支同样补 sqlite 旗标。
 
