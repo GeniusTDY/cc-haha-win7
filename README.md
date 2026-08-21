@@ -106,12 +106,23 @@ git clone https://github.com/NanmiCoder/cc-haha.git
 cd cc-haha
 git checkout d52bbec7
 
+# 上游根目录自身的 67 个 dependencies（axios / lodash-es / react …）未入仓，
+# 这是 Stage A 的唯一联网点（esbuild 与 desktop 依赖树均已内置）：
+npm install
+
 git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
 git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
 git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
 
 cp -r ../cc-haha-win7/port-src ./
+
+# 五处 Bun 调用点改写未随补丁入仓，需手工补齐（详见 patches/README
+# 「源码叠加缺口」）：src/server/index.ts 的 Bun.serve → nodeServe、
+# src/server/api/{sessions,computer-use}.ts 的 Bun.spawn → nodeBunSpawn、
+# src/server/staticH5.ts 与 src/server/api/previewFs.ts 的 Bun.file →
+# nodeBunFile（均改为 import port-src/src/compat 兼容层）。
+# 缺此步时构建仍会成功，但 server.mjs 在 Node 下运行即崩（Bun 未定义）。
 
 node port-src/scripts/node-port/build.mjs
 
@@ -168,4 +179,4 @@ node make-latest-yml.mjs Claude-Code-Haha-0.5.5-win7-x64-setup.exe 0.5.5
 
 ---
 
-克隆即彻底零联网：esbuild、desktop 依赖树（替代 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓。
+Stage B 全程零联网：esbuild、desktop 依赖树（替代 desktop/ 的 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓，克隆后可直接运行 `build-repack.sh`。Stage A 从源码重建时的唯一联网点是上游根目录自身的 67 个 dependencies（见 patches/README「源码叠加缺口」）。
