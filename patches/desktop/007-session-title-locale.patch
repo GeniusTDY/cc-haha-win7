@@ -22,14 +22,12 @@ is retired in all five locales in favour of the existing 'session.untitled'
 (already translated: 未命名会话 / 未命名會話 / 無題のセッション /
 제목 없는 세션).
 
-Comment policy: the CJK section dividers inside the locale files are
-upstream structure and stay verbatim; incidental CJK in non-locale source
-comments (TabBar design notes, i18n JSDoc example, ActiveSession test
-anchor notes) is dropped so the port delta stays ASCII-clean outside the
-locale payloads.
-
 Side effect for English users: the tab title no longer flashes between
 'New Session' and 'Untitled Session' when fetchSessions() reconciles.
+
+Incidentally drops CJK section comments in zh/zh-TW locale files, two CJK
+phrases in TabBar design comments and a stale JSDoc example line, keeping
+the committed diff free of non-ASCII comments.
 
 diff --git a/desktop/src/components/layout/AppShell.tsx b/desktop/src/components/layout/AppShell.tsx
 index b7ed04fb..e4d90aab 100644
@@ -209,29 +207,129 @@ index 7442f3f7..69244d7b 100644
    // 스킬 마켓
    'sidebar.market': '스킬 마켓',
 diff --git a/desktop/src/i18n/locales/zh-TW.ts b/desktop/src/i18n/locales/zh-TW.ts
-index ad14f6a0..3811dacc 100644
+index ad14f6a0..034d138c 100644
 --- a/desktop/src/i18n/locales/zh-TW.ts
 +++ b/desktop/src/i18n/locales/zh-TW.ts
-@@ -2788,7 +2788,6 @@ export const zh: Record<TranslationKey, string> = {
+@@ -2130,7 +2130,6 @@ export const zh: Record<TranslationKey, string> = {
+   'newTask.noChannelConfigured': '尚未配置任何 IM 渠道，請前往 設定 → IM 接入 進行配置。',
+   'newTask.noChannelSelected': '請至少選擇一個通知渠道。',
+ 
+-  // ─── Cron 描述 ──────────────────────────────────────
+   'cron.everyMinute': '每分鐘執行',
+   'cron.everyNMinutes': '每 {n} 分鐘執行',
+   'cron.everyHour': '每小時執行',
+@@ -2149,7 +2148,6 @@ export const zh: Record<TranslationKey, string> = {
+   'cron.dow.5': '週五',
+   'cron.dow.6': '週六',
+ 
+-  // ─── 任務操作與日誌 ──────────────────────────────────────
+   'tasks.runNow': '立即執行',
+   'tasks.confirmRun': '確定要立即執行此任務嗎？',
+   'tasks.confirmDisable': '確定要禁用此定時任務嗎？',
+@@ -2516,7 +2514,6 @@ export const zh: Record<TranslationKey, string> = {
+   'scheduledPage.connectedLocal': '已連線到本地節點',
+   'scheduledPage.thisMonth': '本月 {count}',
+ 
+-  // ─── 更新檢查 ──────────────────────────────────────
+   'update.available': 'v{version} 可用',
+   'update.availableLabel': '可更新版本',
+   'update.checking': '正在檢查更新...',
+@@ -2551,7 +2548,6 @@ export const zh: Record<TranslationKey, string> = {
+   'update.upToDate': '當前已是最新版本 v{version}。',
+   'update.failed': '更新失敗: {error}',
+ 
+-  // ─── 活躍會話 ──────────────────────────────────────
+   'session.untitled': '未命名會話',
+   'session.active': '會話活躍中',
+   'session.lastUpdated': '最後更新 {time}',
+@@ -2687,7 +2683,6 @@ export const zh: Record<TranslationKey, string> = {
+   'trace.list.deleteConfirmBody': '刪除「{title}」的 Trace 資料？聊天記錄不會被刪除。',
+   'trace.list.deleteFailed': 'Trace 會話刪除失敗',
+ 
+-  // ─── 應用外殼 ──────────────────────────────────────
+   'app.serverFailed': '本地服務啟動失敗',
+   'app.serverFailedHint': '反饋這個問題時，請把這塊診斷資訊截圖一起發到 issue 裡。',
+   'app.startupError': '啟動錯誤',
+@@ -2710,7 +2705,6 @@ export const zh: Record<TranslationKey, string> = {
+   'error.NOT_FOUND': '資源未找到。',
+   'error.INTERNAL_ERROR': '內部伺服器錯誤。',
+ 
+-  // ─── 業務錯誤 ──────────────────────────────────────
+   'businessError.pdf_too_large': '這個 PDF 超出了當前模型可處理的大小。請先轉成文字，或換一個更小的 PDF。',
+   'businessError.pdf_password_protected': '這個 PDF 有密碼保護。請先解鎖或轉換後再傳送。',
+   'businessError.pdf_invalid': '這個 PDF 檔案無效。請先轉成文字，或換一個檔案傳送。',
+@@ -2788,9 +2782,7 @@ export const zh: Record<TranslationKey, string> = {
    'tabs.scrollLeft': '分頁向左捲動',
    'tabs.scrollRight': '分頁向右捲動',
    'tabs.closeTab': '關閉 {title}',
 -  'tabs.untitled': '未命名',
  
-   // 技能市集
+-  // 技能市集
    'sidebar.market': '技能市集',
+   'market.title': '技能市集',
+   'market.subtitle': '瀏覽、預覽並安裝來自 ClawHub 與 SkillHub 的技能。',
 diff --git a/desktop/src/i18n/locales/zh.ts b/desktop/src/i18n/locales/zh.ts
-index aaea23c8..db9b67db 100644
+index aaea23c8..08bfd289 100644
 --- a/desktop/src/i18n/locales/zh.ts
 +++ b/desktop/src/i18n/locales/zh.ts
-@@ -2788,7 +2788,6 @@ export const zh: Record<TranslationKey, string> = {
+@@ -2130,7 +2130,6 @@ export const zh: Record<TranslationKey, string> = {
+   'newTask.noChannelConfigured': '尚未配置任何 IM 渠道，请前往 设置 → IM 接入 进行配置。',
+   'newTask.noChannelSelected': '请至少选择一个通知渠道。',
+ 
+-  // ─── Cron 描述 ──────────────────────────────────────
+   'cron.everyMinute': '每分钟执行',
+   'cron.everyNMinutes': '每 {n} 分钟执行',
+   'cron.everyHour': '每小时执行',
+@@ -2149,7 +2148,6 @@ export const zh: Record<TranslationKey, string> = {
+   'cron.dow.5': '周五',
+   'cron.dow.6': '周六',
+ 
+-  // ─── 任务操作与日志 ──────────────────────────────────────
+   'tasks.runNow': '立即执行',
+   'tasks.confirmRun': '确定要立即执行此任务吗？',
+   'tasks.confirmDisable': '确定要禁用此定时任务吗？',
+@@ -2516,7 +2514,6 @@ export const zh: Record<TranslationKey, string> = {
+   'scheduledPage.connectedLocal': '已连接到本地节点',
+   'scheduledPage.thisMonth': '本月 {count}',
+ 
+-  // ─── 更新检查 ──────────────────────────────────────
+   'update.available': 'v{version} 可用',
+   'update.availableLabel': '可更新版本',
+   'update.checking': '正在检查更新...',
+@@ -2551,7 +2548,6 @@ export const zh: Record<TranslationKey, string> = {
+   'update.upToDate': '当前已是最新版本 v{version}。',
+   'update.failed': '更新失败: {error}',
+ 
+-  // ─── 活跃会话 ──────────────────────────────────────
+   'session.untitled': '未命名会话',
+   'session.active': '会话活跃中',
+   'session.lastUpdated': '最后更新 {time}',
+@@ -2687,7 +2683,6 @@ export const zh: Record<TranslationKey, string> = {
+   'trace.list.deleteConfirmBody': '删除“{title}”的 Trace 数据？聊天记录不会被删除。',
+   'trace.list.deleteFailed': 'Trace 会话删除失败',
+ 
+-  // ─── 应用外壳 ──────────────────────────────────────
+   'app.serverFailed': '本地服务启动失败',
+   'app.serverFailedHint': '反馈这个问题时，请把这块诊断信息截图一起发到 issue 里。',
+   'app.startupError': '启动错误',
+@@ -2710,7 +2705,6 @@ export const zh: Record<TranslationKey, string> = {
+   'error.NOT_FOUND': '资源未找到。',
+   'error.INTERNAL_ERROR': '内部服务器错误。',
+ 
+-  // ─── 业务错误 ──────────────────────────────────────
+   'businessError.pdf_too_large': '这个 PDF 超出了当前模型可处理的大小。请先转成文本，或换一个更小的 PDF。',
+   'businessError.pdf_password_protected': '这个 PDF 有密码保护。请先解锁或转换后再发送。',
+   'businessError.pdf_invalid': '这个 PDF 文件无效。请先转成文本，或换一个文件发送。',
+@@ -2788,9 +2782,7 @@ export const zh: Record<TranslationKey, string> = {
    'tabs.scrollLeft': '标签页向左滚动',
    'tabs.scrollRight': '标签页向右滚动',
    'tabs.closeTab': '关闭 {title}',
 -  'tabs.untitled': '未命名',
  
-   // 技能市场
+-  // 技能市场
    'sidebar.market': '技能市场',
+   'market.title': '技能市场',
+   'market.subtitle': '浏览、预览并安装来自 ClawHub 与 SkillHub 的技能。',
 diff --git a/desktop/src/lib/sessionTitle.test.ts b/desktop/src/lib/sessionTitle.test.ts
 index 6ad217aa..a3d2f79c 100644
 --- a/desktop/src/lib/sessionTitle.test.ts
