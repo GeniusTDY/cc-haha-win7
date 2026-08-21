@@ -9,6 +9,8 @@
 ;   + python38._pth fixed (Lib\site-packages + import site)
 ;   + auto VxKex KexCfg registration (node.exe + python.exe)
 ;   + firewall rule for bundled node.exe
+;   + all installer texts localized (SimpChinese/English; NSIS picks
+;     the table matching the OS UI language at runtime)
 ; ============================================================
 Unicode true
 ManifestDPIAware true
@@ -36,7 +38,9 @@ ShowUninstDetails show
 !define MUI_UNWELCOMEFINISHPAGE_BITMAP "modern-wizard.bmp"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\Claude Code Haha.exe"
-!define MUI_FINISHPAGE_RUN_TEXT "运行 Claude Code Haha (Run ${PRODUCT_NAME})"
+; finish-page checkbox label — $(FinishRunText) is resolved per the
+; selected language at runtime (LangStrings defined below)
+!define MUI_FINISHPAGE_RUN_TEXT "$(FinishRunText)"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -46,20 +50,61 @@ ShowUninstDetails show
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
+; First inserted language = fallback when the OS UI language matches
+; neither (Chinese-first port; an English UI selects the English table).
 !insertmacro MUI_LANGUAGE "SimpChinese"
 !insertmacro MUI_LANGUAGE "English"
+
+; ------------------------------------------------------------
+; Installer texts — NSIS resolves $(name) from the language table that
+; matches the OS UI language at runtime. The MUI pages above draw their
+; texts from the MUI language files; the block below covers the custom
+; dialogs, the finish-page checkbox and the detail-log lines. Runtime
+; variables ($INSTDIR, $R1, ...) inside a LangString are expanded when
+; the string is used.
+; ------------------------------------------------------------
+
+; finish page
+LangString FinishRunText ${LANG_SIMPCHINESE} "运行 Claude Code Haha"
+LangString FinishRunText ${LANG_ENGLISH} "Run Claude Code Haha"
+
+; detail log
+LangString MsgDetailStop ${LANG_SIMPCHINESE} "正在停止运行中的实例..."
+LangString MsgDetailStop ${LANG_ENGLISH} "Stopping running instances..."
+LangString MsgDetailFiles ${LANG_SIMPCHINESE} "正在安装应用文件（离线，约 730 MB）..."
+LangString MsgDetailFiles ${LANG_ENGLISH} "Installing application files (offline, ~730 MB)..."
+LangString MsgDetailFirewall ${LANG_SIMPCHINESE} "正在为内置 node.exe 添加防火墙规则..."
+LangString MsgDetailFirewall ${LANG_ENGLISH} "Adding firewall rule for bundled node.exe..."
+LangString MsgDetailVxkexSetup ${LANG_SIMPCHINESE} "正在运行内嵌的 VxKex 安装程序（请按其向导操作）..."
+LangString MsgDetailVxkexSetup ${LANG_ENGLISH} "Running bundled VxKex setup (follow its wizard)..."
+LangString MsgDetailRegNode ${LANG_SIMPCHINESE} "正在向 VxKex 注册 node.exe（WINVERSPOOF:NONE）..."
+LangString MsgDetailRegNode ${LANG_ENGLISH} "Registering node.exe with VxKex (WINVERSPOOF:NONE)..."
+LangString MsgDetailRegPython ${LANG_SIMPCHINESE} "正在向 VxKex 注册 python.exe（UCRT shim）..."
+LangString MsgDetailRegPython ${LANG_ENGLISH} "Registering python.exe with VxKex (UCRT shim)..."
+LangString MsgDetailRegRg ${LANG_SIMPCHINESE} "正在向 VxKex 注册 rg.exe（WaitOnAddress Win8+ API shim）..."
+LangString MsgDetailRegRg ${LANG_ENGLISH} "Registering rg.exe with VxKex (WaitOnAddress Win8+ API shim)..."
+LangString MsgDetailVerifyNode ${LANG_SIMPCHINESE} "正在验证 node.exe 可运行..."
+LangString MsgDetailVerifyNode ${LANG_ENGLISH} "Verifying node.exe runs..."
+
+; VxKex / node dialogs
+LangString MsgVxKexNotFound ${LANG_SIMPCHINESE} "未检测到 VxKex 兼容层（Node.js 22 在 Win7 上运行必需）。$\n$\n是否现在运行内嵌的 VxKex 安装程序？（离线，无需网络）"
+LangString MsgVxKexNotFound ${LANG_ENGLISH} "VxKex compatibility layer not found (required for Node.js 22 on Win7).$\n$\nRun the bundled offline VxKex setup now?"
+LangString MsgVxKexInstallFailed ${LANG_SIMPCHINESE} "VxKex 仍未安装（KexCfg.exe 未找到）。$\ncc-haha 将无法启动后端服务。$\n请稍后手动运行：$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe$\n然后以管理员身份运行 resources\runtime\setup-vxkex.bat 完成注册。"
+LangString MsgVxKexInstallFailed ${LANG_ENGLISH} "VxKex is still not installed (KexCfg.exe not found).$\ncc-haha will not be able to start its backend service.$\nPlease run it manually later:$\n$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe$\nthen run resources\runtime\setup-vxkex.bat as an administrator to complete registration."
+LangString MsgNodeRunFailed ${LANG_SIMPCHINESE} "node.exe 未能运行（exit=$R1）。$\n请以管理员身份重新运行 resources\runtime\setup-vxkex.bat。"
+LangString MsgNodeRunFailed ${LANG_ENGLISH} "node.exe failed to run (exit=$R1).$\nPlease re-run resources\runtime\setup-vxkex.bat as an administrator."
 
 ; ------------------------------------------------------------
 Section "install" SecInstall
   SetOutPath "$INSTDIR"
 
-  DetailPrint "Stopping running instances..."
+  DetailPrint "$(MsgDetailStop)"
   nsExec::ExecToLog 'taskkill /f /im "Claude Code Haha.exe"'
   Sleep 1500
   nsExec::ExecToLog 'taskkill /f /im node.exe'
   Sleep 500
 
-  DetailPrint "Installing application files (offline, ~730 MB)..."
+  DetailPrint "$(MsgDetailFiles)"
   File /r "app\*"
 
   ; ---- shortcuts ----
@@ -87,7 +132,7 @@ Section "install" SecInstall
   SetRegView 64
 
   ; ---- firewall rule for bundled node.exe ----
-  DetailPrint "Adding firewall rule for bundled node.exe..."
+  DetailPrint "$(MsgDetailFirewall)"
   nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="cc-haha node"'
   nsExec::ExecToLog 'netsh advfirewall firewall add rule name="cc-haha node" dir=in action=allow program="$INSTDIR\resources\runtime\node-v22.17.0\node.exe" enable=yes'
 
@@ -109,10 +154,10 @@ Section "install" SecInstall
     Goto kex_have
 
   ; VxKex not installed -> offer bundled setup (fully offline)
-  MessageBox MB_YESNO|MB_ICONQUESTION "未检测到 VxKex 兼容层（Node.js 22 在 Win7 上运行必需）。$\n$\n是否现在运行内嵌的 VxKex 安装程序？（离线，无需网络）$\n$\nVxKex compatibility layer not found (required for Node.js 22 on Win7).$\nRun the bundled offline VxKex setup now?" /SD IDYES IDYES kex_install IDNO kex_end
+  MessageBox MB_YESNO|MB_ICONQUESTION "$(MsgVxKexNotFound)" /SD IDYES IDYES kex_install IDNO kex_end
 
 kex_install:
-  DetailPrint "Running bundled VxKex setup (follow its wizard)..."
+  DetailPrint "$(MsgDetailVxkexSetup)"
   ExecWait '"$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe"' $R1
   ${DisableX64FSRedirection}
   IfFileExists "C:\Program Files\VxKex\KexCfg.exe" 0 +3
@@ -125,21 +170,21 @@ kex_install:
   IfFileExists "C:\Program Files (x86)\VxKex\KexCfg.exe" 0 +3
     StrCpy $R0 "C:\Program Files (x86)\VxKex\KexCfg.exe"
     Goto kex_have
-  MessageBox MB_ICONEXCLAMATION "VxKex 仍未安装（KexCfg.exe 未找到）。$\ncc-haha 将无法启动后端服务。$\n请稍后手动运行：$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe$\n然后以管理员身份运行 resources\runtime\setup-vxkex.bat 完成注册。"
+  MessageBox MB_ICONEXCLAMATION "$(MsgVxKexInstallFailed)"
   Goto kex_end
 
 kex_have:
-  DetailPrint "Registering node.exe with VxKex (WINVERSPOOF:NONE)..."
+  DetailPrint "$(MsgDetailRegNode)"
   ExecWait '"$R0" /EXE:"$INSTDIR\resources\runtime\node-v22.17.0\node.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
-  DetailPrint "Registering python.exe with VxKex (UCRT shim)..."
+  DetailPrint "$(MsgDetailRegPython)"
   ExecWait '"$R0" /EXE:"$INSTDIR\resources\runtime\python-3.8.10\python.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
-  DetailPrint "Registering rg.exe with VxKex (WaitOnAddress Win8+ API shim)..."
+  DetailPrint "$(MsgDetailRegRg)"
   ExecWait '"$R0" /EXE:"$INSTDIR\resources\app.asar.unpacked\src-tauri\binaries\rg.exe" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO'
-  DetailPrint "Verifying node.exe runs..."
+  DetailPrint "$(MsgDetailVerifyNode)"
   nsExec::ExecToLog '"$INSTDIR\resources\runtime\node-v22.17.0\node.exe" --version'
   Pop $R1
   ${If} $R1 != 0
-    MessageBox MB_ICONEXCLAMATION "node.exe 未能运行（exit=$R1）。$\n请以管理员身份重新运行 resources\runtime\setup-vxkex.bat。"
+    MessageBox MB_ICONEXCLAMATION "$(MsgNodeRunFailed)"
   ${EndIf}
 
 kex_end:
