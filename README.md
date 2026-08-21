@@ -72,10 +72,14 @@
 | 模式 | 启动方式 | 适用场景 |
 |---|---|---|
 | 交互式会话（默认） | 直接启动 | 日常终端对话，流式输出与工具调用 |
-| `--print` 无头模式 | `claude-haha -p "任务描述"` | 脚本与 CI 自动化，处理完成后输出结果并退出；支持 `--output-format json`、`--max-budget-usd` |
+| `--print` 无头模式 | `cli.mjs -p "任务描述"` | 脚本与 CI 自动化，处理完成后输出结果并退出；支持 `--output-format json`、`--max-budget-usd` |
 | 恢复模式 | `CLAUDE_CODE_LOCAL_RECOVERY=1` 或 `-r [id]` | 主 CLI 异常时的简化兜底；`-r` 按会话恢复，配合 `--fork-session` 恢复并创建分支 |
 
-桌面端的每个会话均由上述 CLI 进程驱动（运行在捆绑的 node.exe 上），无需手动启动。
+桌面端的每个会话均由上述 CLI 进程驱动（运行在捆绑的 node.exe 上），无需手动启动。Win7 安装布局不提供 `claude-haha` 命令，手动调用 CLI 时以捆绑 Node 直接运行入口脚本：
+
+```bat
+"C:\cc-haha\resources\runtime\node-v22.17.0\node.exe" "C:\cc-haha\resources\app.asar.unpacked\dist\cli.mjs" -p "任务描述"
+```
 
 ### 部署打包
 
