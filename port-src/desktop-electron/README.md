@@ -62,9 +62,11 @@ The bundled `resources/runtime/node-v22.17.0/node.exe` (Node 22.17.0 win-x64) is
 resolved directly by `resolveNodeRuntimeExecutable` (probe order:
 `CC_HAHA_NODE_EXE` → `desktopRoot/runtime/node-v22.17.0/node.exe` →
 `../runtime/node-v22.17.0/node.exe` → `process.resourcesPath/runtime/
-node-v22.17.0/node.exe` → PATH); `buildSidecarEnv` additionally puts the
-runtime dir on PATH for child processes — the installer also adds a
-firewall allow rule for it. On Win7, node.exe only starts under the VxKex
+node-v22.17.0/node.exe` → PATH) — the installer also adds a
+firewall allow rule for it. The sidecar child env additionally gets the
+bundled ripgrep directory on PATH via `withBundledRipgrepPath`
+(`buildSidecarEnv` itself only sets `CLAUDE_H5_*` / `CLAUDE_CONFIG_DIR` /
+`XDG_CACHE_HOME`, not PATH). On Win7, node.exe only starts under the VxKex
 compatibility layer (registered with `WINVERSPOOF:NONE`; see
 `runtime/setup-vxkex.bat`).
 

@@ -24,10 +24,11 @@ resources/runtime/
 ├── python-3.8.10/   Python 3.8.10 embeddable win amd64          [in git, 33MB]
 │   ├── python38._pth    fixed: "python38.zip / . / Lib\site-packages / import site"
 │   │                    (stock embeddable leaves site-packages disabled)
-│   └── wheels/          16 offline wheels: pyautogui stack
-│                        (mouseinfo/pyautogui/pygetwindow/pyrect/
-│                        pyscreeze/pytweening as .whl) +
-│                        pip-24.3.1 / setuptools-75.3.0 / wheel-0.42.0
+│   └── wheels/          16 offline wheels: the pyautogui stack
+│                        (mouseinfo mss pillow psutil pyautogui
+│                        pygetwindow pymsgbox pyperclip pyrect
+│                        pyscreeze pytweening pywin32 screeninfo)
+│                        + pip-24.3.1 / setuptools-75.3.0 / wheel-0.42.0
 ├── vxkex-1.2.1.2229/ KexSetup_Release_1_2_1_2229.exe (VxKex 1.2.1) [in git, 13MB]
 ├── git-2.45.2/      PortableGit 2.45.2 extraction — Bash tool shell on a
 │                    clean offline Win7 (2.46+ dropped Win7) [in git, 404MB]

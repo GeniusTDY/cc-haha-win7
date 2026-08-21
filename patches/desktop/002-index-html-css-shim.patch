@@ -1,5 +1,5 @@
 From: Win7 port restore
-Subject: [PATCH 2/6] desktop/index.html: Chromium 108 CSS shim
+Subject: [PATCH 2/6] desktop/index.html: Chromium 108 CSS shim + Set methods polyfill
 
 Electron 22 renders with Chromium 108. The UI (Tailwind v4 + design tokens)
 uses color-mix() (111+), scrollbar-color (121+), transition:overlay (114+) and
@@ -12,8 +12,16 @@ the boot watchdog):
   - injects ::-webkit-scrollbar fallbacks
   - re-runs on data-theme switches and late <style>/<link> inserts
 
-Byte-identical to the block shipped in the restored Offline installer
-(resources/app.asar.unpacked/dist/index.html lines 120-580).
+A second inline block (after the boot watchdog, before </head>) polyfills the
+Set methods union/intersection/difference/symmetricDifference/isSubsetOf/
+isSupersetOf/isDisjointFrom, which only shipped in Chrome 122 — cytoscape's
+collection algebra and mermaid's architecture-diagram renderer call them ~20
+times in the production bundle. Classic inline scripts run before the
+deferred module bundle, so the methods exist before any lazy chunk executes;
+engines that already implement them bail out immediately.
+
+Both blocks byte-identical to those shipped in the restored Offline installer
+(resources/app.asar.unpacked/dist/index.html lines 120-580 and 669-729).
 
 --- a/desktop/index.html
 +++ b/desktop/index.html
@@ -485,3 +493,71 @@ Byte-identical to the block shipped in the restored Offline installer
      <script>
        (function () {
          var bootDeadlineMs = 8000
+@@ -224,6 +224,67 @@
+         }, bootDeadlineMs)
+       })()
+     </script>
++    <!--
++      Chromium 108 runtime polyfill (Win7 / Electron 22): the Set methods
++      union/intersection/difference/symmetricDifference/isSubsetOf/
++      isSupersetOf/isDisjointFrom only shipped in Chrome 122, but vendored
++      dependencies call them — cytoscape's collection algebra and mermaid's
++      architecture-diagram renderer alone account for ~20 call sites in the
++      production bundle, each raising "x.union is not a function" on 108.
++      Classic inline scripts run before the deferred module bundle, so the
++      patch is installed before any lazy chunk can execute. Engines that
++      already implement the methods bail out immediately.
++    -->
++    <script>
++      (function () {
++        if (typeof Set === 'undefined' || typeof Set.prototype.union === 'function') return
++        function asSet(other) {
++          if (other instanceof Set) return other
++          try { return new Set(other) } catch (_) { throw new TypeError('Set method argument is not iterable') }
++        }
++        function define(name, fn) {
++          if (typeof Set.prototype[name] !== 'undefined') return
++          try {
++            Object.defineProperty(Set.prototype, name, { value: fn, writable: true, configurable: true })
++          } catch (_) { Set.prototype[name] = fn }
++        }
++        define('union', function (other) {
++          var that = new Set(this), arg = asSet(other)
++          arg.forEach(function (v) { that.add(v) })
++          return that
++        })
++        define('intersection', function (other) {
++          var arg = asSet(other), out = new Set()
++          this.forEach(function (v) { if (arg.has(v)) out.add(v) })
++          return out
++        })
++        define('difference', function (other) {
++          var arg = asSet(other), out = new Set()
++          this.forEach(function (v) { if (!arg.has(v)) out.add(v) })
++          return out
++        })
++        define('symmetricDifference', function (other) {
++          var arg = asSet(other), out = new Set(this)
++          arg.forEach(function (v) { if (out.has(v)) out.delete(v); else out.add(v) })
++          return out
++        })
++        define('isSubsetOf', function (other) {
++          var arg = asSet(other), out = true
++          this.forEach(function (v) { if (out && !arg.has(v)) out = false })
++          return out
++        })
++        define('isSupersetOf', function (other) {
++          var arg = asSet(other), self = this, out = true
++          arg.forEach(function (v) { if (out && !self.has(v)) out = false })
++          return out
++        })
++        define('isDisjointFrom', function (other) {
++          var arg = asSet(other), out = true
++          this.forEach(function (v) { if (out && arg.has(v)) out = false })
++          return out
++        })
++      })()
++    </script>
+   </head>
+   <body>
+     <div id="root"></div>
