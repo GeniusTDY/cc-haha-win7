@@ -1,5 +1,7 @@
 # port-src/ — new sources added by the Win7 port
 
+**English** | [简体中文](README.zh-CN.md)
+
 Files that do not exist upstream; they either build new artifacts or are
 the canonical compiled artifacts the installer ships.
 

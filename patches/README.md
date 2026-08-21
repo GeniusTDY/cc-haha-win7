@@ -1,5 +1,7 @@
 # patches/ — Win7 port deltas vs upstream NanmiCoder/cc-haha v0.5.4
 
+**English** | [简体中文](README.zh-CN.md)
+
 Base: upstream tag/commit `d52bbec7` ("chore(release): prepare v0.5.4").
 Apply order = patch number. All paths are relative to the upstream repo
 root (`desktop/` is the Electron app subproject).
@@ -29,7 +31,7 @@ path. (Patch 003 ports that artifact's pipe fallback into the TS source,
 so rebuilds from source keep that half; the node-runtime fallback half
 exists only in the compiled artifact.)
 
-## Source-level overlay gap (源码叠加缺口)
+## Source-level overlay gap
 
 The patch series is NOT the complete port delta. Building `dist/*.mjs`
 from a fresh upstream checkout additionally requires working-tree-only
