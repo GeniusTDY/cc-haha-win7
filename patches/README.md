@@ -46,6 +46,22 @@ changes that this repo does not carry as patches:
   `src/server/api/sessions.ts` + `src/server/api/computer-use.ts`
   (`Bun.spawn` → `nodeBunSpawn`), `src/server/staticH5.ts` +
   `src/server/api/previewFs.ts` (`Bun.file` → `nodeBunFile`);
+- three more service-level rewrites (2026-08-21 session-spawn fix, all
+  present in the shipped `runtime/node-fallback/server.mjs`):
+  `src/server/services/conversationService.ts` +
+  `src/server/services/cronScheduler.ts` +
+  `src/server/services/diagnosticsService.ts`
+  (`Bun.spawn` → `nodeBunSpawn` — sessions, cron scheduler,
+  `openLogDir` x3; the embedded-ripgrep `--version` probe in
+  `src/utils/ripgrep.ts` stays on `Bun.spawn` as unreachable dead code
+  under Node — the desktop bundles a native rg.exe);
+- two semantics fixes baked into the same rebuild:
+  `shouldStripInheritedProviderEnv` (both conversationService and
+  cronScheduler) strips `ANTHROPIC_*` only for a configured provider —
+  `providerId === null` keeps the inherited env so env-only setups can
+  still authenticate — and cronScheduler's
+  `buildCronCliArgs`/`resolveCronProjectRoot` fall back from the
+  Bun-only `import.meta.dir` to `fileURLToPath(import.meta.url)`;
 - the upstream root dependencies (67 entries: axios, lodash-es, react, …)
   must be installed (`bun install` / `npm install`) — only esbuild and the
   desktop dependency tree are vendored in this repo.

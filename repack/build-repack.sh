@@ -83,6 +83,18 @@
 #   Caveat: with the feed version equal to the installed one,
 #   electron-updater offers nothing — users of earlier builds must
 #   re-download this installer manually.
+# 2026-08-21 session-spawn fix rebuild (current Release asset): a runtime
+#   Bun.spawn audit found 5 more reachable call sites in server.mjs that
+#   still hit the undefined Bun global under Node — conversation sessions,
+#   the cron task scheduler and openLogDir x3 — all rewritten to
+#   nodeBunSpawn; plus
+#   + shouldStripInheritedProviderEnv no longer strips ANTHROPIC_* when
+#     providerId === null (env-only setups keep their inherited auth, so
+#     the spawned CLI can authenticate instead of exiting silently)
+#   + cron buildCronCliArgs/resolveCronProjectRoot no longer rely on the
+#     Bun-only import.meta.dir (fileURLToPath(import.meta.url) fallback)
+#   Same electron-updater caveat as above (version stays 0.5.4).
+#   sha256 c67271455b47f2181f3f255af8f959f43242ceb14e5814640c0ea95c4d8946c1
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #

@@ -40,6 +40,21 @@ node-runtime 回退另一半只存在于编译产物中。）
   `src/server/api/sessions.ts` + `src/server/api/computer-use.ts`
   （`Bun.spawn` → `nodeBunSpawn`）、`src/server/staticH5.ts` +
   `src/server/api/previewFs.ts`（`Bun.file` → `nodeBunFile`）；
+- 三处服务层改写（2026-08-21 会话 spawn 修复，均已包含在发布的
+  `runtime/node-fallback/server.mjs` 中）：
+  `src/server/services/conversationService.ts`、
+  `src/server/services/cronScheduler.ts`、
+  `src/server/services/diagnosticsService.ts`
+  （`Bun.spawn` → `nodeBunSpawn`——会话派生、cron 调度器、
+  `openLogDir` ×3；`src/utils/ripgrep.ts` 中内嵌 rg 的 `--version`
+  探测仍用 `Bun.spawn`，Node 下为不可达死代码——桌面端捆绑原生
+  rg.exe）；
+- 同一重建中的两处语义修复：`shouldStripInheritedProviderEnv`
+  （conversationService 与 cronScheduler 各一处）仅在配置了 provider
+  时剥离 `ANTHROPIC_*`——`providerId === null` 保留继承环境变量，
+  纯环境变量配置仍可完成认证；cronScheduler 的
+  `buildCronCliArgs`/`resolveCronProjectRoot` 从 Bun 专属的
+  `import.meta.dir` 回退到 `fileURLToPath(import.meta.url)`；
 - 上游根目录依赖（67 项：axios、lodash-es、react 等）必须先安装
   （`bun install` / `npm install`）——本仓库只内置 esbuild 与
   desktop 依赖树。
