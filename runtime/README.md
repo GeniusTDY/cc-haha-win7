@@ -1,5 +1,7 @@
 # runtime/ — offline runtime payloads (Win7)
 
+**English** | [简体中文](README.zh-CN.md)
+
 Everything the offline installer overlays into `resources/runtime/`.
 **node-v22.17.0/, python-3.8.10/ and vxkex-1.2.1.2229/ are committed in git** (128 MB total,
 extracted from the verified released Offline.exe — the fixed
@@ -102,7 +104,7 @@ ready-made installer — the newest build:
 
 | attachment | purpose | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-21 fixed rebuild (252,343,747 bytes)** — carries the 2026-08-20 feature set (full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload + `app-update.yml` repointed at this repo) **plus** the restored win32 CLI spawn chain + `node:sqlite` flag injection in `server.mjs` and the VT-input gate in `cli.mjs`, and the version-stamped runtime layout (unversioned duplicate dirs removed). The briefly published 2026-08-20 asset (`b3665af6…`) shipped pre-restore bundles and was removed; its version number is identical, so electron-updater offers nothing — users of that build must re-download manually. Paired with `latest.yml` for electron-updater | `7ad7852e…b2f12b3` |
+| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-21 CJK-purge rebuild (252,408,479 bytes)** — carries the 2026-08-20 feature set (full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload + `app-update.yml` repointed at this repo) **plus** the restored win32 CLI spawn chain + `node:sqlite` flag injection in `server.mjs`, the VT-input gate in `cli.mjs`, the version-stamped runtime layout (unversioned duplicate dirs removed), **and** the 6 shared adapter chunks restored into `adapters-chunks/` (every `--feishu`/`--telegram`/`--wechat`/`--whatsapp`/`--dingtalk` load works again) with the third-party SDKs' Chinese JSDoc comments stripped from the adapter bundles (code verified byte-equivalent). Two earlier assets (`b3665af6…`, `7ad7852e…`) were regressed builds and were removed; their version numbers are identical, so electron-updater offers nothing — users of those builds must re-download manually. Paired with `latest.yml` for electron-updater | `f964d552…e77d2ea1` |
 
 ## node-pty-1.1.0-win32-x64/ (in git, ~1 MB)
 

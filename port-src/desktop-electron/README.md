@@ -1,5 +1,7 @@
 # desktop-electron — Electron main-process build artifacts (Win7 port)
 
+**English** | [简体中文](README.zh-CN.md)
+
 These are the four compiled artifacts from the Win7 desktop build
 (Electron 22.3.27), byte-identical to the ones inside the shipped
 offline installer's `resources/app.asar`:
