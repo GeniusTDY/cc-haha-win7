@@ -117,14 +117,12 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ### 4.3 node:sqlite 旗标
 
-`node:sqlite` 于 22.5.0 引入；**22.5.0–22.12.x 与 23.0–23.3.x 必须加 `--experimental-sqlite`**（22.13.0 / 23.4.0 起免除），否则 `ERR_UNKNOWN_BUILTIN_MODULE` 启动即崩。四条路径已自动附加：
+`node:sqlite` 于 22.5.0 引入；**22.5.0–22.12.x 与 23.0–23.3.x 必须加 `--experimental-sqlite`**（22.13.0 / 23.4.0 起免除），否则 `ERR_UNKNOWN_BUILTIN_MODULE` 启动即崩。两条路径已自动附加：
 
-1. `bin/claude-haha` JS 启动器按 `process.versions.node` 精确区间注入
-2. `bin/server-haha(.cmd)` 同逻辑
-3. main.cjs `sqliteFlagArgsForVersion()`（`node --version` 探测一次缓存，server 与 adapters 两个 spawn 计划共用）
-4. Windows `.cmd` 启动器路由经 JS 启动器
+1. main.cjs `sqliteFlagArgsForVersion()`（`node --version` 探测一次缓存，server 与 adapters 两个 spawn 计划共用）
+2. server.mjs `nodeSqliteFlagArgs()`：`CC_HAHA_CLI_ENTRY` 直连分支按 `process.versions.node` 精确区间注入
 
-仅手工 `node dist\*.mjs` 裸跑需自查版本。
+捆绑 node 为 22.17.0（≥22.13）本就免旗标，`resolveCliArgs` 的 win32 `dist/cli.mjs` 直跑分支因此无需注入；仅手工 `node dist\*.mjs` 裸跑或换用 22.5–22.12 运行时时需自查版本。
 
 ### 4.4 运行时派生链
 
@@ -137,7 +135,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 捆绑 node.exe 由 `resolveNodeRuntimeExecutable()` 直探定位（上表顺序，不依赖 PATH）；sidecar 子进程环境另经 `withBundledRipgrepPath` 把捆绑 ripgrep 所在目录注入 PATH（`buildSidecarEnv` 只补 `CLAUDE_H5_*` / `CLAUDE_CONFIG_DIR` / `XDG_CACHE_HOME`，不改 PATH）；安装器为 node.exe 建防火墙入站规则。
 
-**server / cron → CLI**：dist 布局下 launcher 解析为 null 时（会话服务与 cron 调度器两处），回退探测 `../bin/claude-haha` 启动器（自带 sqlite 旗标 / CALLER_DIR / 特性注入）；`CC_HAHA_CLI_ENTRY` 直连分支同样补 sqlite 旗标。
+**server / cron → CLI**：dist 布局下 launcher 解析为 null 时（会话服务与 cron 调度器两处），回退探测 `../bin/claude-haha` 启动器（源码树布局下存在：注入 CALLER_DIR / TRANSCRIPT_CLASSIFIER 特性旗标）；`CC_HAHA_CLI_ENTRY` 直连分支补 sqlite 旗标。
 
 ### 4.5 移植内部环境变量
 
@@ -147,14 +145,12 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 |---|---|
 | `CC_HAHA_NODE_EXE` / `CC_HAHA_SERVER_MJS` / `CC_HAHA_ADAPTERS_MJS` | 桌面壳回退链覆盖：node 解释器 / server / adapters 入口 |
 | `CC_HAHA_CLI_ENTRY` | server / cron 派生 CLI 的直连入口覆盖 |
-| `CC_HAHA_NODE` | 仅 .cmd 启动器：指定 node.exe 全路径 |
 | `CC_HAHA_BASH_EXE` / `CC_HAHA_RUNTIME_DIR` | Bash 工具解析链覆盖 |
 | `CC_HAHA_DESKTOP_SERVER_URL` | 远程模式（Win7 只跑 Electron 壳，后端在局域网他机） |
 | `CC_HAHA_FEATURES` | 特性开关（默认 TRANSCRIPT_CLASSIFIER，设空禁用） |
-| `CC_HAHA_SKIP_DOTENV` | 跳过根目录 .env 加载（.cmd 默认置 1） |
+| `CC_HAHA_SKIP_DOTENV` | 跳过根目录 .env 加载（server 派生 CLI 子进程时置 1） |
 | `CLAUDE_CODE_LOCAL_RECOVERY` | 强制进入恢复 CLI |
 | `IS_SANDBOX` | 容器 / root 高权限场景跳过权限拦截 |
-| `NODE_SKIP_PLATFORM_CHECK` | 仅"官方 node.exe + 平台检查豁免"路径需要 |
 
 ## 5. server.mjs 关键补丁
 
@@ -216,7 +212,7 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 | 桌面终端 | Win7/8 强制 node-pty 的 winpty 后端（`useConpty:false`，补丁 003）——winpty 原生支持 Win7，完整 TTY 仿真（vim / htop 可用）；repack 步骤 7/9 保证 winpty 载荷不被裁剪；仅载荷损坏时才降级管道式回退（有提示） |
 | TUI 按键 | VT 模式判定加 `parseFloat(os.release()) >= 10` 门控（Win7 conhost 无 VT 输入；cli.mjs defaultBindings，经 `patch-computer-use.py` P10 恢复） |
 | 通知 | `isSupported()` 门控，无 toast 时优雅拒绝 |
-| 工作区搜索 | 内置 ripgrep 14.1.0（PE 导入表仅 Win7 可用 API + SubsystemVersion 6.0 双重验证；运行需 VxKex 注册） |
+| 工作区搜索 | 内置 ripgrep 15.1.0（PE 导入表仅 Win7 可用 API + SubsystemVersion 6.0 双重验证；运行需 VxKex 注册） |
 
 ## 8. Computer Use 离线适配
 
