@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# build-repack.sh — rebuild Claude-Code-Haha-0.5.4-win7-x64-setup.exe
+# build-repack.sh — rebuild Claude-Code-Haha-0.5.5-win7-x64-setup.exe
 #
 # Stage B of the Win7 offline build: repackage the electron-builder output
 # (Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe, Stage A) into the all-in-one
@@ -30,9 +30,23 @@
 #   only; differs from v3 c22f57eb… solely by NSIS-embedded file mtimes
 #   (structural identity asserted: same fix set)
 # 2026-08-20 feed-rewrite rebuild (v3 fix set + step 2b repoints
-#   app-update.yml at GeniusTDY/cc-haha-win7; current Release asset,
-#   paired with latest.yml from make-latest-yml.mjs):
+#   app-update.yml at GeniusTDY/cc-haha-win7; was the Release asset):
 #   sha256 b3665af60989fead7f4a2b36c555a1d0074859782cafb30f500340ee55371f4c
+#   REGRESSION (found 2026-08-21 audit): it was built at 13:27, BEFORE the
+#   repo-side restores — its server.mjs/cli.mjs were the 844024a9 regressed
+#   bundles (no win32 CLI spawn chain, no VT-input gate), so desktop chat
+#   and cron sessions threw on every spawn (import.meta.dir undefined under
+#   Node). Superseded by the v4 build below.
+# v4 2026-08-21 rebuild (version 0.5.5, current Release asset):
+#   + deploys the FIXED node-fallback bundles (5a8b9943 win32 spawn chain +
+#     nodeSqliteFlagArgs, a9ba5178 cli.mjs VT-input gate, Pillow>=10.0,<10.5)
+#   + step 3 --set-version bumps the asar package.json to 0.5.5 so
+#     electron-updater offers it to installed 0.5.4 builds
+#   + step 6 drops the seed's unversioned runtime/node|python|vxkex dirs
+#     (~128MB of dead on-disk duplicates in every earlier build)
+#   + adapters-chunks carries exactly the 6 overlay chunks (no stale
+#     Stage A leftovers)
+#   sha256 d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #
@@ -59,7 +73,8 @@ SETUP="${1:-$HERE/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe}"
 NODE_FALLBACK_DIR="${NODE_FALLBACK_DIR:-$HERE/../runtime/node-fallback}"
 RUNTIME_DIR="${RUNTIME_DIR:?set RUNTIME_DIR to the offline runtime payloads dir (node/ python/ vxkex/ ...)}"
 
-OUT_EXE="$HERE/Claude-Code-Haha-0.5.4-win7-x64-setup.exe"
+OUT_EXE="$HERE/Claude-Code-Haha-0.5.5-win7-x64-setup.exe"
+APP_VERSION="0.5.5"
 WORK="$HERE/.work"
 ORIG="$WORK/orig"    # NSIS shell from Stage A installer
 APP="$WORK/app"      # final payload tree
@@ -120,13 +135,15 @@ DIST="$APP/resources/app.asar.unpacked/dist"
 BIN="$APP/resources/app.asar.unpacked/src-tauri/binaries"
 RT="$APP/resources/runtime"
 
-echo "== 3/9 patch app.asar main.cjs (force winpty terminal backend) =="
+echo "== 3/9 patch app.asar main.cjs (force winpty terminal backend + $APP_VERSION) =="
 # Surgical in-place asar rewrite (see patch-app-asar.mjs header comment): the
 # shipped main.cjs carries the Win7 node-runtime fallback layer that is not in
 # the current desktop sources, so we only insert the one missing runtime hunk
 # of patches/desktop/006 — `ptySpawnOptions.useConpty = false` on legacy
 # Windows — and leave every other archived file at its original offset.
-node "$HERE/patch-app-asar.mjs" "$APP/resources/app.asar"
+# --set-version bumps the asar package.json version so this build is
+# semver-greater than the installed one and electron-updater offers it.
+node "$HERE/patch-app-asar.mjs" "$APP/resources/app.asar" --set-version "$APP_VERSION"
 
 echo "== 4/9 deploy node-fallback bundle (forces node.exe server) =="
 for f in server.mjs adapters.mjs cli.mjs recovery-cli.mjs; do
@@ -146,6 +163,9 @@ for d in node-v22.17.0 python-3.8.10 vxkex-1.2.1.2229; do
   rm -rf "$RT/$d"
   cp -a "$RUNTIME_DIR/$d" "$RT/$d"
 done
+# the Stage A seed still carries the pre-version-stamp unversioned runtime
+# dirs (~128MB dead weight — every probe now uses the versioned layout)
+rm -rf "$RT/node" "$RT/python" "$RT/vxkex" "$RT/git"
 for f in setup-vxkex.bat requirements-win.txt requirements.txt win_helper.py; do
   [ -f "$RUNTIME_DIR/$f" ] && cp -f "$RUNTIME_DIR/$f" "$RT/$f" || true
 done
@@ -190,7 +210,8 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected: 2026-08-20 feed-rewrite rebuild — v3 fix set + update channel
-#   pointed at GeniusTDY/cc-haha-win7 (current Release asset)
+# expected: 2026-08-21 v4 rebuild (0.5.5) — fixed bundles + version bump
+#   + unversioned-dir cleanup; current Release asset
 # historical: v1 3221d5e9… · v2 971df9d5… · v2-rebuild 03286eaf… ·
-#   v3 c22f57eb… · rebuild-from-parts 76a635d9…
+#   v3 c22f57eb… · rebuild-from-parts 76a635d9… · feed-rewrite b3665af6…
+#   (regressed server.mjs/cli.mjs — see the v4 note in the header)
