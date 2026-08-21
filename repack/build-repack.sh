@@ -50,13 +50,19 @@
 #   sha256 d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea
 #   (briefly published under a bumped version stamp; superseded same day
 #   by the re-stamp below)
-# 2026-08-21 re-stamp (current Release asset): identical fix set to the
-#   2026-08-21 fixed rebuild above, version kept at 0.5.4 — this port
-#   tracks upstream cc-haha versioning (upstream IS 0.5.4).
-#   Caveat: with the feed version equal to the installed one,
-#   electron-updater offers nothing — users of the regressed b3665af6
-#   build must re-download this installer manually.
+# 2026-08-21 re-stamp (identical fix set to the 2026-08-21 fixed rebuild
+#   above, version kept at 0.5.4 — this port tracks upstream cc-haha
+#   versioning; upstream IS 0.5.4):
 #   sha256 7ad7852ec1f3c23db644d273b45e99d6ab50f77c80af46fc88314311ab2f12b3
+# 2026-08-21 installer-i18n rebuild (current Release asset): same fix set
+#   + installer.nsi texts moved to NSIS LangString tables (SimpChinese +
+#   English; MUI pages, the VxKex/node dialogs, the finish-page checkbox
+#   and the detail-log lines all follow the OS UI language at runtime —
+#   compile output embeds 2 language tables)
+#   sha256 9973c54bc460eecd3ec3cf5a68674f3f755b4798b0f7335d6dd03a867f7b7b42
+#   Caveat: with the feed version equal to the installed one,
+#   electron-updater offers nothing — users of earlier builds must
+#   re-download this installer manually.
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #
@@ -221,11 +227,12 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected: 7ad7852e… (2026-08-21 re-stamp, version 0.5.4) — current
-#   Release asset
+# expected: 9973c54b… (2026-08-21 installer-i18n rebuild, version 0.5.4) —
+#   current Release asset
 # historical: 3221d5e9… (initial, = released Offline.exe) · 971df9d5…
 #   (CU python-path fix) · 03286eaf… (2026-08-19, win32 spawn +
 #   provider-env fixes) · c22f57eb… (2026-08-20, "most complete") ·
 #   76a635d9… (2026-08-20, from git parts) · b3665af6… (2026-08-20,
 #   regressed server.mjs/cli.mjs) · d9edd747… (2026-08-21, fixed;
-#   superseded by the 0.5.4 re-stamp)
+#   superseded by the 0.5.4 re-stamp) · 7ad7852e… (2026-08-21 re-stamp,
+#   superseded by the installer-i18n rebuild)
