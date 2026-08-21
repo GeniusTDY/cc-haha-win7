@@ -5490,7 +5490,6 @@ var DWClient = class extends EventEmitter2 {
         subscriptions: this.config.subscriptions
       },
       headers: {
-        // 这个接口得加个，否则默认返回的会是xml
         Accept: "application/json"
       }
     });
@@ -5658,18 +5657,6 @@ var DWClient = class extends EventEmitter2 {
     };
     (_a = this.socket) == null ? void 0 : _a.send(JSON.stringify(msg));
   }
-  /**
-   * 消息响应，避免服务端重试. 
-   * stream模式下，服务端推送消息到client后，会监听client响应，如果消息长时间未响应会在一定时间内(60s)重试推消息，可以通过此方法返回消息响应，避免多次接收服务端消息。
-   * @param messageId
-   * @param result
-   * @returns
-   * @memberof DWClient
-   * @example
-   * ```javascript
-   * client.socketResponse(res.headers.messageId, result.data);
-   * ```
-   */
   socketCallBackResponse(messageId, result) {
     this.send(messageId, { response: result });
   }

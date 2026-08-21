@@ -11,7 +11,7 @@
  *        (or, after copying scripts/node-port/ to the repo root: node scripts/node-port/build.mjs)
  */
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -202,6 +202,22 @@ async function main() {
       splitting: true,
       chunkNames: 'adapters-chunks/[name]-[hash]',
     })
+
+    // The adapter chunks bundle third-party SDKs whose JSDoc API docs are
+    // written in Chinese; strip those comments from the emitted chunks so
+    // rebuilds match the committed (comment-free) runtime/node-fallback
+    // payloads. Code is untouched — only CJK-containing comment spans go.
+    const { stripCjkCommentsInFile } = await import('./strip-cjk-comments.mjs')
+    const chunkDir = path.join(outDir, 'adapters-chunks')
+    if (existsSync(chunkDir)) {
+      let spans = 0
+      for (const f of readdirSync(chunkDir).filter(f => f.endsWith('.mjs'))) {
+        const r = stripCjkCommentsInFile(path.join(chunkDir, f))
+        spans += r.removedSpans
+      }
+      console.log(`[node-port] adapters-chunks: stripped ${spans} CJK comment span(s)`)
+    }
+
     console.log('[node-port] build complete → dist/cli.mjs, dist/recovery-cli.mjs, dist/server.mjs, dist/adapters.mjs')
   } else {
     console.warn(
