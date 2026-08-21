@@ -13,8 +13,9 @@ NODE_FALLBACK_DIR=../runtime/node-fallback RUNTIME_DIR=../runtime \
 
 `git-2.45.2/` (PortableGit 2.45.2) and `kb-patches/` (KB2533623 +
 KB2670838 MSU) are committed too — so a clean offline Win7 needs
-zero downloads from this repo: install the two KB patches, run the
-installer, done.
+zero downloads beyond a clone of this repo and the one installer:
+install the two KB patches (git-tracked, not shipped inside the
+installer), run the installer, done.
 
 ## Layout shipped inside the installer
 
@@ -56,9 +57,11 @@ resources/runtime/
 
 ## In-git payload provenance & checksums
 
-The committed node-v22.17.0 / python-3.8.10 / vxkex-1.2.1.2229 trees were extracted from the released
-`Claude-Code-Haha-0.5.4-win7-x64-setup.exe` (the build that passed
-the 77-check QEMU Win7 E2E suite), so the fixed `python38._pth` and
+The committed node-v22.17.0 / python-3.8.10 / vxkex-1.2.1.2229 trees were
+extracted from the released `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`
+(pipeline v1, sha256 `3221d5e9…a025b40`; these payload bytes are
+byte-identical in the v2-family builds that passed the 77-check QEMU
+Win7 E2E suite), so the fixed `python38._pth` and
 the 16 wheels are already applied — no post-clone fixup needed.
 
 | payload | key file | sha256 |
@@ -99,7 +102,7 @@ ready-made installer — the newest build:
 
 | attachment | purpose | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-20 v3 rebuild + update-channel rewrite**: full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload + `app-update.yml` repointed at this repo (older v1 / v2 / Stage A Setup.exe assets were removed; asset renamed from `…-Win7-x64-Offline.exe`; paired with `latest.yml` for electron-updater) | `b3665af6…71f4c` |
+| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-21 v5 fixed rebuild (252,343,747 bytes)** — v3 feature set (full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload + `app-update.yml` repointed at this repo) **plus** the restored win32 CLI spawn chain + `node:sqlite` flag injection in `server.mjs` and the VT-input gate in `cli.mjs`, and the version-stamped runtime layout (unversioned duplicate dirs removed). The briefly published 2026-08-20 v3 asset (`b3665af6…`) shipped pre-restore bundles and was removed; its version number is identical, so electron-updater offers nothing — users of that build must re-download manually. Paired with `latest.yml` for electron-updater | `7ad7852e…b2f12b3` |
 
 ## node-pty-1.1.0-win32-x64/ (in git, ~1 MB)
 
