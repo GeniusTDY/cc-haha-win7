@@ -20,9 +20,13 @@ mobile header, ActiveSession header, TraceList, TraceSession x3) now route
 through it. The data layer is untouched; the obsolete 'tabs.untitled' key
 is retired in all five locales in favour of the existing 'session.untitled'
 (already translated: 未命名会话 / 未命名會話 / 無題のセッション /
-제목 없는 세션). Existing CJK section comments in the locale files and
-elsewhere are preserved verbatim — the diff only adds the mapping and
-removes the retired key.
+제목 없는 세션).
+
+Comment policy: the CJK section dividers inside the locale files are
+upstream structure and stay verbatim; incidental CJK in non-locale source
+comments (TabBar design notes, i18n JSDoc example, ActiveSession test
+anchor notes) is dropped so the port delta stays ASCII-clean outside the
+locale payloads.
 
 Side effect for English users: the tab title no longer flashes between
 'New Session' and 'Untitled Session' when fetchSessions() reconciles.
@@ -119,7 +123,7 @@ index 7440709b..dc676eb5 100644
      await waitFor(() => {
        expect(sessionsApiMock.delete).toHaveBeenCalledWith(sessionId)
 diff --git a/desktop/src/components/layout/TabBar.tsx b/desktop/src/components/layout/TabBar.tsx
-index d1418238..e8b7d87a 100644
+index d1418238..d5ab4247 100644
 --- a/desktop/src/components/layout/TabBar.tsx
 +++ b/desktop/src/components/layout/TabBar.tsx
 @@ -17,7 +17,7 @@ import {
@@ -131,7 +135,15 @@ index d1418238..e8b7d87a 100644
  import { useWorkspacePanelStore } from '../../stores/workspacePanelStore'
  import { useTerminalPanelStore } from '../../stores/terminalPanelStore'
  import { useCLITaskStore } from '../../stores/cliTaskStore'
-@@ -581,7 +581,7 @@ export function TabBar() {
+@@ -545,7 +545,6 @@ export function TabBar() {
+         active tab can be filled with `--color-surface` and read as a sheet
+         lifted off the desk, continuous with the content below it. Painting the
+         strip `--color-surface` instead collapses strip, active tab and content
+-        into one flat plane, which is what #1123 reported as "粗犷".
+ 
+         Deliberately *not* darkened into a Chrome-style trough: keeping it on
+         the sidebar's exact ground is what stops the titlebar reading as a
+@@ -581,7 +580,7 @@ export function TabBar() {
          {tabs.map((tab, index) => {
            const displayTitle = tab.type === 'settings'
              ? t('settings.title')
@@ -140,6 +152,26 @@ index d1418238..e8b7d87a 100644
            return (
              <TabItem
                key={tab.sessionId}
+@@ -609,7 +608,6 @@ export function TabBar() {
+         16px rule rather than a full-height `border-l`, because a 52px line
+         standing next to a row of 16px ones reads as a different kind of
+         divider. `--color-border` is not an option for either — calibrated
+-        against paper, it all but disappears on the trough (1.12:1 on 素白),
+         which left the toolbar looking welded to the last tab.
+       */}
+       <div className="relative flex shrink-0 items-center gap-1 px-2 before:absolute before:left-0 before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-[var(--color-tab-separator)]">
+diff --git a/desktop/src/i18n/index.ts b/desktop/src/i18n/index.ts
+index c16af169..87ec23f4 100644
+--- a/desktop/src/i18n/index.ts
++++ b/desktop/src/i18n/index.ts
+@@ -43,7 +43,6 @@ export function translate(
+  *
+  * @example
+  * const t = useTranslation()
+- * t('sidebar.newSession')  // => "New session" or "新建会话"
+  */
+ export function useTranslation() {
+   const locale = useSettingsStore((s) => s.locale)
 diff --git a/desktop/src/i18n/locales/en.ts b/desktop/src/i18n/locales/en.ts
 index 374b3895..24b2af16 100644
 --- a/desktop/src/i18n/locales/en.ts
@@ -256,6 +288,36 @@ index 031f4788..5bc0aade 100644
 +): string {
 +  return isPlaceholderSessionTitle(title) ? localizedFallback : (title as string)
 +}
+diff --git a/desktop/src/pages/ActiveSession.test.tsx b/desktop/src/pages/ActiveSession.test.tsx
+index c91e165e..81b99513 100644
+--- a/desktop/src/pages/ActiveSession.test.tsx
++++ b/desktop/src/pages/ActiveSession.test.tsx
+@@ -2368,8 +2368,6 @@ describe('ActiveSession task polling', () => {
+ })
+ 
+ describe('ActiveSession header', () => {
+-  // 回归锚点：标题曾经是 text-[22px] 且不截断，长标题会折成两行再加一行元数据，
+-  // 连同 pt-6/pb-4 把聊天区顶掉约 120px。标题必须单行截断，元数据留在它下面那行。
+   const longTitle = 'Create a todo_cccc-ccccbb directory, write a throwaway todo app with react + vite + tailwindcss, then start it'
+ 
+   function mountSessionWithLongTitle(sessionId: string) {
+@@ -2448,7 +2446,6 @@ describe('ActiveSession header', () => {
+     const titleRow = heading.parentElement as HTMLElement
+     const meta = titleRow.nextElementSibling as HTMLElement
+ 
+-    // 元数据挤在标题右侧时会离标题很远，读起来像飘在角落的另一块内容。
+     expect(within(titleRow).queryByText('2 messages')).not.toBeInTheDocument()
+     expect(within(meta).getByText('2 messages')).toBeInTheDocument()
+     expect(within(meta).getByText('15k API tokens')).toBeInTheDocument()
+@@ -2464,8 +2461,6 @@ describe('ActiveSession header', () => {
+     const heading = within(screen.getByTestId('session-header')).getByRole('heading', { level: 1 })
+     const meta = (heading.parentElement as HTMLElement).nextElementSibling as HTMLElement
+ 
+-    // 空闲会话只有三项元数据（tokens / 更新时间 / 消息数），之间两个「·」，开头不该有。
+-    // 分隔符是纯装饰，读屏时不该被念出来。
+     expect(meta.textContent?.trimStart().startsWith('·')).toBe(false)
+     expect(meta.querySelectorAll('[aria-hidden="true"]')).toHaveLength(2)
+   })
 diff --git a/desktop/src/pages/ActiveSession.tsx b/desktop/src/pages/ActiveSession.tsx
 index 4ceaef83..1b52270b 100644
 --- a/desktop/src/pages/ActiveSession.tsx
