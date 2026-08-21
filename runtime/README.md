@@ -47,7 +47,7 @@ resources/runtime/
 
 | executable | treatment | why |
 |---|---|---|
-| `runtime/node-v22.17.0/node.exe` | KexCfg ENABLE, **WINVERSPOOF:NONE** | Node 22 needs Win8+ APIs; version spoof must stay OFF or the sidecar handshake mis-detects the OS |
+| `runtime/node-v22.17.0/node.exe` | KexCfg ENABLE, **WINVERSPOOF:NONE** | Node 22 needs Win8+ APIs; version spoof must stay OFF or V8's ThreadIsolation path crashes on Win7 (see Technical-Support.md §3) |
 | `runtime/python-3.8.10/python.exe` | ENABLE, WINVERSPOOF:NONE | UCRT api-set shim |
 | `app.asar.unpacked/src-tauri/binaries/rg.exe` | ENABLE, WINVERSPOOF:NONE | statically imports `WaitOnAddress` (api-ms-win-core-synch-l1-2-0, Win8+); without it POST /api/search hangs forever behind a modal DLL error |
 | `Claude Code Haha.exe` | none | Electron 22 runs natively on Win7 |
