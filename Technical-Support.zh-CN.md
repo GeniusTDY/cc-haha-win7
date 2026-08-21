@@ -90,7 +90,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ## 4. Bun→Node 全量移植
 
-上游 Bun 依赖改跑 Node：`bun:sqlite` / `bun:bundle` 经 esbuild 模块别名替换，其余调用点（`server/index.ts` 的 `Bun.serve`，`api/sessions.ts` / `api/computer-use.ts` 的 `Bun.spawn`，`staticH5.ts` / `api/previewFs.ts` 的 `Bun.file`）为源码级改写、直接 import 兼容层。兼容层位于 `port-src/src/compat/`，构建脚本位于 `port-src/scripts/node-port/`。
+上游 Bun 依赖改跑 Node：`bun:sqlite` / `bun:bundle` 经 esbuild 模块别名替换，其余调用点为源码级改写、直接 import 兼容层——`server/index.ts` 的 `Bun.serve`；`api/sessions.ts` / `api/computer-use.ts` 的 `Bun.spawn`，以及 2026-08-21 会话 spawn 修复新增的服务层三文件（`conversationService.ts` 会话派生、`cronScheduler.ts` cron 任务派生、`diagnosticsService.ts` 的 `openLogDir` ×3——Node 下裸 `Bun` 全局未定义，此前每次会话/cron 派生都在调用点抛错）；`staticH5.ts` / `api/previewFs.ts` 的 `Bun.file`。兼容层位于 `port-src/src/compat/`，构建脚本位于 `port-src/scripts/node-port/`。
 
 ### 4.1 API 兼容层
 
@@ -102,11 +102,12 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 | `Bun.file` | `node:fs` 流式实现 | `compat/bunFile.ts` |
 | `bun:bundle` / `feature()` | shim；`CC_HAHA_FEATURES` 未设置时默认 `TRANSCRIPT_CLASSIFIER`，设空禁用 | `compat/bunBundle.ts` |
 | `import.meta.main` | 新增 `serverNode.ts` 包装入口（Node 下该属性 undefined 导致 server 不自启动） | entrypoints |
+| `import.meta.dir`（cron） | `buildCronCliArgs` / `resolveCronProjectRoot` 内联回退 `?? fileURLToPath(import.meta.url)`（Node 下 undefined——2026-08-21 修复前 cron CLI 解析与项目根探测直接崩溃） | `cronScheduler.ts` 调用点 |
 | `MACRO.*` 构建期注入 | esbuild `define` 复刻 Bun 发布管线全部 7 键（VERSION / PACKAGE_URL / NATIVE_PACKAGE_URL / VERSION_CHANGELOG / ISSUES_EXPLAINER 等） | build.mjs |
 
 原生 / 私有模块桩策略与上游一致（`color-diff-napi`、`@ant/claude-for-chrome-mcp` 上游本就指向 stubs）；`@whiskeysockets/baileys` 在 CLI bundle 桩化、adapters 构建用真包；可选集成（sharp、Bedrock / Vertex SDK、OTel 导出器、audio-capture）external + 动态导入回退。
 
-**改写边界**：上述源码级调用点改写存在于构建用的上游工作树、未随补丁入仓（全新克隆重建 dist 需先补齐，见 patches/README「源码叠加缺口」）。`cli.mjs` 另保留三处上游原生的 `Bun.*` 调用，桌面流程均不可达：`standaloneProviderProxy` 的 `Bun.serve`（server 派生 CLI 时置 `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1` 跳过该分支）、ripgrep 捆绑模式首用测试与 /open-dir 的 `Bun.spawn`（桌面经 `CC_HAHA_RIPGREP_PATH` 显式指定捆绑 rg，不走 argv0 分支）。
+**改写边界**：上述源码级调用点改写存在于构建用的上游工作树、未随补丁入仓（全新克隆重建 dist 需先补齐，见 patches/README「源码叠加缺口」）。`cli.mjs` 另保留三处上游原生的 `Bun.*` 调用，桌面流程均不可达：`standaloneProviderProxy` 的 `Bun.serve`（server 派生 CLI 时置 `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1` 跳过该分支）、ripgrep 捆绑模式首用测试与 /open-dir 的 `Bun.spawn`（桌面经 `CC_HAHA_RIPGREP_PATH` 显式指定捆绑 rg，不走 argv0 分支）。共享的 `utils/ripgrep.ts` 同样把这一处带守卫的 `Bun.spawn` 打进了 `server.mjs`——Node 下同为死代码（`config.argv0` 分支仅 Bun 内嵌 rg 时才走），故刻意不改写。
 
 ### 4.2 esbuild 构建链（替代全部 `bun build`）
 
@@ -162,7 +163,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ### 5.2 继承环境变量剥离条件化
 
-`shouldStripInheritedProviderEnv` 原无条件剥离继承的 `ANTHROPIC_*`，官方 / 默认模式下 CLI 拿不到 base_url / api_key / model。改为条件剥离，仅以下三种情况剥离：显式选择 provider id；`~\.claude\cc-haha\providers.json` 已存在；`settings.json` 的 `env` 配有任何服务键（`ANTHROPIC_*` 模型槽位、OpenAI/Grok OAuth、图像生成四键等）。完全无服务配置的裸环境放行继承变量，CLI 直接拿到继承的凭据。
+`shouldStripInheritedProviderEnv` 原无条件剥离继承的 `ANTHROPIC_*`，官方 / 默认模式下 CLI 拿不到 base_url / api_key / model。改为条件剥离，仅以下三种情况剥离：显式选择 provider id；`~\.claude\cc-haha\providers.json` 已存在；`settings.json` 的 `env` 配有任何服务键（`ANTHROPIC_*` 模型槽位、OpenAI/Grok OAuth、图像生成四键等）。完全无服务配置的裸环境放行继承变量，CLI 直接拿到继承的凭据。「显式选择」指字符串 provider id（`typeof providerId === 'string'`，2026-08-21 收紧——此前守卫是 `!== undefined`）：`null`（Claude Official，亦为未配置任何 provider 时的默认值）保留继承环境变量，纯环境变量配置（server 带 `ANTHROPIC_*` 启动且未配置 provider）仍可完成认证。
 
 ### 5.3 重装场景依赖自愈
 

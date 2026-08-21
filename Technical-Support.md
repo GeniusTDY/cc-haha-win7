@@ -90,7 +90,7 @@ Full script: `runtime\setup-vxkex.bat` (install detection + three registrations 
 
 ## 4. Bun-to-Node full port
 
-Upstream Bun dependencies are re-based onto Node: `bun:sqlite` / `bun:bundle` are swapped via esbuild module aliases, while the remaining call sites (`Bun.serve` in `server/index.ts`, `Bun.spawn` in `api/sessions.ts` / `api/computer-use.ts`, `Bun.file` in `staticH5.ts` / `api/previewFs.ts`) are source-level rewrites that import the compat layer directly. The compat layer lives in `port-src/src/compat/`, the build scripts in `port-src/scripts/node-port/`.
+Upstream Bun dependencies are re-based onto Node: `bun:sqlite` / `bun:bundle` are swapped via esbuild module aliases, while the remaining call sites are source-level rewrites that import the compat layer directly — `Bun.serve` in `server/index.ts`; `Bun.spawn` in `api/sessions.ts` / `api/computer-use.ts` and, since the 2026-08-21 session-spawn fix, in the services layer too (`conversationService.ts` session spawn, `cronScheduler.ts` task spawn, `diagnosticsService.ts` `openLogDir` x3 — under Node the bare `Bun` global is undefined and every session/cron spawn threw at the call site); `Bun.file` in `staticH5.ts` / `api/previewFs.ts`. The compat layer lives in `port-src/src/compat/`, the build scripts in `port-src/scripts/node-port/`.
 
 ### 4.1 API compatibility layer
 
@@ -102,11 +102,12 @@ Upstream Bun dependencies are re-based onto Node: `bun:sqlite` / `bun:bundle` ar
 | `Bun.file` | streaming implementation over `node:fs` | `compat/bunFile.ts` |
 | `bun:bundle` / `feature()` | shim; defaults to `TRANSCRIPT_CLASSIFIER` when `CC_HAHA_FEATURES` is unset, set empty to disable | `compat/bunBundle.ts` |
 | `import.meta.main` | new `serverNode.ts` wrapper entry (the property is undefined under Node, which prevented the server from self-starting) | entrypoints |
+| `import.meta.dir` (cron) | inline `?? fileURLToPath(import.meta.url)` fallback in `buildCronCliArgs` / `resolveCronProjectRoot` (undefined under Node — cron CLI resolution and project-root probing crashed before the 2026-08-21 fix) | call sites in `cronScheduler.ts` |
 | `MACRO.*` build-time injection | esbuild `define` replicating all 7 keys of the Bun release pipeline (VERSION / PACKAGE_URL / NATIVE_PACKAGE_URL / VERSION_CHANGELOG / ISSUES_EXPLAINER etc.) | build.mjs |
 
 Native / private module stub strategy matches upstream (`color-diff-napi` and `@ant/claude-for-chrome-mcp` already point at stubs upstream); `@whiskeysockets/baileys` is stubbed in the CLI bundle but real for the adapters build; optional integrations (sharp, Bedrock / Vertex SDKs, OTel exporters, audio-capture) are external with dynamic-import fallbacks.
 
-**Rewrite boundary**: the source-level call-site rewrites above live in the upstream working tree used for building and are not carried as patches (a fresh-clone rebuild of dist needs them re-applied first — see patches/README "Source-level overlay gap"). `cli.mjs` additionally keeps three upstream-native `Bun.*` calls, all unreachable in the desktop flow: `Bun.serve` in `standaloneProviderProxy` (server sets `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1` when spawning the CLI, skipping that branch), the first-use probe of the ripgrep bundled mode and the `Bun.spawn` in /open-dir (the desktop passes the bundled rg explicitly via `CC_HAHA_RIPGREP_PATH` and never takes the argv0 branch).
+**Rewrite boundary**: the source-level call-site rewrites above live in the upstream working tree used for building and are not carried as patches (a fresh-clone rebuild of dist needs them re-applied first — see patches/README "Source-level overlay gap"). `cli.mjs` additionally keeps three upstream-native `Bun.*` calls, all unreachable in the desktop flow: `Bun.serve` in `standaloneProviderProxy` (server sets `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1` when spawning the CLI, skipping that branch), the first-use probe of the ripgrep bundled mode and the `Bun.spawn` in /open-dir (the desktop passes the bundled rg explicitly via `CC_HAHA_RIPGREP_PATH` and never takes the argv0 branch). The shared `utils/ripgrep.ts` bundles one copy of that guarded `Bun.spawn` into `server.mjs` as well — likewise dead code under Node (the `config.argv0` branch only fires for Bun-embedded rg), so it is deliberately left un-rewritten.
 
 ### 4.2 esbuild build pipeline (replacing all `bun build`)
 
@@ -162,7 +163,7 @@ The server originally spawned CLI children with the Bun-only `--preload` argumen
 
 ### 5.2 Conditional stripping of inherited environment variables
 
-`shouldStripInheritedProviderEnv` used to strip inherited `ANTHROPIC_*` unconditionally, so in official / default mode the CLI never received base_url / api_key / model. Stripping is now conditional and happens only when: a provider id is explicitly selected; `~\.claude\cc-haha\providers.json` exists; or `settings.json`'s `env` carries any provider key (`ANTHROPIC_*` model slots, OpenAI/Grok OAuth, the four image-generation keys, etc.). In a bare environment with no provider configuration at all, inherited variables pass through and the CLI picks up the inherited credentials directly.
+`shouldStripInheritedProviderEnv` used to strip inherited `ANTHROPIC_*` unconditionally, so in official / default mode the CLI never received base_url / api_key / model. Stripping is now conditional and happens only when: a provider id is explicitly selected; `~\.claude\cc-haha\providers.json` exists; or `settings.json`'s `env` carries any provider key (`ANTHROPIC_*` model slots, OpenAI/Grok OAuth, the four image-generation keys, etc.). In a bare environment with no provider configuration at all, inherited variables pass through and the CLI picks up the inherited credentials directly. "Explicitly selected" means a string provider id (`typeof providerId === 'string'`, the 2026-08-21 tightening — the guard used to be `!== undefined`): `null` (Claude Official, also the default when nothing is configured) keeps the inherited env, so env-only setups (server launched with `ANTHROPIC_*` and no configured provider) can still authenticate.
 
 ### 5.3 Dependency self-healing after reinstall
 
