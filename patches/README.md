@@ -14,6 +14,7 @@ root (`desktop/` is the Electron app subproject).
 | 4 | `cli/004-shell-win32-bash-resolution.patch` | `src/utils/Shell.ts`, `src/utils/windowsPaths.ts` | Windows shell chain for the Bash tool: user Git → bundled `runtime/git-2.45.2` PortableGit (`CC_HAHA_BASH_EXE`/`CC_HAHA_RUNTIME_DIR`/relative probes) → PATH bash |
 | 5 | `cli/005-server-mjs-computer-use-offline.patch` | `dist/server.mjs` (node-port bundle) | bundled-Python detection, offline wheel install (--no-index), venv fallback to bundled python.exe. **Historical**: diff against the 2026-08-18 build; the 844024a9 rebuild changed line offsets so `git apply` fails on current build.mjs output — fresh rebuilds use `runtime/node-fallback/patch-computer-use.py` (identifier-adaptive, full P1–P10 set incl. the win32 CLI spawn chain and the cli.mjs VT-input gate) |
 | 6 | `electron-builder/006-nsis-target-nowine.patch` | `node_modules/app-builder-lib/.../NsisTarget.js` | wine-free uninstaller extraction on Linux (UninstallerReader for all non-Windows hosts) |
+| 7 | `desktop/007-session-title-locale.patch` | `desktop/src/**` (10 title display sites + 5 locale files) | display-layer mapping `displaySessionTitle()` for placeholder session titles ('New Session'/'Untitled Session' store sentinels stay untouched in the data layer; UI renders `t('session.untitled')` per locale); retires the obsolete `tabs.untitled` key |
 
 The Electron main-process node-runtime fallback layer is not a numbered
 patch: it ships as the compiled artifacts `port-src/desktop-electron/*.cjs`
@@ -84,6 +85,7 @@ git checkout d52bbec7
 git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
 git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
 git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch
+git apply ../cc-haha-win7/patches/desktop/007-session-title-locale.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
 # after building the node-port bundle (dist/server.mjs):
 python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.mjs

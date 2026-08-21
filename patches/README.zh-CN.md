@@ -13,6 +13,7 @@
 | 4 | `cli/004-shell-win32-bash-resolution.patch` | `src/utils/Shell.ts`、`src/utils/windowsPaths.ts` | Bash 工具的 Windows shell 解析链：用户 Git → 捆绑 `runtime/git-2.45.2` PortableGit（`CC_HAHA_BASH_EXE`/`CC_HAHA_RUNTIME_DIR`/相对路径探测）→ PATH 上的 bash |
 | 5 | `cli/005-server-mjs-computer-use-offline.patch` | `dist/server.mjs`（node-port bundle） | 捆绑 Python 检测、离线 wheel 安装（--no-index）、venv 回退到捆绑 python.exe。**历史存档**：针对 2026-08-18 构建的 diff；844024a9 重建后行偏移已变，对当前 build.mjs 产物 `git apply` 会失败——全新重建请用 `runtime/node-fallback/patch-computer-use.py`（标识符自适应，含 win32 CLI spawn 链与 cli.mjs VT 输入门控在内的完整 P1–P10 集） |
 | 6 | `electron-builder/006-nsis-target-nowine.patch` | `node_modules/app-builder-lib/.../NsisTarget.js` | Linux 上免 wine 的卸载器提取（所有非 Windows 主机走 UninstallerReader） |
+| 7 | `desktop/007-session-title-locale.patch` | `desktop/src/**`（10 处标题显示点 + 5 个语言包） | 占位会话标题的显示层映射 `displaySessionTitle()`（'New Session'/'Untitled Session' 数据层哨兵原样保留，界面按语言渲染 `t('session.untitled')`）；同时退役废弃的 `tabs.untitled` 键 |
 
 Electron 主进程的 node-runtime 回退层不是编号补丁：它以编译产物
 `port-src/desktop-electron/*.cjs` 交付（与 shipped 的 `app.asar`
@@ -75,6 +76,7 @@ git checkout d52bbec7
 git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
 git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
 git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch
+git apply ../cc-haha-win7/patches/desktop/007-session-title-locale.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
 # 构建出 node-port bundle（dist/server.mjs）之后：
 python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.mjs
