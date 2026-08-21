@@ -49,4 +49,4 @@ python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.
 ```
 
 Node target is 22 (`--experimental-sqlite` flag is auto-probed by
-main.cjs's `sqliteFlagArgsForVersion` for 22.5–22.12).
+main.cjs's `sqliteFlagArgsForVersion` for 22.5–22.12 and 23.0–23.3).
