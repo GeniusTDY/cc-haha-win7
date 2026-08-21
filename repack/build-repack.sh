@@ -37,9 +37,9 @@
 #   bundles (no win32 CLI spawn chain, no VT-input gate), so desktop chat
 #   and cron sessions threw on every spawn (import.meta.dir undefined under
 #   Node). Superseded by the v4 build below.
-# v4 2026-08-21 rebuild (fix set below; initially stamped 0.5.5, sha256
+# v4 2026-08-21 rebuild (fix set below; sha256
 #   d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea —
-#   briefly published, then re-stamped by v5):
+#   briefly published, then superseded by the v5 re-stamp):
 #   + deploys the FIXED node-fallback bundles (5a8b9943 win32 spawn chain +
 #     nodeSqliteFlagArgs, a9ba5178 cli.mjs VT-input gate, Pillow>=10.0,<10.5)
 #   + step 6 drops the seed's unversioned runtime/node|python|vxkex dirs
@@ -47,8 +47,8 @@
 #   + adapters-chunks carries exactly the 6 overlay chunks (no stale
 #     Stage A leftovers)
 # v5 2026-08-21 re-stamp (current Release asset): identical v4 fix set,
-#   version reverted to 0.5.4 — this port tracks upstream cc-haha
-#   versioning (upstream IS 0.5.4; the 0.5.5 bump was rescinded).
+#   version kept at 0.5.4 — this port tracks upstream cc-haha versioning
+#   (upstream IS 0.5.4).
 #   Caveat: with the feed version equal to the installed one,
 #   electron-updater offers nothing — users of the regressed b3665af6
 #   build must re-download this installer manually.
@@ -221,4 +221,4 @@ sha256sum "$OUT_EXE"
 #   version; current Release asset
 # historical: v1 3221d5e9… · v2 971df9d5… · v2-rebuild 03286eaf… ·
 #   v3 c22f57eb… · rebuild-from-parts 76a635d9… · feed-rewrite b3665af6…
-#   (regressed server.mjs/cli.mjs) · v4-0.5.5 d9edd747… (rescinded stamp)
+#   (regressed server.mjs/cli.mjs) · v4 d9edd747… (superseded by v5)
