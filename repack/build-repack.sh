@@ -15,8 +15,7 @@
 #   to the bundled interpreter; see patches/cli/004 runSetup venv fallback):
 #   sha256 971df9d518f0d567c4a6a759835d99882cac1fc5abeabac51abce91dbe766ae1
 # 2026-08-19 rebuild (also fixes Win32 CLI spawn + provider-env
-#   over-stripping; Release asset until the 2026-08-20 rebuild; the
-#   77-check QEMU Win7 E2E suite passed on builds of this era):
+#   over-stripping; Release asset until the 2026-08-20 rebuild):
 #   sha256 03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
 # 2026-08-20 "most complete" rebuild:
 #   + desktop terminal full TTY: main.cjs forces node-pty's winpty backend on

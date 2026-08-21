@@ -61,9 +61,7 @@ resources/runtime/
 
 The committed node-v22.17.0 / python-3.8.10 / vxkex-1.2.1.2229 trees were
 extracted from the released `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`
-(sha256 `3221d5e9…a025b40`; these payload bytes are
-byte-identical in the 2026-08-19 builds that passed the 77-check QEMU
-Win7 E2E suite), so the fixed `python38._pth` and
+(sha256 `3221d5e9…a025b40`), so the fixed `python38._pth` and
 the 16 wheels are already applied — no post-clone fixup needed.
 
 | payload | key file | sha256 |
