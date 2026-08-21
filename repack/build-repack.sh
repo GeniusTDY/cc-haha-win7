@@ -7,15 +7,18 @@
 # offline installer with native makensis — no wine required.
 #
 # Produces the restored offline installer.
-# v1 (byte-identical to the released Offline.exe):
+# Build history — the sha256 is each build's identifier (the product
+# version is always 0.5.4, tracking upstream cc-haha):
+# initial build (byte-identical to the released Offline.exe):
 #   sha256 3221d5e9d1c56a4d0a00655a67dfad8f99bcb5387525a7c5426499ad8a025b40
-# v2 (improvement: CU setup accepts a custom python path that resolves to the
-#     bundled interpreter; see patches/cli/004 runSetup venv fallback):
+# improvement build (CU setup accepts a custom python path that resolves
+#   to the bundled interpreter; see patches/cli/004 runSetup venv fallback):
 #   sha256 971df9d518f0d567c4a6a759835d99882cac1fc5abeabac51abce91dbe766ae1
-# v2 2026-08-19 rebuild (also fixes Win32 CLI spawn + provider-env
-#     over-stripping; Release asset until the v3 rebuild):
+# 2026-08-19 rebuild (also fixes Win32 CLI spawn + provider-env
+#   over-stripping; Release asset until the 2026-08-20 rebuild; the
+#   77-check QEMU Win7 E2E suite passed on builds of this era):
 #   sha256 03286eaf62a5ce7e607c610bc66787897be87c9539ff648225f98a4b0ba716be
-# v3 2026-08-20 "most complete" rebuild:
+# 2026-08-20 "most complete" rebuild:
 #   + desktop terminal full TTY: main.cjs forces node-pty's winpty backend on
 #     Win7/8 (ConPTY is Win10 1809+) — patch-app-asar.mjs surgery inside
 #     app.asar, preserving the node-runtime fallback layer byte-exactly
@@ -24,31 +27,32 @@
 #   + Computer Use fully offline: server.mjs CU patch (identifier-adaptive
 #     patch-computer-use.py) installs Python deps from bundled wheels
 #   + node-pty payload guaranteed in app.asar.unpacked/node_modules
-# 2026-08-20 rebuild-from-parts (v3 fix set, zero network):
+# 2026-08-20 rebuild-from-parts (same fix set, zero network):
 #   sha256 76a635d9456c9760cb3da5decebe37288bab63244279b137520430626a5ee8ec
 #   — built from the git-committed split parts (setup-exe/) + runtime tree
-#   only; differs from v3 c22f57eb… solely by NSIS-embedded file mtimes
-#   (structural identity asserted: same fix set)
-# 2026-08-20 feed-rewrite rebuild (v3 fix set + step 2b repoints
+#   only; differs from the c22f57eb… "most complete" build solely by
+#   NSIS-embedded file mtimes (structural identity asserted: same fix set)
+# 2026-08-20 feed-rewrite rebuild (same fix set + step 2b repoints
 #   app-update.yml at GeniusTDY/cc-haha-win7; was the Release asset):
 #   sha256 b3665af60989fead7f4a2b36c555a1d0074859782cafb30f500340ee55371f4c
 #   REGRESSION (found 2026-08-21 audit): it was built at 13:27, BEFORE the
 #   repo-side restores — its server.mjs/cli.mjs were the 844024a9 regressed
 #   bundles (no win32 CLI spawn chain, no VT-input gate), so desktop chat
 #   and cron sessions threw on every spawn (import.meta.dir undefined under
-#   Node). Superseded by the v4 build below.
-# v4 2026-08-21 rebuild (fix set below; sha256
-#   d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea —
-#   briefly published, then superseded by the v5 re-stamp):
+#   Node). Superseded by the 2026-08-21 fixed rebuild below.
+# 2026-08-21 fixed rebuild:
 #   + deploys the FIXED node-fallback bundles (5a8b9943 win32 spawn chain +
 #     nodeSqliteFlagArgs, a9ba5178 cli.mjs VT-input gate, Pillow>=10.0,<10.5)
 #   + step 6 drops the seed's unversioned runtime/node|python|vxkex dirs
 #     (~128MB of dead on-disk duplicates in every earlier build)
 #   + adapters-chunks carries exactly the 6 overlay chunks (no stale
 #     Stage A leftovers)
-# v5 2026-08-21 re-stamp (current Release asset): identical v4 fix set,
-#   version kept at 0.5.4 — this port tracks upstream cc-haha versioning
-#   (upstream IS 0.5.4).
+#   sha256 d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea
+#   (briefly published under a bumped version stamp; superseded same day
+#   by the re-stamp below)
+# 2026-08-21 re-stamp (current Release asset): identical fix set to the
+#   2026-08-21 fixed rebuild above, version kept at 0.5.4 — this port
+#   tracks upstream cc-haha versioning (upstream IS 0.5.4).
 #   Caveat: with the feed version equal to the installed one,
 #   electron-updater offers nothing — users of the regressed b3665af6
 #   build must re-download this installer manually.
@@ -217,8 +221,11 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected: 2026-08-21 v5 re-stamp (0.5.4) — v4 fix set, upstream-tracking
-#   version; current Release asset
-# historical: v1 3221d5e9… · v2 971df9d5… · v2-rebuild 03286eaf… ·
-#   v3 c22f57eb… · rebuild-from-parts 76a635d9… · feed-rewrite b3665af6…
-#   (regressed server.mjs/cli.mjs) · v4 d9edd747… (superseded by v5)
+# expected: 7ad7852e… (2026-08-21 re-stamp, version 0.5.4) — current
+#   Release asset
+# historical: 3221d5e9… (initial, = released Offline.exe) · 971df9d5…
+#   (CU python-path fix) · 03286eaf… (2026-08-19, win32 spawn +
+#   provider-env fixes) · c22f57eb… (2026-08-20, "most complete") ·
+#   76a635d9… (2026-08-20, from git parts) · b3665af6… (2026-08-20,
+#   regressed server.mjs/cli.mjs) · d9edd747… (2026-08-21, fixed;
+#   superseded by the 0.5.4 re-stamp)
