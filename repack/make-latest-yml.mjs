@@ -11,7 +11,9 @@
 //   https://github.com/<owner>/<repo>/releases/download/<tag>/<files[].url> (exe)
 //
 // The updater offers the update only when <version> is semver-greater than
-// the installed app version (the asar package.json version, currently 0.5.4).
+// the installed app version (the asar package.json version — build-repack.sh
+// step 3 bumps it to the build's APP_VERSION via patch-app-asar.mjs
+// --set-version, currently 0.5.5).
 //
 // Usage:
 //   node make-latest-yml.mjs <setup.exe> <version> [options]

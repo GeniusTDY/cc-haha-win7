@@ -1,8 +1,9 @@
-# repack build artifacts
+# repack build artifacts (rebuilt locally by build-repack.sh; the Release
+# asset itself is uploaded to GitHub Releases, not committed)
 repack/.work/
 repack/app
-repack/Claude-Code-Haha-0.5.4-win7-x64-setup.exe
-repack/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe
+repack/Claude-Code-Haha-*-win7-x64-setup.exe
+repack/Claude-Code-Haha-*-Win7-x64-Setup.exe
 repack/app-icon.ico
 repack/modern-wizard.bmp
 repack/latest.yml

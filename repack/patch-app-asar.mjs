@@ -18,6 +18,12 @@
  *      (the old main.cjs bytes simply become unreachable dead space)
  *   5. write the new archive atomically and re-verify by parsing it back
  *
+ * `--set-version <ver>` additionally bumps the asar root package.json
+ * `"version"` field in place (same byte length only — the replacement is
+ * written at the file's original offset and only its integrity hash is
+ * repointed, so no other entry moves). This is what makes a rebuilt
+ * installer semver-greater than the installed one for electron-updater.
+ *
  * Why surgical: the shipped main.cjs contains the Win7 node-runtime fallback
  * layer (NODE_RUNTIME_EXE_ENV / resolveNodeRuntimeExecutable / …) that is NOT
  * in the current desktop/electron sources, so a wholesale rebuild would lose
@@ -133,8 +139,10 @@ function integrityFor(buf) {
 // ---------------------------------------------------------------------------
 const archivePath = process.argv[2]
 const verifyOnly = process.argv.includes('--verify-only')
-if (!archivePath || !fs.existsSync(archivePath)) {
-  console.error(`Usage: node patch-app-asar.mjs <app.asar> [--verify-only]`)
+const setVersionIdx = process.argv.indexOf('--set-version')
+const setVersion = setVersionIdx !== -1 ? process.argv[setVersionIdx + 1] : null
+if (!archivePath || !fs.existsSync(archivePath) || (setVersionIdx !== -1 && !setVersion)) {
+  console.error(`Usage: node patch-app-asar.mjs <app.asar> [--verify-only] [--set-version <ver>]`)
   process.exit(1)
 }
 
@@ -154,8 +162,36 @@ try {
   }
 
   const { src: patched, already, didWinpty, didPaths } = patchMainCjs(mainBuf.toString('utf8'))
-  if (verifyOnly || already) {
-    console.log(already ? '[SKIP] main.cjs already patched (useConpty forcing + versioned node dir present)' : '[OK] patch would apply')
+
+  // --set-version: bump the root package.json "version" in place (same length)
+  let pkgPatch = null
+  if (setVersion) {
+    const pkgEntry = header.files['package.json']
+    if (!pkgEntry || pkgEntry.unpacked) throw new Error('[FAIL] package.json not found (or unpacked) in asar header')
+    const pkgBuf = readPackedFile(fd, headerSize, pkgEntry)
+    if (pkgEntry.integrity && createHash('sha256').update(pkgBuf).digest('hex') !== pkgEntry.integrity.hash) {
+      throw new Error('[FAIL] package.json does not match its integrity hash — asar corrupt?')
+    }
+    const m = pkgBuf.toString('utf8').match(/("version"\s*:\s*")([^"]+)(")/)
+    if (!m) throw new Error('[FAIL] package.json has no "version" field')
+    if (m[2] === setVersion) {
+      console.log(`[SKIP] package.json already at version ${setVersion}`)
+    } else if (m[2].length !== setVersion.length) {
+      throw new Error(`[FAIL] version length mismatch ("${m[2]}" -> "${setVersion}") — same-length in-place bump only`)
+    } else {
+      const newPkg = Buffer.concat([
+        pkgBuf.subarray(0, m.index + m[1].length),
+        Buffer.from(setVersion, 'utf8'),
+        pkgBuf.subarray(m.index + m[1].length + m[2].length),
+      ])
+      pkgPatch = { entry: pkgEntry, buf: newPkg, offset: parseInt(pkgEntry.offset), from: m[2] }
+      pkgEntry.integrity = integrityFor(newPkg)
+      console.log(`[PATCH] package.json version ${m[2]} -> ${setVersion} (in place, ${newPkg.length} bytes)`)
+    }
+  }
+
+  if (verifyOnly || (already && !pkgPatch)) {
+    console.log(already && !pkgPatch ? '[SKIP] main.cjs already patched (useConpty forcing + versioned node dir present)' : '[OK] patch would apply')
     process.exit(0)
   }
   console.log(`[PATCH] main.cjs: winpty forcing ${didWinpty ? 'inserted' : 'already present'}, node runtime dir ${didPaths ? 'version-stamped (node -> node-v22.17.0)' : 'already version-stamped'}`)
@@ -175,7 +211,9 @@ try {
   sizePickle.writeUInt32(newHeaderBuf.length)
   const newSizeBuf = sizePickle.toBuffer()
 
-  // data section = original data (fd, dataSize bytes) + patched main.cjs
+  // data section = original data (fd, dataSize bytes) + patched main.cjs;
+  // a same-length package.json version bump is pwritten over its original
+  // region so no other entry's offset shifts.
   const tmp = archivePath + '.tmp'
   const out = fs.openSync(tmp, 'w')
   try {
@@ -192,6 +230,9 @@ try {
       read += n
     }
     fs.writeSync(out, patchedBuf)
+    if (pkgPatch) {
+      fs.writeSync(out, pkgPatch.buf, 0, pkgPatch.buf.length, 8 + newHeaderBuf.length + pkgPatch.offset)
+    }
   } finally {
     fs.closeSync(out)
   }
@@ -213,6 +254,14 @@ try {
       if (!checkBuf.toString('utf8').includes(marker)) {
         throw new Error(`re-verify: node-runtime fallback marker missing: ${marker}`)
       }
+    }
+    if (pkgPatch) {
+      const checkPkg = readPackedFile(check.fd, check.headerSize, check.header.files['package.json'])
+      if (createHash('sha256').update(checkPkg).digest('hex') !== check.header.files['package.json'].integrity.hash) {
+        throw new Error('re-verify: package.json integrity mismatch')
+      }
+      const checkVer = JSON.parse(checkPkg.toString('utf8')).version
+      if (checkVer !== setVersion) throw new Error(`re-verify: package.json version is ${checkVer}, expected ${setVersion}`)
     }
   } finally {
     fs.closeSync(check.fd)
