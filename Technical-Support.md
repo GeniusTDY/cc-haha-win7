@@ -138,7 +138,7 @@ The bundled node is 22.17.0 (≥22.13) and needs no flag anyway, which is why th
 
 The bundled node.exe is located by direct probing in `resolveNodeRuntimeExecutable()` (order above, PATH-independent); the sidecar child env additionally gets the bundled ripgrep directory on PATH via `withBundledRipgrepPath` (`buildSidecarEnv` only sets `CLAUDE_H5_*` / `CLAUDE_CONFIG_DIR` / `XDG_CACHE_HOME`, never PATH); the installer creates a firewall inbound rule for node.exe.
 
-**server / cron → CLI**: when the launcher resolves to null under the dist layout (both in the session service and the cron scheduler), it falls back to probing the `../bin/claude-haha` launcher (present under the source-tree layout: injects CALLER_DIR / TRANSCRIPT_CLASSIFIER feature flags); the `CC_HAHA_CLI_ENTRY` direct-connection branch adds the sqlite flag.
+**server / cron → CLI**: the session service (`resolveCliArgs`) and — since the 2026-08-21 session-spawn fix — the cron scheduler (`buildCronCliArgs`) share the same stepwise chain: `CC_HAHA_CLI_ENTRY` direct connection (sqlite flag auto-added) → `../bin/claude-haha` launcher (present under the source-tree layout: injects CALLER_DIR / TRANSCRIPT_CLASSIFIER feature flags) → on win32, run `dist/cli.mjs` directly → `bin/claude-haha.cmd` fallback (full chain in §5.1). Before the fix the cron path only probed `../bin/claude-haha` and otherwise fell through to the Bun-only dev launcher, which crashed on the undefined `import.meta.dir`.
 
 ### 4.5 Port-internal environment variables
 
@@ -159,7 +159,7 @@ User-facing provider variables (`ANTHROPIC_*` etc.) and run modes are covered in
 
 ### 5.1 Win32 CLI spawn path
 
-The server originally spawned CLI children with the Bun-only `--preload` argument, which Node 22 rejects as `bad option` (exit 9), killing every WS session and cron job. `resolveCliArgs` now resolves stepwise: `CC_HAHA_CLI_ENTRY` direct connection (sqlite flag auto-added) → `../bin/claude-haha` JS launcher → on win32, execute `dist/cli.mjs` directly → fallback `bin/claude-haha.cmd` launcher → the source-tree preload path (unreachable in the install layout since cli.mjs always exists there).
+The server originally spawned CLI children with the Bun-only `--preload` argument, which Node 22 rejects as `bad option` (exit 9), killing every WS session and cron job. `resolveCliArgs` now resolves stepwise: `CC_HAHA_CLI_ENTRY` direct connection (sqlite flag auto-added) → `../bin/claude-haha` JS launcher → on win32, execute `dist/cli.mjs` directly → fallback `bin/claude-haha.cmd` launcher → the source-tree preload path (unreachable in the install layout since cli.mjs always exists there). The cron scheduler's `buildCronCliArgs` mirrors this chain step for step (aligned in the 2026-08-21 fix).
 
 ### 5.2 Conditional stripping of inherited environment variables
 
@@ -195,6 +195,8 @@ createServerPlan():
 
 The stock NSIS installer asynchronously rebuilds the sidecar late in installation, so the removal is folded into the repack payload (Stage B) rather than a post-install script. The distribution must carry the node-port bundle (server.mjs / adapters.mjs / cli.mjs / recovery-cli.mjs / adapters-chunks\, deployed by Stage B from the repo's `runtime/node-fallback/` to the install layout `resources\app.asar.unpacked\dist\`).
 
+Installer texts (MUI pages, the VxKex/node dialogs, the finish-page run checkbox, the detail-log lines) live in NSIS LangString tables — SimpChinese + English; makensis embeds both language tables and NSIS picks the one matching the OS UI language at runtime, so an English system never sees Chinese installer text (2026-08-21, Stage B `installer.nsi`).
+
 ## 7. Electron 22 / Chromium 108 adaptation
 
 ### 7.1 Renderer CSS runtime downgrade (patch 002)
@@ -226,7 +228,7 @@ The bundled `runtime\python-3.8.10\python.exe` (3.8.10 embeddable, VxKex-registe
 | No `ensurepip` / `pip` | pip wheel **extracted** into `Lib\site-packages` to bootstrap (see below) |
 | `python38._pth` isolation | `._pth` rewritten: append `Lib\site-packages` + `import site` |
 
-> **Payload note**: `runtime/python-3.8.10/python38.zip` (2.4MB, 605 stdlib `.pyc` files) is the **standard library itself** in the embeddable layout — the first line of `python38._pth` points at it and python.exe imports from it via zipimport; the `.pyd` / exe / DLL files are merely the binary half. It is not a duplicate copy of the python directory and **must not be deleted** (after deletion even `import os` fails). The `wheels/*.whl` likewise must stay in their original format (pip `--no-index --find-links` only accepts .whl). In the repo, only these two locations and two split-file sets (`repack/setup-exe/` installer parts, `vendor/electron-v22.3.27-win32-x64/electron.exe.00/01.part`) keep compressed / split-style files; all other build-time dependencies (esbuild / desktop node_modules / Electron distribution) are plain files. Both split sets are raw byte slices rather than archives, forced by GitHub's 100MB single-file limit: the former is reassembled by build-repack.sh step 0, the latter reassembled automatically with a sha256 check by offline-win.cjs at build time.
+> **Payload note**: `runtime/python-3.8.10/python38.zip` (2.4MB, 605 stdlib `.pyc` files) is the **standard library itself** in the embeddable layout — the first line of `python38._pth` points at it and python.exe imports from it via zipimport; the `.pyd` / exe / DLL files are merely the binary half. It is not a duplicate copy of the python directory and **must not be deleted** (after deletion even `import os` fails). The `wheels/*.whl` likewise must stay in their original format (pip `--no-index --find-links` only accepts .whl). In the repo, only these two locations and two split-file sets (`repack/setup-exe/` installer parts, `vendor/electron-v22.3.27-win32-x64/electron.exe.00/01.part`) keep compressed / split-style files; all other build-time dependencies (esbuild / desktop node_modules / the Electron distribution / the electron-builder NSIS toolchain cache under `vendor/electron-builder-cache-26.8.1/`, consumed via `ELECTRON_BUILDER_CACHE`) are plain files. Both split sets are raw byte slices rather than archives, forced by GitHub's 100MB single-file limit: the former is reassembled by build-repack.sh step 0, the latter reassembled automatically with a sha256 check by offline-win.cjs at build time.
 
 pip bootstrap pitfall: pip ≥21.2 has self-modification protection — installing pip itself by executing from the wheel path is rejected. The final approach (server.mjs, patch 005):
 
