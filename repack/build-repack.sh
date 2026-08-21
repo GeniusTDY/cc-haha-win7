@@ -47,6 +47,12 @@
 #     (~128MB of dead on-disk duplicates in every earlier build)
 #   + adapters-chunks carries exactly the 6 overlay chunks (no stale
 #     Stage A leftovers)
+#   REGRESSION (found 2026-08-21 CJK-comment audit): pruning to 6 files
+#   also dropped the 6 shared chunks the adapter chunks statically import
+#   (chunk-{3YB4CKQ6,BIHENVFB,DHF3HF4Q,EGNMGFGK,U75DXZ5W,ZU3FNH5X}) —
+#   every --feishu/--telegram/--wechat/--whatsapp/--dingtalk load died
+#   with ERR_MODULE_NOT_FOUND in the d9edd747/7ad7852e/9973c54b builds.
+#   Fixed by the adapter-chunks restore below.
 #   sha256 d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea
 #   (briefly published under a bumped version stamp; superseded same day
 #   by the re-stamp below)
@@ -54,12 +60,26 @@
 #   above, version kept at 0.5.4 — this port tracks upstream cc-haha
 #   versioning; upstream IS 0.5.4):
 #   sha256 7ad7852ec1f3c23db644d273b45e99d6ab50f77c80af46fc88314311ab2f12b3
-# 2026-08-21 installer-i18n rebuild (current Release asset): same fix set
+# 2026-08-21 installer-i18n rebuild: same fix set
 #   + installer.nsi texts moved to NSIS LangString tables (SimpChinese +
-#   English; MUI pages, the VxKex/node dialogs, the finish-page checkbox
-#   and the detail-log lines all follow the OS UI language at runtime —
-#   compile output embeds 2 language tables)
+#     English; MUI pages, the VxKex/node dialogs, the finish-page checkbox
+#     and the detail-log lines all follow the OS UI language at runtime —
+#     compile output embeds 2 language tables)
 #   sha256 9973c54bc460eecd3ec3cf5a68674f3f755b4798b0f7335d6dd03a867f7b7b42
+#   (carried the adapter-chunks regression above; superseded same day by
+#   the adapters-restore rebuild below)
+# 2026-08-21 adapters-restore rebuild (current Release asset): the CJK
+#   -comment audit found every IM adapter broken since the 6-chunk prune
+#   + restores the 6 shared chunks (chunk-{3YB4CKQ6,BIHENVFB,DHF3HF4Q,
+#     EGNMGFGK,U75DXZ5W,ZU3FNH5X}.mjs) from d43ce656 — adapters-chunks is
+#     again the full 12-file import closure, every --feishu/--telegram/
+#     --wechat/--whatsapp/--dingtalk load verified import-clean
+#   + feishu/dingtalk adapter chunks stripped of the third-party SDKs'
+#     Chinese JSDoc comments (2802 spans, -1.5MB; code proven
+#     byte-equivalent via esbuild --minify-whitespace normalization)
+#   + port-src/scripts/node-port/strip-cjk-comments.mjs wired into
+#     build.mjs so source rebuilds emit comment-free chunks too
+#   sha256 f964d552df2fe63735c567c176a09b73c47d033b2e9894b3df0b6220e77d2ea1
 #   Caveat: with the feed version equal to the installed one,
 #   electron-updater offers nothing — users of earlier builds must
 #   re-download this installer manually.
@@ -227,12 +247,14 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected: 9973c54b… (2026-08-21 installer-i18n rebuild, version 0.5.4) —
-#   current Release asset
+# expected: f964d552… (2026-08-21 adapters-restore rebuild, version 0.5.4)
+#   — current Release asset
 # historical: 3221d5e9… (initial, = released Offline.exe) · 971df9d5…
 #   (CU python-path fix) · 03286eaf… (2026-08-19, win32 spawn +
 #   provider-env fixes) · c22f57eb… (2026-08-20, "most complete") ·
 #   76a635d9… (2026-08-20, from git parts) · b3665af6… (2026-08-20,
 #   regressed server.mjs/cli.mjs) · d9edd747… (2026-08-21, fixed;
 #   superseded by the 0.5.4 re-stamp) · 7ad7852e… (2026-08-21 re-stamp,
-#   superseded by the installer-i18n rebuild)
+#   superseded by the installer-i18n rebuild) · 9973c54b… (2026-08-21
+#   installer-i18n, regressed adapters-chunks; superseded by the
+#   adapters-restore rebuild)

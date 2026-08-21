@@ -121,7 +121,15 @@ The Node-port server/CLI bundle deployed to
 `resources/app.asar.unpacked/dist/` (server.mjs + adapters.mjs +
 cli.mjs + recovery-cli.mjs + adapters-chunks/). The files committed
 here are already fully patched; the repack build script deploys them
-as-is. `remove-sidecar.bat` is the historical pre-repack cleanup
+as-is. `adapters-chunks/` must keep its full 12-file import closure —
+5 adapter chunks + 7 shared `chunk-*.mjs` — the adapter chunks import
+the shared ones statically, so dropping any of them breaks every
+`--feishu/--telegram/--wechat/--whatsapp/--dingtalk` load with
+ERR_MODULE_NOT_FOUND. The feishu/dingtalk adapter chunks are stored
+without the third-party SDKs' Chinese JSDoc comments (stripped via
+`port-src/scripts/node-port/strip-cjk-comments.mjs`, which also runs
+at build time; code verified byte-equivalent through esbuild
+normalization). `remove-sidecar.bat` is the historical pre-repack cleanup
 (superseded by build-repack.sh step 5), while `patch-computer-use.py`
 remains the active identifier-adaptive patcher (P1–P10, incl. the
 cli.mjs VT-input gate) used to re-derive these bundles from a fresh

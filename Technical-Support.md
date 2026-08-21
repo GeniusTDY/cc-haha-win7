@@ -109,7 +109,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 ### 4.2 esbuild 构建链（替代全部 `bun build`）
 
 - **esbuild 已内置**：0.28.2 本体 + `@esbuild/linux-x64`、`@esbuild/win32-x64` 双平台二进制提交于 `port-src/vendor/node_modules/`（约 23MB）。三个构建脚本（build.mjs / build-electron.mjs / build-preview-agent.mjs）优先加载内置副本，仓库 node_modules 内的 esbuild 仅作回退——**esbuild 本身零注册表访问**；但上游源码自身的 67 个 dependencies（axios、lodash-es、react 等）仍需先在上游根目录安装，否则构建报约两千个 unresolved（`port-src/vendor/` 只内置 esbuild，desktop 依赖树另在 `vendor/desktop-node-modules-0.5.4/`，均不含上游根依赖）。
-- **产物**：`build.mjs` → `dist/{cli,server,recovery-cli,adapters}.mjs` + `adapters-chunks/`（五个 IM 适配器按需分块：feishu 5.4MB / whatsapp 4.4MB / telegram 967KB / dingtalk 221KB / wechat 30KB；入口分发器 `port-src/adapters/index.ts` 由构建脚本自动叠加到 `<root>/adapters/index.ts`）。
+- **产物**：`build.mjs` → `dist/{cli,server,recovery-cli,adapters}.mjs` + `adapters-chunks/`（五个 IM 适配器按需分块：feishu 3.6MB / whatsapp 4.4MB / telegram 967KB / dingtalk 221KB / wechat 30KB，另含 7 个共享 chunk（`chunk-*.mjs`，被适配器分块静态导入，缺一即 `ERR_MODULE_NOT_FOUND`）；入口分发器 `port-src/adapters/index.ts` 由构建脚本自动叠加到 `<root>/adapters/index.ts`；构建后自动剥离第三方 SDK 残留的中文 JSDoc 注释——`port-src/scripts/node-port/strip-cjk-comments.mjs` 只删注释不碰代码，经 esbuild 规范化输出字节级等价验证）。
 - **adapters 依赖优雅降级**：`adapters/node_modules` 未安装时跳过 adapters.mjs 并输出提示，核心三产物照常生成；`cd adapters && npm install` 后重跑可全量构建。Stage B 始终使用 `runtime/node-fallback/` 内的预构建分块，与本步无关。
 - **桌面产物**：`build-electron.mjs` → 4 个 CJS 产物（external：electron / node-pty / electron-updater）。
 - **banner 统一注入**：ESM 兼容 `__dirname` / `__filename`（adapters chunk 内 CJS 依赖必需）、`CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH ??= "1"`、cli / recovery 的 `process.chdir(CALLER_DIR)`（复刻原 bunfig preload 副作用；server / adapters 不注入，对齐原编译 sidecar 行为）。
