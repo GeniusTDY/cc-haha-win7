@@ -138,7 +138,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 捆绑 node.exe 由 `resolveNodeRuntimeExecutable()` 直探定位（上表顺序，不依赖 PATH）；sidecar 子进程环境另经 `withBundledRipgrepPath` 把捆绑 ripgrep 所在目录注入 PATH（`buildSidecarEnv` 只补 `CLAUDE_H5_*` / `CLAUDE_CONFIG_DIR` / `XDG_CACHE_HOME`，不改 PATH）；安装器为 node.exe 建防火墙入站规则。
 
-**server / cron → CLI**：dist 布局下 launcher 解析为 null 时（会话服务与 cron 调度器两处），回退探测 `../bin/claude-haha` 启动器（源码树布局下存在：注入 CALLER_DIR / TRANSCRIPT_CLASSIFIER 特性旗标）；`CC_HAHA_CLI_ENTRY` 直连分支补 sqlite 旗标。
+**server / cron → CLI**：会话服务（`resolveCliArgs`）与 cron 调度器（`buildCronCliArgs`，2026-08-21 会话 spawn 修复起对齐）共用同一逐级解析链：`CC_HAHA_CLI_ENTRY` 直连（自动补 sqlite 旗标）→ `../bin/claude-haha` 启动器（源码树布局下存在：注入 CALLER_DIR / TRANSCRIPT_CLASSIFIER 特性旗标）→ win32 下直接执行 `dist/cli.mjs` → `bin/claude-haha.cmd` 兜底（完整链条见 §5.1）。修复前 cron 路径仅探测 `../bin/claude-haha`，再往下落入 Bun 专属 dev 启动器，因 `import.meta.dir` 未定义而崩溃。
 
 ### 4.5 移植内部环境变量
 
@@ -159,7 +159,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ### 5.1 Win32 CLI spawn 路径
 
-服务端启动 CLI 子进程原用 Bun 专属 `--preload` 参数，Node 22 报 `bad option`（exit 9），WS 会话与 cron 全部失败。`resolveCliArgs` 改为逐级解析：`CC_HAHA_CLI_ENTRY` 直连（自动补 sqlite 旗标）→ `../bin/claude-haha` JS 启动器 → win32 下直接执行 `dist/cli.mjs` → 兜底 `bin/claude-haha.cmd` 启动器 → 源码树布局的 preload 路径（安装布局下 cli.mjs 恒存在，实际不可达）。
+服务端启动 CLI 子进程原用 Bun 专属 `--preload` 参数，Node 22 报 `bad option`（exit 9），WS 会话与 cron 全部失败。`resolveCliArgs` 改为逐级解析：`CC_HAHA_CLI_ENTRY` 直连（自动补 sqlite 旗标）→ `../bin/claude-haha` JS 启动器 → win32 下直接执行 `dist/cli.mjs` → 兜底 `bin/claude-haha.cmd` 启动器 → 源码树布局的 preload 路径（安装布局下 cli.mjs 恒存在，实际不可达）。cron 调度器的 `buildCronCliArgs` 与此链逐级镜像（2026-08-21 修复对齐）。
 
 ### 5.2 继承环境变量剥离条件化
 
@@ -195,6 +195,8 @@ createServerPlan():
 
 NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作并入重打包 payload（Stage B），不依赖装后脚本。发行包必须附带 node-port bundle（server.mjs / adapters.mjs / cli.mjs / recovery-cli.mjs / adapters-chunks\，由 Stage B 从仓库 `runtime/node-fallback/` 部署至安装布局 `resources\app.asar.unpacked\dist\`）。
 
+安装器文案（MUI 页面、VxKex/node 对话框、完成页运行复选框、detail-log 行）置于 NSIS LangString 表——简体中文 + 英文双表；makensis 编译期嵌入两张语言表，运行期由 NSIS 按 OS 界面语言自动选取，英文系统不会看到中文安装文案（2026-08-21，Stage B `installer.nsi`）。
+
 ## 7. Electron 22 / Chromium 108 适配
 
 ### 7.1 渲染层 CSS 运行期降级（patch 002）
@@ -226,7 +228,7 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 | 无 `ensurepip` / `pip` | pip wheel **解压**到 `Lib\site-packages` 引导（见下） |
 | `python38._pth` 隔离 | 重写 `._pth`：追加 `Lib\site-packages` + `import site` |
 
-> **载荷说明**：`runtime/python-3.8.10/python38.zip`（2.4MB，605 个 stdlib `.pyc`）是 embeddable 布局的**标准库本体**——`python38._pth` 首行即指向它，python.exe 靠 zipimport 从中导入；`.pyd` / exe / DLL 只是二进制半边。它不是 python 目录的重复副本，**不能删**（删后 `import os` 都会失败）。`wheels/*.whl` 同理必须保留原格式（pip `--no-index --find-links` 只认 .whl）。仓库内仅这两处与两处分片（`repack/setup-exe/` 成品分片、`vendor/electron-v22.3.27-win32-x64/electron.exe.00/01.part`）保留压缩 / 切分类文件；其余构建期依赖（esbuild / desktop node_modules / Electron 分发）均已为普通文件。两处分片均为原始字节切片而非压缩包，超 GitHub 100MB 单文件上限所致：前者由 build-repack.sh 步骤 0 重组，后者由 offline-win.cjs 在构建时自动重组并 sha256 校验。
+> **载荷说明**：`runtime/python-3.8.10/python38.zip`（2.4MB，605 个 stdlib `.pyc`）是 embeddable 布局的**标准库本体**——`python38._pth` 首行即指向它，python.exe 靠 zipimport 从中导入；`.pyd` / exe / DLL 只是二进制半边。它不是 python 目录的重复副本，**不能删**（删后 `import os` 都会失败）。`wheels/*.whl` 同理必须保留原格式（pip `--no-index --find-links` 只认 .whl）。仓库内仅这两处与两处分片（`repack/setup-exe/` 成品分片、`vendor/electron-v22.3.27-win32-x64/electron.exe.00/01.part`）保留压缩 / 切分类文件；其余构建期依赖（esbuild / desktop node_modules / Electron 分发 / `vendor/electron-builder-cache-26.8.1/` 下的 electron-builder NSIS 工具链缓存，经 `ELECTRON_BUILDER_CACHE` 使用）均已为普通文件。两处分片均为原始字节切片而非压缩包，超 GitHub 100MB 单文件上限所致：前者由 build-repack.sh 步骤 0 重组，后者由 offline-win.cjs 在构建时自动重组并 sha256 校验。
 
 pip 引导坑：pip ≥21.2 自修改保护，wheel 路径直接执行安装 pip 自身会被拒绝。最终方案（server.mjs，patch 005）：
 
