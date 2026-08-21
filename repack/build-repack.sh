@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# build-repack.sh — rebuild Claude-Code-Haha-0.5.5-win7-x64-setup.exe
+# build-repack.sh — rebuild Claude-Code-Haha-0.5.4-win7-x64-setup.exe
 #
 # Stage B of the Win7 offline build: repackage the electron-builder output
 # (Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe, Stage A) into the all-in-one
@@ -37,16 +37,22 @@
 #   bundles (no win32 CLI spawn chain, no VT-input gate), so desktop chat
 #   and cron sessions threw on every spawn (import.meta.dir undefined under
 #   Node). Superseded by the v4 build below.
-# v4 2026-08-21 rebuild (version 0.5.5, current Release asset):
+# v4 2026-08-21 rebuild (fix set below; initially stamped 0.5.5, sha256
+#   d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea —
+#   briefly published, then re-stamped by v5):
 #   + deploys the FIXED node-fallback bundles (5a8b9943 win32 spawn chain +
 #     nodeSqliteFlagArgs, a9ba5178 cli.mjs VT-input gate, Pillow>=10.0,<10.5)
-#   + step 3 --set-version bumps the asar package.json to 0.5.5 so
-#     electron-updater offers it to installed 0.5.4 builds
 #   + step 6 drops the seed's unversioned runtime/node|python|vxkex dirs
 #     (~128MB of dead on-disk duplicates in every earlier build)
 #   + adapters-chunks carries exactly the 6 overlay chunks (no stale
 #     Stage A leftovers)
-#   sha256 d9edd74791aa23ac206fad92e630576b1fcf38e0a1706dca38c0720f0c39c2ea
+# v5 2026-08-21 re-stamp (current Release asset): identical v4 fix set,
+#   version reverted to 0.5.4 — this port tracks upstream cc-haha
+#   versioning (upstream IS 0.5.4; the 0.5.5 bump was rescinded).
+#   Caveat: with the feed version equal to the installed one,
+#   electron-updater offers nothing — users of the regressed b3665af6
+#   build must re-download this installer manually.
+#   sha256 7ad7852ec1f3c23db644d273b45e99d6ab50f77c80af46fc88314311ab2f12b3
 #
 # Prereqs: 7z, makensis (>= 3.08), bash, coreutils, node (for asar surgery)
 #
@@ -73,8 +79,8 @@ SETUP="${1:-$HERE/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe}"
 NODE_FALLBACK_DIR="${NODE_FALLBACK_DIR:-$HERE/../runtime/node-fallback}"
 RUNTIME_DIR="${RUNTIME_DIR:?set RUNTIME_DIR to the offline runtime payloads dir (node/ python/ vxkex/ ...)}"
 
-OUT_EXE="$HERE/Claude-Code-Haha-0.5.5-win7-x64-setup.exe"
-APP_VERSION="0.5.5"
+OUT_EXE="$HERE/Claude-Code-Haha-0.5.4-win7-x64-setup.exe"
+APP_VERSION="0.5.4"
 WORK="$HERE/.work"
 ORIG="$WORK/orig"    # NSIS shell from Stage A installer
 APP="$WORK/app"      # final payload tree
@@ -141,8 +147,9 @@ echo "== 3/9 patch app.asar main.cjs (force winpty terminal backend + $APP_VERSI
 # the current desktop sources, so we only insert the one missing runtime hunk
 # of patches/desktop/006 — `ptySpawnOptions.useConpty = false` on legacy
 # Windows — and leave every other archived file at its original offset.
-# --set-version bumps the asar package.json version so this build is
-# semver-greater than the installed one and electron-updater offers it.
+# --set-version re-stamps the asar package.json version to APP_VERSION
+# (no-op for 0.5.4 — the Stage A seed already carries it; the flag exists
+# so a future version bump propagates into the asar for electron-updater).
 node "$HERE/patch-app-asar.mjs" "$APP/resources/app.asar" --set-version "$APP_VERSION"
 
 echo "== 4/9 deploy node-fallback bundle (forces node.exe server) =="
@@ -210,8 +217,8 @@ makensis installer.nsi
 echo
 echo "[OK] built: $OUT_EXE"
 sha256sum "$OUT_EXE"
-# expected: 2026-08-21 v4 rebuild (0.5.5) — fixed bundles + version bump
-#   + unversioned-dir cleanup; current Release asset
+# expected: 2026-08-21 v5 re-stamp (0.5.4) — v4 fix set, upstream-tracking
+#   version; current Release asset
 # historical: v1 3221d5e9… · v2 971df9d5… · v2-rebuild 03286eaf… ·
 #   v3 c22f57eb… · rebuild-from-parts 76a635d9… · feed-rewrite b3665af6…
-#   (regressed server.mjs/cli.mjs — see the v4 note in the header)
+#   (regressed server.mjs/cli.mjs) · v4-0.5.5 d9edd747… (rescinded stamp)

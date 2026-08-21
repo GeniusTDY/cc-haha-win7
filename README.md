@@ -161,7 +161,7 @@ RUNTIME_DIR=../runtime \
   ./build-repack.sh
 ```
 
-产物：`Claude-Code-Haha-0.5.5-win7-x64-setup.exe`，刻录或拷贝至 U 盘后，可在 Win7 SP1 x64 离线机器上直接安装。
+产物：`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`，刻录或拷贝至 U 盘后，可在 Win7 SP1 x64 离线机器上直接安装。
 
 若使用 Stage A 产物作为输入（注意：Stage A 产物名为 `win-x64.exe`，与 Stage B 默认种子 `Win7-x64-Setup.exe` 不同，需显式传参）：
 
@@ -172,7 +172,7 @@ RUNTIME_DIR=../runtime \
 #### 发布新版本（自动更新分发）
 
 ```bash
-node make-latest-yml.mjs Claude-Code-Haha-0.5.5-win7-x64-setup.exe 0.5.5
+node make-latest-yml.mjs Claude-Code-Haha-0.5.4-win7-x64-setup.exe 0.5.4
 ```
 
 将生成的 `latest.yml` 与新 setup.exe 一并挂到本仓库最新的非预发布 Release，版本号大于已装版本时，存量用户会收到更新提示。

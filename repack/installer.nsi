@@ -1,5 +1,5 @@
 ﻿; ============================================================
-; Claude Code Haha 0.5.5 - Win7 x64 offline all-in-one installer
+; Claude Code Haha 0.5.4 - Win7 x64 offline all-in-one installer
 ; Rebuilt with native makensis (no wine) from the repacked tree.
 ;
 ; Contents vs original electron-builder NSIS:
@@ -19,11 +19,11 @@ SetCompressor /SOLID lzma
 !include "x64.nsh"
 
 !define PRODUCT_NAME "Claude Code Haha"
-!define PRODUCT_VERSION "0.5.5"
+!define PRODUCT_VERSION "0.5.4"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ClaudeCodeHaha"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "Claude-Code-Haha-0.5.5-win7-x64-setup.exe"
+OutFile "Claude-Code-Haha-0.5.4-win7-x64-setup.exe"
 InstallDir "C:\cc-haha"
 InstallDirRegKey HKLM "${UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel admin
