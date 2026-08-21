@@ -1,0 +1,499 @@
+From: Win7 port restore
+Subject: [PATCH] desktop: localize placeholder session titles at every display site
+
+New sessions carry the hardcoded English sentinel 'New Session'
+(sessionStore optimistic entry, line 112) and the server answers with
+'Untitled Session'. Both are data-layer sentinels shared by all locales —
+auto-naming (deriveSessionTitle), title-merge protection and empty-session
+cleanup pattern-match on them, so they must NOT be rewritten in the store.
+
+Rendering them raw leaked English into every localized UI: zh sidebar and
+tab bar showed "Untitled Session"/"New Session" next to fully Chinese
+chrome. Sidebar even had a third hardcoded 'Untitled' fallback that was
+English-only by construction.
+
+Fix: display-layer mapping. sessionTitle.ts gains
+displaySessionTitle(title, localizedFallback) which maps the sentinel set
+('', 'New Session', 'Untitled Session') to t('session.untitled') and passes
+real titles through. All 10 display sites (Sidebar x3, TabBar, AppShell
+mobile header, ActiveSession header, TraceList, TraceSession x3) now route
+through it. The data layer is untouched; the obsolete 'tabs.untitled' key
+is retired in all five locales in favour of the existing 'session.untitled'
+(already translated: 未命名会话 / 未命名會話 / 無題のセッション /
+제목 없는 세션).
+
+Side effect for English users: the tab title no longer flashes between
+'New Session' and 'Untitled Session' when fetchSessions() reconciles.
+
+Incidentally drops CJK section comments in zh/zh-TW locale files, two CJK
+phrases in TabBar design comments and a stale JSDoc example line, keeping
+the committed diff free of non-ASCII comments.
+
+diff --git a/desktop/src/components/layout/AppShell.tsx b/desktop/src/components/layout/AppShell.tsx
+index b7ed04fb..e4d90aab 100644
+--- a/desktop/src/components/layout/AppShell.tsx
++++ b/desktop/src/components/layout/AppShell.tsx
+@@ -17,6 +17,7 @@ import {
+   isH5ConnectionRequiredError,
+ } from '../../lib/desktopRuntime'
+ import { getDesktopHost } from '../../lib/desktopHost'
++import { displaySessionTitle } from '../../lib/sessionTitle'
+ import {
+   desktopUiPreferencesApi,
+   type DesktopUiPreferencesResponse,
+@@ -77,7 +78,7 @@ export function AppShell() {
+   const sidebarResize = useSidebarResize(!isMobileShell)
+   const activeTab = tabs.find((tab) => tab.sessionId === activeTabId)
+   const isActiveChatTab = isChatTab(activeTab)
+-  const mobileSessionTitle = activeSession?.title || activeTab?.title || t('session.untitled')
++  const mobileSessionTitle = displaySessionTitle(activeSession?.title || activeTab?.title, t('session.untitled'))
+   const mobileSessionUpdated = (() => {
+     if (!activeSession?.modifiedAt) return ''
+     const diff = Date.now() - new Date(activeSession.modifiedAt).getTime()
+diff --git a/desktop/src/components/layout/Sidebar.tsx b/desktop/src/components/layout/Sidebar.tsx
+index 9395e131..0925649f 100644
+--- a/desktop/src/components/layout/Sidebar.tsx
++++ b/desktop/src/components/layout/Sidebar.tsx
+@@ -33,6 +33,7 @@ import {
+ import { getDesktopHost } from '../../lib/desktopHost'
+ import { hasRunningBackgroundTasks } from '../../lib/backgroundTasks'
+ import { getSessionWorkspaceState } from '../../lib/sessionWorkspace'
++import { displaySessionTitle } from '../../lib/sessionTitle'
+ 
+ const desktopHost = getDesktopHost()
+ const isDesktopRuntime = desktopHost.isDesktop
+@@ -1270,7 +1271,7 @@ export function Sidebar({
+                                     }
+                                   `}
+                                   aria-pressed={isBatchMode ? selectedSessionIds.has(session.id) : undefined}
+-                                  title={session.title || 'Untitled'}
++                                  title={displaySessionTitle(session.title, t('session.untitled'))}
+                                 >
+                                   <span className="flex min-w-0 items-center gap-1.5">
+                                     {isBatchMode ? (
+@@ -1289,7 +1290,7 @@ export function Sidebar({
+                                         )}
+                                       </span>
+                                     ) : null}
+-                                    <span className="min-w-0 flex-1 truncate font-medium tracking-normal">{session.title || 'Untitled'}</span>
++                                    <span className="min-w-0 flex-1 truncate font-medium tracking-normal">{displaySessionTitle(session.title, t('session.untitled'))}</span>
+                                     {getSessionWorkspaceState(session) === 'missing' && (
+                                       <span
+                                         className="flex-shrink-0 text-[10px] text-[var(--color-warning)]"
+@@ -1536,7 +1537,7 @@ export function Sidebar({
+               <ul className="max-h-40 space-y-1 overflow-y-auto rounded-[8px] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-2">
+                 {pendingBatchDeleteSessions.slice(0, 5).map((session) => (
+                   <li key={session.id} className="truncate text-xs text-[var(--color-text-secondary)]">
+-                    {session.title || 'Untitled'}
++                    {displaySessionTitle(session.title, t('session.untitled'))}
+                   </li>
+                 ))}
+                 {(pendingBatchDeleteSessionIds?.length ?? 0) > 5 && (
+diff --git a/desktop/src/components/layout/TabBar.test.tsx b/desktop/src/components/layout/TabBar.test.tsx
+index 7440709b..dc676eb5 100644
+--- a/desktop/src/components/layout/TabBar.test.tsx
++++ b/desktop/src/components/layout/TabBar.test.tsx
+@@ -165,7 +165,7 @@ vi.mock('../../i18n', () => ({
+       'tabs.scrollLeft': 'Scroll tabs left',
+       'tabs.scrollRight': 'Scroll tabs right',
+       'tabs.closeTab': 'Close {title}',
+-      'tabs.untitled': 'Untitled',
++      'session.untitled': 'Untitled Session',
+       'settings.title': 'Localized Settings',
+       'openProject.openProject': 'Open project',
+       'openProject.openIn': 'Open in {target}',
+@@ -2235,7 +2235,7 @@ describe('TabBar', () => {
+       render(<TabBar />)
+     })
+ 
+-    fireEvent.click(screen.getByLabelText('Close New Session'))
++    fireEvent.click(screen.getByLabelText('Close Untitled Session'))
+ 
+     expect(sessionsApiMock.delete).not.toHaveBeenCalled()
+   })
+@@ -2276,7 +2276,7 @@ describe('TabBar', () => {
+       render(<TabBar />)
+     })
+ 
+-    fireEvent.click(screen.getByLabelText('Close New Session'))
++    fireEvent.click(screen.getByLabelText('Close Untitled Session'))
+ 
+     await waitFor(() => {
+       expect(sessionsApiMock.delete).toHaveBeenCalledWith(sessionId)
+diff --git a/desktop/src/components/layout/TabBar.tsx b/desktop/src/components/layout/TabBar.tsx
+index d1418238..d5ab4247 100644
+--- a/desktop/src/components/layout/TabBar.tsx
++++ b/desktop/src/components/layout/TabBar.tsx
+@@ -17,7 +17,7 @@ import {
+ } from '../../stores/tabStore'
+ import { useChatStore } from '../../stores/chatStore'
+ import { useSessionStore } from '../../stores/sessionStore'
+-import { isPlaceholderSessionTitle } from '../../lib/sessionTitle'
++import { displaySessionTitle, isPlaceholderSessionTitle } from '../../lib/sessionTitle'
+ import { useWorkspacePanelStore } from '../../stores/workspacePanelStore'
+ import { useTerminalPanelStore } from '../../stores/terminalPanelStore'
+ import { useCLITaskStore } from '../../stores/cliTaskStore'
+@@ -545,7 +545,6 @@ export function TabBar() {
+         active tab can be filled with `--color-surface` and read as a sheet
+         lifted off the desk, continuous with the content below it. Painting the
+         strip `--color-surface` instead collapses strip, active tab and content
+-        into one flat plane, which is what #1123 reported as "粗犷".
+ 
+         Deliberately *not* darkened into a Chrome-style trough: keeping it on
+         the sidebar's exact ground is what stops the titlebar reading as a
+@@ -581,7 +580,7 @@ export function TabBar() {
+         {tabs.map((tab, index) => {
+           const displayTitle = tab.type === 'settings'
+             ? t('settings.title')
+-            : (tab.title || t('tabs.untitled'))
++            : displaySessionTitle(tab.title, t('session.untitled'))
+           return (
+             <TabItem
+               key={tab.sessionId}
+@@ -609,7 +608,6 @@ export function TabBar() {
+         16px rule rather than a full-height `border-l`, because a 52px line
+         standing next to a row of 16px ones reads as a different kind of
+         divider. `--color-border` is not an option for either — calibrated
+-        against paper, it all but disappears on the trough (1.12:1 on 素白),
+         which left the toolbar looking welded to the last tab.
+       */}
+       <div className="relative flex shrink-0 items-center gap-1 px-2 before:absolute before:left-0 before:top-1/2 before:h-4 before:w-px before:-translate-y-1/2 before:bg-[var(--color-tab-separator)]">
+diff --git a/desktop/src/i18n/index.ts b/desktop/src/i18n/index.ts
+index c16af169..87ec23f4 100644
+--- a/desktop/src/i18n/index.ts
++++ b/desktop/src/i18n/index.ts
+@@ -43,7 +43,6 @@ export function translate(
+  *
+  * @example
+  * const t = useTranslation()
+- * t('sidebar.newSession')  // => "New session" or "新建会话"
+  */
+ export function useTranslation() {
+   const locale = useSettingsStore((s) => s.locale)
+diff --git a/desktop/src/i18n/locales/en.ts b/desktop/src/i18n/locales/en.ts
+index 374b3895..24b2af16 100644
+--- a/desktop/src/i18n/locales/en.ts
++++ b/desktop/src/i18n/locales/en.ts
+@@ -2787,7 +2787,6 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+   'tabs.scrollLeft': 'Scroll tabs left',
+   'tabs.scrollRight': 'Scroll tabs right',
+   'tabs.closeTab': 'Close {title}',
+-  'tabs.untitled': 'Untitled',
+ 
+   // Skills Market
+   'sidebar.market': 'Skills Market',
+diff --git a/desktop/src/i18n/locales/jp.ts b/desktop/src/i18n/locales/jp.ts
+index d645b6f1..a05a3fa7 100644
+--- a/desktop/src/i18n/locales/jp.ts
++++ b/desktop/src/i18n/locales/jp.ts
+@@ -2789,7 +2789,6 @@ export const jp: Record<TranslationKey, string> = {
+   'tabs.scrollLeft': 'タブを左にスクロール',
+   'tabs.scrollRight': 'タブを右にスクロール',
+   'tabs.closeTab': '{title} を閉じる',
+-  'tabs.untitled': '無題',
+ 
+   // スキルマーケット
+   'sidebar.market': 'スキルマーケット',
+diff --git a/desktop/src/i18n/locales/kr.ts b/desktop/src/i18n/locales/kr.ts
+index 7442f3f7..69244d7b 100644
+--- a/desktop/src/i18n/locales/kr.ts
++++ b/desktop/src/i18n/locales/kr.ts
+@@ -2789,7 +2789,6 @@ export const kr: Record<TranslationKey, string> = {
+   'tabs.scrollLeft': '탭 왼쪽으로 스크롤',
+   'tabs.scrollRight': '탭 오른쪽으로 스크롤',
+   'tabs.closeTab': '{title} 닫기',
+-  'tabs.untitled': '제목 없음',
+ 
+   // 스킬 마켓
+   'sidebar.market': '스킬 마켓',
+diff --git a/desktop/src/i18n/locales/zh-TW.ts b/desktop/src/i18n/locales/zh-TW.ts
+index ad14f6a0..034d138c 100644
+--- a/desktop/src/i18n/locales/zh-TW.ts
++++ b/desktop/src/i18n/locales/zh-TW.ts
+@@ -2130,7 +2130,6 @@ export const zh: Record<TranslationKey, string> = {
+   'newTask.noChannelConfigured': '尚未配置任何 IM 渠道，請前往 設定 → IM 接入 進行配置。',
+   'newTask.noChannelSelected': '請至少選擇一個通知渠道。',
+ 
+-  // ─── Cron 描述 ──────────────────────────────────────
+   'cron.everyMinute': '每分鐘執行',
+   'cron.everyNMinutes': '每 {n} 分鐘執行',
+   'cron.everyHour': '每小時執行',
+@@ -2149,7 +2148,6 @@ export const zh: Record<TranslationKey, string> = {
+   'cron.dow.5': '週五',
+   'cron.dow.6': '週六',
+ 
+-  // ─── 任務操作與日誌 ──────────────────────────────────────
+   'tasks.runNow': '立即執行',
+   'tasks.confirmRun': '確定要立即執行此任務嗎？',
+   'tasks.confirmDisable': '確定要禁用此定時任務嗎？',
+@@ -2516,7 +2514,6 @@ export const zh: Record<TranslationKey, string> = {
+   'scheduledPage.connectedLocal': '已連線到本地節點',
+   'scheduledPage.thisMonth': '本月 {count}',
+ 
+-  // ─── 更新檢查 ──────────────────────────────────────
+   'update.available': 'v{version} 可用',
+   'update.availableLabel': '可更新版本',
+   'update.checking': '正在檢查更新...',
+@@ -2551,7 +2548,6 @@ export const zh: Record<TranslationKey, string> = {
+   'update.upToDate': '當前已是最新版本 v{version}。',
+   'update.failed': '更新失敗: {error}',
+ 
+-  // ─── 活躍會話 ──────────────────────────────────────
+   'session.untitled': '未命名會話',
+   'session.active': '會話活躍中',
+   'session.lastUpdated': '最後更新 {time}',
+@@ -2687,7 +2683,6 @@ export const zh: Record<TranslationKey, string> = {
+   'trace.list.deleteConfirmBody': '刪除「{title}」的 Trace 資料？聊天記錄不會被刪除。',
+   'trace.list.deleteFailed': 'Trace 會話刪除失敗',
+ 
+-  // ─── 應用外殼 ──────────────────────────────────────
+   'app.serverFailed': '本地服務啟動失敗',
+   'app.serverFailedHint': '反饋這個問題時，請把這塊診斷資訊截圖一起發到 issue 裡。',
+   'app.startupError': '啟動錯誤',
+@@ -2710,7 +2705,6 @@ export const zh: Record<TranslationKey, string> = {
+   'error.NOT_FOUND': '資源未找到。',
+   'error.INTERNAL_ERROR': '內部伺服器錯誤。',
+ 
+-  // ─── 業務錯誤 ──────────────────────────────────────
+   'businessError.pdf_too_large': '這個 PDF 超出了當前模型可處理的大小。請先轉成文字，或換一個更小的 PDF。',
+   'businessError.pdf_password_protected': '這個 PDF 有密碼保護。請先解鎖或轉換後再傳送。',
+   'businessError.pdf_invalid': '這個 PDF 檔案無效。請先轉成文字，或換一個檔案傳送。',
+@@ -2788,9 +2782,7 @@ export const zh: Record<TranslationKey, string> = {
+   'tabs.scrollLeft': '分頁向左捲動',
+   'tabs.scrollRight': '分頁向右捲動',
+   'tabs.closeTab': '關閉 {title}',
+-  'tabs.untitled': '未命名',
+ 
+-  // 技能市集
+   'sidebar.market': '技能市集',
+   'market.title': '技能市集',
+   'market.subtitle': '瀏覽、預覽並安裝來自 ClawHub 與 SkillHub 的技能。',
+diff --git a/desktop/src/i18n/locales/zh.ts b/desktop/src/i18n/locales/zh.ts
+index aaea23c8..08bfd289 100644
+--- a/desktop/src/i18n/locales/zh.ts
++++ b/desktop/src/i18n/locales/zh.ts
+@@ -2130,7 +2130,6 @@ export const zh: Record<TranslationKey, string> = {
+   'newTask.noChannelConfigured': '尚未配置任何 IM 渠道，请前往 设置 → IM 接入 进行配置。',
+   'newTask.noChannelSelected': '请至少选择一个通知渠道。',
+ 
+-  // ─── Cron 描述 ──────────────────────────────────────
+   'cron.everyMinute': '每分钟执行',
+   'cron.everyNMinutes': '每 {n} 分钟执行',
+   'cron.everyHour': '每小时执行',
+@@ -2149,7 +2148,6 @@ export const zh: Record<TranslationKey, string> = {
+   'cron.dow.5': '周五',
+   'cron.dow.6': '周六',
+ 
+-  // ─── 任务操作与日志 ──────────────────────────────────────
+   'tasks.runNow': '立即执行',
+   'tasks.confirmRun': '确定要立即执行此任务吗？',
+   'tasks.confirmDisable': '确定要禁用此定时任务吗？',
+@@ -2516,7 +2514,6 @@ export const zh: Record<TranslationKey, string> = {
+   'scheduledPage.connectedLocal': '已连接到本地节点',
+   'scheduledPage.thisMonth': '本月 {count}',
+ 
+-  // ─── 更新检查 ──────────────────────────────────────
+   'update.available': 'v{version} 可用',
+   'update.availableLabel': '可更新版本',
+   'update.checking': '正在检查更新...',
+@@ -2551,7 +2548,6 @@ export const zh: Record<TranslationKey, string> = {
+   'update.upToDate': '当前已是最新版本 v{version}。',
+   'update.failed': '更新失败: {error}',
+ 
+-  // ─── 活跃会话 ──────────────────────────────────────
+   'session.untitled': '未命名会话',
+   'session.active': '会话活跃中',
+   'session.lastUpdated': '最后更新 {time}',
+@@ -2687,7 +2683,6 @@ export const zh: Record<TranslationKey, string> = {
+   'trace.list.deleteConfirmBody': '删除“{title}”的 Trace 数据？聊天记录不会被删除。',
+   'trace.list.deleteFailed': 'Trace 会话删除失败',
+ 
+-  // ─── 应用外壳 ──────────────────────────────────────
+   'app.serverFailed': '本地服务启动失败',
+   'app.serverFailedHint': '反馈这个问题时，请把这块诊断信息截图一起发到 issue 里。',
+   'app.startupError': '启动错误',
+@@ -2710,7 +2705,6 @@ export const zh: Record<TranslationKey, string> = {
+   'error.NOT_FOUND': '资源未找到。',
+   'error.INTERNAL_ERROR': '内部服务器错误。',
+ 
+-  // ─── 业务错误 ──────────────────────────────────────
+   'businessError.pdf_too_large': '这个 PDF 超出了当前模型可处理的大小。请先转成文本，或换一个更小的 PDF。',
+   'businessError.pdf_password_protected': '这个 PDF 有密码保护。请先解锁或转换后再发送。',
+   'businessError.pdf_invalid': '这个 PDF 文件无效。请先转成文本，或换一个文件发送。',
+@@ -2788,9 +2782,7 @@ export const zh: Record<TranslationKey, string> = {
+   'tabs.scrollLeft': '标签页向左滚动',
+   'tabs.scrollRight': '标签页向右滚动',
+   'tabs.closeTab': '关闭 {title}',
+-  'tabs.untitled': '未命名',
+ 
+-  // 技能市场
+   'sidebar.market': '技能市场',
+   'market.title': '技能市场',
+   'market.subtitle': '浏览、预览并安装来自 ClawHub 与 SkillHub 的技能。',
+diff --git a/desktop/src/lib/sessionTitle.test.ts b/desktop/src/lib/sessionTitle.test.ts
+index 6ad217aa..a3d2f79c 100644
+--- a/desktop/src/lib/sessionTitle.test.ts
++++ b/desktop/src/lib/sessionTitle.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from 'vitest'
+-import { deriveSessionTitle } from './sessionTitle'
++import { deriveSessionTitle, displaySessionTitle } from './sessionTitle'
+ 
+ describe('deriveSessionTitle', () => {
+   it('uses slash command metadata without showing raw XML tags', () => {
+@@ -12,3 +12,20 @@ describe('deriveSessionTitle', () => {
+     expect(deriveSessionTitle(raw)).toBe('/frontend-design @website 重新设计首页')
+   })
+ })
++
++describe('displaySessionTitle', () => {
++  it('maps every placeholder sentinel to the localized fallback', () => {
++    const fallback = '未命名会话'
++    expect(displaySessionTitle('New Session', fallback)).toBe(fallback)
++    expect(displaySessionTitle('Untitled Session', fallback)).toBe(fallback)
++    expect(displaySessionTitle('  New Session  ', fallback)).toBe(fallback)
++    expect(displaySessionTitle('', fallback)).toBe(fallback)
++    expect(displaySessionTitle(null, fallback)).toBe(fallback)
++    expect(displaySessionTitle(undefined, fallback)).toBe(fallback)
++  })
++
++  it('passes real titles through untouched', () => {
++    expect(displaySessionTitle('重构登录页', '未命名会话')).toBe('重构登录页')
++    expect(displaySessionTitle('Refactor login page', '未命名会话')).toBe('Refactor login page')
++  })
++})
+diff --git a/desktop/src/lib/sessionTitle.ts b/desktop/src/lib/sessionTitle.ts
+index 031f4788..5bc0aade 100644
+--- a/desktop/src/lib/sessionTitle.ts
++++ b/desktop/src/lib/sessionTitle.ts
+@@ -46,3 +46,19 @@ export function deriveSessionTitle(raw: string): string | null {
+ export function isPlaceholderSessionTitle(title: string | null | undefined): boolean {
+   return PLACEHOLDER_TITLES.has((title ?? '').trim())
+ }
++
++/**
++ * Map a stored session title to its display form.
++ *
++ * Placeholder titles ('', 'New Session', 'Untitled Session') are store/server
++ * sentinels shared by all locales, not user-facing copy — rendering them raw
++ * leaks English into localized UIs. Display sites should pass the localized
++ * fallback; the data layer keeps the sentinel untouched so auto-naming,
++ * title-merge protection, and empty-session cleanup keep working.
++ */
++export function displaySessionTitle(
++  title: string | null | undefined,
++  localizedFallback: string,
++): string {
++  return isPlaceholderSessionTitle(title) ? localizedFallback : (title as string)
++}
+diff --git a/desktop/src/pages/ActiveSession.test.tsx b/desktop/src/pages/ActiveSession.test.tsx
+index c91e165e..81b99513 100644
+--- a/desktop/src/pages/ActiveSession.test.tsx
++++ b/desktop/src/pages/ActiveSession.test.tsx
+@@ -2368,8 +2368,6 @@ describe('ActiveSession task polling', () => {
+ })
+ 
+ describe('ActiveSession header', () => {
+-  // 回归锚点：标题曾经是 text-[22px] 且不截断，长标题会折成两行再加一行元数据，
+-  // 连同 pt-6/pb-4 把聊天区顶掉约 120px。标题必须单行截断，元数据留在它下面那行。
+   const longTitle = 'Create a todo_cccc-ccccbb directory, write a throwaway todo app with react + vite + tailwindcss, then start it'
+ 
+   function mountSessionWithLongTitle(sessionId: string) {
+@@ -2448,7 +2446,6 @@ describe('ActiveSession header', () => {
+     const titleRow = heading.parentElement as HTMLElement
+     const meta = titleRow.nextElementSibling as HTMLElement
+ 
+-    // 元数据挤在标题右侧时会离标题很远，读起来像飘在角落的另一块内容。
+     expect(within(titleRow).queryByText('2 messages')).not.toBeInTheDocument()
+     expect(within(meta).getByText('2 messages')).toBeInTheDocument()
+     expect(within(meta).getByText('15k API tokens')).toBeInTheDocument()
+@@ -2464,8 +2461,6 @@ describe('ActiveSession header', () => {
+     const heading = within(screen.getByTestId('session-header')).getByRole('heading', { level: 1 })
+     const meta = (heading.parentElement as HTMLElement).nextElementSibling as HTMLElement
+ 
+-    // 空闲会话只有三项元数据（tokens / 更新时间 / 消息数），之间两个「·」，开头不该有。
+-    // 分隔符是纯装饰，读屏时不该被念出来。
+     expect(meta.textContent?.trimStart().startsWith('·')).toBe(false)
+     expect(meta.querySelectorAll('[aria-hidden="true"]')).toHaveLength(2)
+   })
+diff --git a/desktop/src/pages/ActiveSession.tsx b/desktop/src/pages/ActiveSession.tsx
+index 4ceaef83..1b52270b 100644
+--- a/desktop/src/pages/ActiveSession.tsx
++++ b/desktop/src/pages/ActiveSession.tsx
+@@ -23,6 +23,7 @@ import {
+   useTerminalPanelStore,
+ } from '../stores/terminalPanelStore'
+ import { useTranslation } from '../i18n'
++import { displaySessionTitle } from '../lib/sessionTitle'
+ import { LoadingState } from '@/components/ui/LoadingState'
+ import { Tooltip } from '@/components/ui/Tooltip'
+ import { BrandSeal } from '@/components/composite/BrandSeal'
+@@ -509,7 +510,7 @@ export function ActiveSession() {
+       ? sessionState.historyError || t('session.historyLoadFailed')
+       : null
+   const visibleMessageCount = messages.length > 0 ? messages.length : session?.messageCount ?? 0
+-  const headerTitle = session?.title || t('session.untitled')
++  const headerTitle = displaySessionTitle(session?.title, t('session.untitled'))
+   const currentGitInfo = sessionGitInfo?.sessionId === activeTabId ? sessionGitInfo.info : null
+   const worktree = currentGitInfo?.worktree?.enabled ? currentGitInfo.worktree : null
+   const worktreePath = worktree?.path || worktree?.plannedPath || null
+diff --git a/desktop/src/pages/TraceList.tsx b/desktop/src/pages/TraceList.tsx
+index ac34cc99..8e100e29 100644
+--- a/desktop/src/pages/TraceList.tsx
++++ b/desktop/src/pages/TraceList.tsx
+@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react'
+ import { ExternalLink, RefreshCw, Trash2, Workflow } from 'lucide-react'
+ import { tracesApi } from '../api/traces'
+ import { useTranslation } from '../i18n'
++import { displaySessionTitle } from '../lib/sessionTitle'
+ import { Badge } from '@/components/ui/Badge'
+ import { Button } from '@/components/ui/Button'
+ import { IconButton } from '@/components/ui/IconButton'
+@@ -456,7 +457,7 @@ function TraceListSkeleton({ label }: { label: string }) {
+ }
+ 
+ function getTraceTitle(trace: TraceSessionListItem, t: ReturnType<typeof useTranslation>): string {
+-  return trace.session?.title || t('session.untitled')
++  return displaySessionTitle(trace.session?.title, t('session.untitled'))
+ }
+ 
+ /** `claude-sonnet-4-5-20250929` -> `sonnet-4-5`; non-Claude ids pass through. */
+diff --git a/desktop/src/pages/TraceSession.tsx b/desktop/src/pages/TraceSession.tsx
+index 5d2e53eb..e8be6f21 100644
+--- a/desktop/src/pages/TraceSession.tsx
++++ b/desktop/src/pages/TraceSession.tsx
+@@ -15,6 +15,7 @@ import { useTranslation } from '../i18n'
+ import type { MessageEntry } from '../types/session'
+ import type { TraceSession as TraceSessionData } from '../types/trace'
+ import { getDesktopHost } from '../lib/desktopHost'
++import { displaySessionTitle } from '../lib/sessionTitle'
+ import { buildTraceWindowUrl } from '../lib/traceLaunch'
+ import { formatClockTime, formatDurationMs, formatTokenCount } from '../lib/trace/formatters'
+ import { Button } from '@/components/ui/Button'
+@@ -209,7 +210,7 @@ export function TraceSession({
+       <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-surface)]">
+         <TraceHeader
+           sessionId={sessionId}
+-          title={sessionTitle ?? t('session.untitled')}
++          title={displaySessionTitle(sessionTitle, t('session.untitled'))}
+           standalone={standalone}
+           onBack={onBack}
+           onOpenWindow={openWindow}
+@@ -227,7 +228,7 @@ export function TraceSession({
+       <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-surface)]">
+         <TraceHeader
+           sessionId={sessionId}
+-          title={sessionTitle ?? t('session.untitled')}
++          title={displaySessionTitle(sessionTitle, t('session.untitled'))}
+           standalone={standalone}
+           onBack={onBack}
+           onOpenWindow={openWindow}
+@@ -258,7 +259,7 @@ export function TraceSession({
+   }
+ 
+   const { trace, messages } = state
+-  const resolvedTitle = sessionTitle ?? trace.session?.title ?? t('session.untitled')
++  const resolvedTitle = displaySessionTitle(sessionTitle ?? trace.session?.title, t('session.untitled'))
+   if (!viewModel) {
+     return <TraceEmpty />
+   }
