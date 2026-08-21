@@ -60,8 +60,7 @@ resources/runtime/
 
 已提交的 node-v22.17.0 / python-3.8.10 / vxkex-1.2.1.2229 目录树
 提取自已发布的 `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`
-（sha256 `3221d5e9…a025b40`；这些载荷字节与通过 77 项 QEMU Win7
-E2E 套件验证的 2026-08-19 构建完全一致），因此修正过的
+（sha256 `3221d5e9…a025b40`），因此修正过的
 `python38._pth` 与 16 个 wheel 均已应用——克隆后无需修补。
 
 | 载荷 | 关键文件 | sha256 |
