@@ -25,9 +25,11 @@ const rootDir = existsSync(path.join(scriptDir, '..', '..', 'package.json'))
   : path.resolve(scriptDir, '..', '..', '..')
 
 // Resolve esbuild: the copy vendored into port-src/vendor/node_modules/ comes
-// first (pinned 0.28.2 with both linux-x64 and win32-x64 binaries — a fresh
-// clone runs this build with zero registry access, no root `npm install`);
-// fall back to whatever esbuild the repo's own node_modules provides.
+// first (pinned 0.28.2 with both linux-x64 and win32-x64 binaries — esbuild
+// itself resolves with zero registry access; the root `npm install` is still
+// required for the 67 upstream dependencies, see patches/README "Source-level
+// overlay gap"); fall back to whatever esbuild the repo's own node_modules
+// provides.
 async function loadEsbuild() {
   const vendored = [
     path.join(scriptDir, '..', '..', 'vendor', 'node_modules', 'esbuild', 'lib', 'main.js'),

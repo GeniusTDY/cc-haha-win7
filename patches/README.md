@@ -29,6 +29,32 @@ path. (Patch 003 ports that artifact's pipe fallback into the TS source,
 so rebuilds from source keep that half; the node-runtime fallback half
 exists only in the compiled artifact.)
 
+## Source-level overlay gap (源码叠加缺口)
+
+The patch series is NOT the complete port delta. Building `dist/*.mjs`
+from a fresh upstream checkout additionally requires working-tree-only
+changes that this repo does not carry as patches:
+
+- overlay `port-src/src/compat/` → `src/compat/` and
+  `port-src/src/entrypoints/serverNode.ts` → `src/entrypoints/serverNode.ts`
+  (the esbuild `bun:sqlite` / `bun:bundle` aliases in build.mjs resolve
+  to `<root>/src/compat/…`, which does not exist in a fresh clone);
+- five Bun call-site rewrites in upstream sources:
+  `src/server/index.ts` (`Bun.serve` → `nodeServe`),
+  `src/server/api/sessions.ts` + `src/server/api/computer-use.ts`
+  (`Bun.spawn` → `nodeBunSpawn`), `src/server/staticH5.ts` +
+  `src/server/api/previewFs.ts` (`Bun.file` → `nodeBunFile`);
+- the upstream root dependencies (67 entries: axios, lodash-es, react, …)
+  must be installed (`bun install` / `npm install`) — only esbuild and the
+  desktop dependency tree are vendored in this repo.
+
+Empirically, running build.mjs on a fresh `d52bbec7` clone + patches
+001–004 + `cp -r port-src ./` fails with ~2000 unresolved-module errors.
+The fully offline, reproducible path this repo supports is **Stage B
+only**: `runtime/node-fallback/` ships the prebuilt dist bundles and
+build-repack.sh step 4/9 deploys them into the installer, independent of
+any Stage A build.
+
 ## Apply
 
 ```bash

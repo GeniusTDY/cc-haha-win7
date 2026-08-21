@@ -88,7 +88,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ## 4. Bun→Node 全量移植
 
-上游源码全部 Bun 依赖改跑 Node 的完整映射。兼容层位于 `port-src/src/compat/`，构建脚本位于 `port-src/scripts/node-port/`。
+上游 Bun 依赖改跑 Node：`bun:sqlite` / `bun:bundle` 经 esbuild 模块别名替换，其余调用点（`server/index.ts` 的 `Bun.serve`，`api/sessions.ts` / `api/computer-use.ts` 的 `Bun.spawn`，`staticH5.ts` / `api/previewFs.ts` 的 `Bun.file`）为源码级改写、直接 import 兼容层。兼容层位于 `port-src/src/compat/`，构建脚本位于 `port-src/scripts/node-port/`。
 
 ### 4.1 API 兼容层
 
@@ -104,16 +104,16 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 原生 / 私有模块桩策略与上游一致（`color-diff-napi`、`@ant/claude-for-chrome-mcp` 上游本就指向 stubs）；`@whiskeysockets/baileys` 在 CLI bundle 桩化、adapters 构建用真包；可选集成（sharp、Bedrock / Vertex SDK、OTel 导出器、audio-capture）external + 动态导入回退。
 
-**事件循环保活修复**：`standaloneProviderProxy` 模块加载时 eager 绑定的 `net.Server`（补偿 node:http 下一 tick 才有端口、供同步读 `.port`）创建后必须立即 `unref()`，否则 CLI 启动错误后进程永久挂起（Bun.serve 同步绑定无此问题，属语义对齐修复）。
+**改写边界**：上述源码级调用点改写存在于构建用的上游工作树、未随补丁入仓（全新克隆重建 dist 需先补齐，见 patches/README「源码叠加缺口」）。`cli.mjs` 另保留三处上游原生的 `Bun.*` 调用，桌面流程均不可达：`standaloneProviderProxy` 的 `Bun.serve`（server 派生 CLI 时置 `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1` 跳过该分支）、ripgrep 捆绑模式首用测试与 /open-dir 的 `Bun.spawn`（桌面经 `CC_HAHA_RIPGREP_PATH` 显式指定捆绑 rg，不走 argv0 分支）。
 
 ### 4.2 esbuild 构建链（替代全部 `bun build`）
 
-- **esbuild 已内置**：0.28.2 本体 + `@esbuild/linux-x64`、`@esbuild/win32-x64` 双平台二进制提交于 `port-src/vendor/node_modules/`（约 23MB）。三个构建脚本（build.mjs / build-electron.mjs / build-preview-agent.mjs）优先加载内置副本，仓库 node_modules 内的 esbuild 仅作回退——新克隆**零注册表访问**即可构建，无需先在根目录 `npm install`。
+- **esbuild 已内置**：0.28.2 本体 + `@esbuild/linux-x64`、`@esbuild/win32-x64` 双平台二进制提交于 `port-src/vendor/node_modules/`（约 23MB）。三个构建脚本（build.mjs / build-electron.mjs / build-preview-agent.mjs）优先加载内置副本，仓库 node_modules 内的 esbuild 仅作回退——**esbuild 本身零注册表访问**；但上游源码自身的 67 个 dependencies（axios、lodash-es、react 等）仍需先在上游根目录安装，否则构建报约两千个 unresolved（`port-src/vendor/` 只内置 esbuild，desktop 依赖树另在 `vendor/desktop-node-modules-0.5.4/`，均不含上游根依赖）。
 - **产物**：`build.mjs` → `dist/{cli,server,recovery-cli,adapters}.mjs` + `adapters-chunks/`（五个 IM 适配器按需分块：feishu 5.4MB / whatsapp 4.4MB / telegram 967KB / dingtalk 221KB / wechat 30KB；入口分发器 `port-src/adapters/index.ts` 由构建脚本自动叠加到 `<root>/adapters/index.ts`）。
 - **adapters 依赖优雅降级**：`adapters/node_modules` 未安装时跳过 adapters.mjs 并输出提示，核心三产物照常生成；`cd adapters && npm install` 后重跑可全量构建。Stage B 始终使用 `runtime/node-fallback/` 内的预构建分块，与本步无关。
 - **桌面产物**：`build-electron.mjs` → 4 个 CJS 产物（external：electron / node-pty / electron-updater）。
 - **banner 统一注入**：ESM 兼容 `__dirname` / `__filename`（adapters chunk 内 CJS 依赖必需）、`CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH ??= "1"`、cli / recovery 的 `process.chdir(CALLER_DIR)`（复刻原 bunfig preload 副作用；server / adapters 不注入，对齐原编译 sidecar 行为）。
-- **补丁清单与应用顺序**：见 [patches/README.md](patches/README.md)——001 Electron 22 固定 / 002 CSS shim / 003 终端 winpty / 004 Bash 解析链 / 005 CU 离线 / 006 NSIS 免 wine。main.cjs 回退层不是编号补丁：以编译产物 `port-src/desktop-electron/main.cjs` 随 `port-src` 叠加交付（§6）。
+- **补丁清单与应用顺序**：见 [patches/README.md](patches/README.md)——001 Electron 22 固定 / 002 CSS shim / 003 终端 winpty / 004 Bash 解析链 / 005 CU 离线 / 006 NSIS 免 wine。main.cjs 回退层不是编号补丁：以编译产物 `port-src/desktop-electron/main.cjs` 随 `port-src` 叠加交付（§6）；dist 的 Bun 调用点改写与 compat/ entrypoints 落位同样未随补丁入仓（patches/README「源码叠加缺口」）。
 
 ### 4.3 node:sqlite 旗标
 
@@ -194,12 +194,9 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 
 ## 7. Electron 22 / Chromium 108 适配
 
-### 7.1 渲染层 CSS 两段式降级（patch 002）
+### 7.1 渲染层 CSS 运行期降级（patch 002）
 
-上游 Tailwind v4 使用 oklch 调色板、嵌套、`color-mix()`、`scrollbar-color` 等 Chromium 108 不支持的特性（能力边界，与 OS 无关）：
-
-1. **构建期**：Vite `css.transformer: lightningcss` + `targets: chrome 108`——可静态转译部分（oklch、嵌套）直接降级；
-2. **运行期**：`desktop/index.html` 注入求值器（`CSS.supports` 探测，仅 108 触发）——补齐 var() 型 `color-mix()`、自定义属性内 `lab()/oklch()`（求值为等价 `rgb()`）、`scrollbar-color` 降级、`overlay` 过渡词剔除，并注入 Set 七方法 polyfill（cytoscape / mermaid 依赖）。现代引擎自动跳过。
+上游 Tailwind v4 使用 oklch 调色板、嵌套、`color-mix()`、`scrollbar-color` 等 Chromium 108 不支持的特性（能力边界，与 OS 无关）。**构建期未做任何 CSS 降级配置**——patch 001 只固定 Electron 版本，上游 vite.config.ts 与本仓库均未设置 `css.transformer: lightningcss` / browserslist / `targets: chrome 108`（Tailwind v4 内部的 lightningcss 会把 oklch() 调色板降为同代级的 lab()，但 lab 族在 108 同样缺失，静态转译不可依赖）。全部 108 兼容由运行期承担：`desktop/index.html` 注入求值器（`CSS.supports` 探测）——补齐 var() 型 `color-mix()`、自定义属性内 `lab()/oklch()`（求值为等价 `rgb()`）、`scrollbar-color` 降级、`overlay` 过渡词剔除，并注入 Set 七方法 polyfill（cytoscape / mermaid 依赖）。特性齐备的现代引擎自动跳过。
 
 ### 7.2 主进程 / 渲染层 API 边界
 
