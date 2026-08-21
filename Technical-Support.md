@@ -160,7 +160,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ### 5.2 继承环境变量剥离条件化
 
-`shouldStripInheritedProviderEnv` 原无条件剥离继承的 `ANTHROPIC_*`，官方 / 默认模式下 CLI 拿不到 base_url / api_key / model。改为仅显式选择 provider id 时才剥离，默认模式放行继承变量。
+`shouldStripInheritedProviderEnv` 原无条件剥离继承的 `ANTHROPIC_*`，官方 / 默认模式下 CLI 拿不到 base_url / api_key / model。改为条件剥离，仅以下三种情况剥离：显式选择 provider id；`~\.claude\cc-haha\providers.json` 已存在；`settings.json` 的 `env` 配有任何服务键（`ANTHROPIC_*` 模型槽位、OpenAI/Grok OAuth、图像生成四键等）。完全无服务配置的裸环境放行继承变量，CLI 直接拿到继承的凭据。
 
 ### 5.3 重装场景依赖自愈
 
