@@ -14,6 +14,7 @@ repack/latest.yml
 # NOT in git (optional / machine-specific):
 runtime/node-fallback/wheels/
 runtime/node-fallback/server.mjs.pre-cu.bak
+runtime/node-fallback/server.mjs.pre-wsfix.bak
 
 # reassembled on demand by port-src/desktop/offline-win.cjs from the
 # committed electron.exe.00/01.part split parts (GitHub 100MB file cap)

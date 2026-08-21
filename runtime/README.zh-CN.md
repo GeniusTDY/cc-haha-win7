@@ -99,7 +99,7 @@ E2E 套件验证的 2026-08-19 构建完全一致），因此修正过的
 
 | 附件 | 用途 | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-21 CJK 清理重建（252,408,479 字节）**——携带 2026-08-20 特性集（winpty 全 TTY 终端 + 捆绑 PortableGit Bash shell + 全离线 Computer Use + node-pty 载荷保障 + `app-update.yml` 重指向本仓库）**外加**恢复的 server.mjs win32 CLI spawn 链 + `node:sqlite` 旗标注入、cli.mjs VT 输入门控、版本戳运行时布局（去除未版本化重复目录），**以及**恢复进 `adapters-chunks/` 的 6 个共享适配器分块（`--feishu`/`--telegram`/`--wechat`/`--whatsapp`/`--dingtalk` 全部恢复加载）与适配器 bundle 中剥离的第三方 SDK 中文 JSDoc 注释（代码经字节级等价验证）。两个更早的资产（`b3665af6…`、`7ad7852e…`）是回归构建，已移除；版本号相同，electron-updater 不会提示——装过那两版的用户需手动重新下载。配套 `latest.yml` 供 electron-updater 使用 | `f964d552…e77d2ea1` |
+| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-21 会话 spawn 修复重建（252,398,598 字节）**——携带 2026-08-20 完整特性集（winpty 全 TTY 终端 + 捆绑 PortableGit Bash shell + 全离线 Computer Use + node-pty 载荷保障 + `app-update.yml` 重指向本仓库）、恢复的 server.mjs win32 CLI spawn 链 + `node:sqlite` 旗标注入、cli.mjs VT 输入门控、版本戳运行时布局、恢复的 6 个共享适配器分块（中文注释已剥离），**外加**会话/cron 运行时修复：server.mjs 中最后 5 处可达的 `Bun.spawn` 调用点（会话派生、cron 调度器、`openLogDir` ×3）全部改写为 `nodeBunSpawn`；`shouldStripInheritedProviderEnv` 对 `providerId=null` 不再剥离 `ANTHROPIC_*`（纯环境变量配置保留继承的认证信息）；cron CLI 解析不再依赖 Bun 专属的 `import.meta.dir`。更早的资产均为回归构建，已移除；版本号保持 0.5.4，electron-updater 不会提示——装过早期版本的用户需手动重新下载。配套 `latest.yml` 供 electron-updater 使用 | `c6727145…c8946c1` |
 
 ## node-pty-1.1.0-win32-x64/（入 git，约 1MB）
 
