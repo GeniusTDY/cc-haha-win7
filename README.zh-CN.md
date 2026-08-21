@@ -123,11 +123,19 @@ git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
 
 cp -r ../cc-haha-win7/port-src ./
 
-# 五处 Bun 调用点改写未随补丁入仓，需手工补齐（详见 patches/README
+# 八处 Bun 调用点改写未随补丁入仓，需手工补齐（详见 patches/README
 # 「源码叠加缺口」）：src/server/index.ts 的 Bun.serve → nodeServe、
 # src/server/api/{sessions,computer-use}.ts 的 Bun.spawn → nodeBunSpawn、
 # src/server/staticH5.ts 与 src/server/api/previewFs.ts 的 Bun.file →
-# nodeBunFile（均改为 import port-src/src/compat 兼容层）。
+# nodeBunFile（均改为 import port-src/src/compat 兼容层），以及服务层
+# 三文件（2026-08-21 会话 spawn 修复）：
+# src/server/services/{conversationService,cronScheduler,diagnosticsService}.ts
+# 的 Bun.spawn → nodeBunSpawn——Node 下此前每次会话/cron 派生都在调用点
+# 抛错（Bun 未定义）。
+# 同一修复还收紧了 shouldStripInheritedProviderEnv（仅字符串 providerId
+# 才剥离；null 保留继承的 ANTHROPIC_*），并为 cron 的
+# buildCronCliArgs/resolveCronProjectRoot 补了 import.meta.dir 的
+# fileURLToPath 回退——详见 patches/README。
 # 缺此步时构建仍会成功，但 server.mjs 在 Node 下运行即崩（Bun 未定义）。
 
 node port-src/scripts/node-port/build.mjs

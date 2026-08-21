@@ -125,14 +125,22 @@ git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
 
 cp -r ../cc-haha-win7/port-src ./
 
-# The five Bun call-site rewrites are not carried as patches and must be
+# The eight Bun call-site rewrites are not carried as patches and must be
 # applied by hand (see patches/README "Source-level overlay gap"):
 #   src/server/index.ts  Bun.serve → nodeServe,
 #   src/server/api/{sessions,computer-use}.ts  Bun.spawn → nodeBunSpawn,
 #   src/server/staticH5.ts and src/server/api/previewFs.ts  Bun.file →
-#   nodeBunFile (all switched to import the port-src/src/compat shims).
-# Without this step the build still succeeds, but server.mjs crashes at
-# runtime under Node (Bun is not defined).
+#   nodeBunFile (all switched to import the port-src/src/compat shims),
+#   plus the services layer (2026-08-21 session-spawn fix):
+#   src/server/services/{conversationService,cronScheduler,diagnosticsService}.ts
+#   Bun.spawn → nodeBunSpawn — under Node every session/cron spawn threw
+#   at the call site (Bun is not defined).
+# The same fix also tightened shouldStripInheritedProviderEnv (string
+# providerId only; null keeps inherited ANTHROPIC_*) and gave cron's
+# buildCronCliArgs/resolveCronProjectRoot a fileURLToPath fallback for
+# the Bun-only import.meta.dir — details in patches/README.
+# Without the rewrites the build still succeeds, but server.mjs crashes
+# at runtime under Node (Bun is not defined).
 
 node port-src/scripts/node-port/build.mjs
 

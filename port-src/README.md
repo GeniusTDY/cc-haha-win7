@@ -38,8 +38,9 @@ port-src/
 ```bash
 # upstream repo root, after applying patches 001-004
 # (prerequisites beyond the patches: `npm install` for the 67 upstream root
-#  dependencies + the five Bun call-site rewrites — see patches/README
-#  "Source-level overlay gap")
+#  dependencies + the eight Bun call-site rewrites — see patches/README
+#  "Source-level overlay gap"; five upstream call sites plus the services
+#  layer added by the 2026-08-21 session-spawn fix)
 node port-src/scripts/node-port/build.mjs     # -> dist/*.mjs
 # then run the identifier-adaptive post-build patcher (CU offline +
 # win32 CLI spawn chain + cli.mjs VT-input gate — patch 005 is the
