@@ -38,8 +38,9 @@ port-src/
 ```bash
 # 在上游仓库根目录，应用补丁 001-004 之后
 #（补丁之外的前置：为上游根目录 67 个依赖执行 `npm install`
-#  + 五处 Bun 调用点改写——见 patches/README
-#  「源码叠加缺口」）
+#  + 八处 Bun 调用点改写——见 patches/README
+#  「源码叠加缺口」；即上游五处调用点加上 2026-08-21
+#  会话 spawn 修复新增的服务层三文件）
 node port-src/scripts/node-port/build.mjs     # -> dist/*.mjs
 # 然后运行标识符自适应的构建后修补器（CU 离线 + win32 CLI spawn 链
 #  + cli.mjs VT 输入门控——补丁 005 是 08-18 的历史 diff，
