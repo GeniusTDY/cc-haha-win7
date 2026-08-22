@@ -1,0 +1,99 @@
+From: Win7 port restore
+Subject: [PATCH] desktop: refresh providers when the server reports providers_changed
+
+Importing or updating a provider in one window left every other open
+window (and the settings page) showing a stale provider list until a
+manual reload. The server already emits a providers_changed event per
+mutation (created / updated / deleted / activated / reordered /
+imported) — the desktop just never listened.
+
+chatStore now exposes registerProvidersChangedHandler() and dispatches
+the event's reason; providerStore registers a 500 ms-debounced
+fetchProviders() flush on it, so bursty multi-event imports collapse
+into a single refetch. Provider tests mock the new export.
+
+diff --git a/desktop/src/stores/chatStore.ts b/desktop/src/stores/chatStore.ts
+index 4f02528..e267bc5 100644
+--- a/desktop/src/stores/chatStore.ts
++++ b/desktop/src/stores/chatStore.ts
+@@ -48,6 +48,18 @@ import type {
+   SlashCommandSource,
+ } from '../types/slashCommand'
+ 
++type ProvidersChangedHandler = (reason: 'created' | 'updated' | 'deleted' | 'activated' | 'reordered' | 'imported') => void
++let providersChangedHandler: ProvidersChangedHandler | null = null
++export function registerProvidersChangedHandler(handler: ProvidersChangedHandler | null): void {
++  providersChangedHandler = handler
++}
++function notifyProvidersChangedListeners(reason: Parameters<ProvidersChangedHandler>[0]): void {
++  try {
++    providersChangedHandler?.(reason)
++  } catch {
++  }
++}
++
+ type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+ type ToolCall = Extract<UIMessage, { type: 'tool_use' }>
+ type CompactSummaryMessage = Extract<UIMessage, { type: 'compact_summary' }>
+@@ -2948,6 +2960,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
+         break
+       }
+ 
++      case 'providers_changed': {
++        notifyProvidersChangedListeners(msg.reason)
++        break
++      }
++
+       case 'content_start': {
+         const session = get().sessions[sessionId]
+         if (!session) break
+diff --git a/desktop/src/stores/providerStore.test.ts b/desktop/src/stores/providerStore.test.ts
+index a09fa0e..1e106d2 100644
+--- a/desktop/src/stores/providerStore.test.ts
++++ b/desktop/src/stores/providerStore.test.ts
+@@ -52,6 +52,7 @@ vi.mock('./chatStore', () => ({
+       setSessionRuntime: setSessionRuntimeMock,
+     }),
+   },
++  registerProvidersChangedHandler: vi.fn(),
+ }))
+ 
+ vi.mock('./sessionRuntimeStore', () => ({
+diff --git a/desktop/src/stores/providerStore.ts b/desktop/src/stores/providerStore.ts
+index 6bf0f70..e756ee7 100644
+--- a/desktop/src/stores/providerStore.ts
++++ b/desktop/src/stores/providerStore.ts
+@@ -2,7 +2,7 @@
+ 
+ import { create } from 'zustand'
+ import { providersApi } from '../api/providers'
+-import { useChatStore } from './chatStore'
++import { useChatStore, registerProvidersChangedHandler } from './chatStore'
+ import { useSessionRuntimeStore } from './sessionRuntimeStore'
+ import { useSettingsStore } from './settingsStore'
+ import { OFFICIAL_DEFAULT_MODEL_ID } from '../constants/modelCatalog'
+@@ -316,3 +316,12 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
+     return providersApi.fetchModels(input)
+   },
+ }))
++
++let providersChangedFlushTimer: ReturnType<typeof setTimeout> | null = null
++registerProvidersChangedHandler(() => {
++  if (providersChangedFlushTimer !== null) return
++  providersChangedFlushTimer = setTimeout(() => {
++    providersChangedFlushTimer = null
++    void useProviderStore.getState().fetchProviders()
++  }, 500)
++})
+diff --git a/desktop/src/types/chat.ts b/desktop/src/types/chat.ts
+index 91de385..4520b25 100644
+--- a/desktop/src/types/chat.ts
++++ b/desktop/src/types/chat.ts
+@@ -135,6 +135,7 @@ export type ServerMessage =
+   // CLI 回传的权限模式变化（如 ExitPlanMode 退出 plan 后恢复、Shift+Tab）。
+   // 桌面端据此把选择器校正回 CLI 的真实权限，避免本地影子值漂移。
+   | { type: 'permission_mode_changed'; mode: PermissionMode }
++  | { type: 'providers_changed'; reason: 'created' | 'updated' | 'deleted' | 'activated' | 'reordered' | 'imported' }
+   | {
+       type: 'api_retry'
+       attempt: number
