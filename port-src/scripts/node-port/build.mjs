@@ -68,7 +68,7 @@ const MACRO_VALUE = JSON.stringify({
   BUILD_TIME: new Date().toISOString(),
   VERSION_CHANGELOG: '',
   ISSUES_EXPLAINER: '',
-  FEEDBACK_CHANNEL: 'https://github.com/NanmiCoder/cc-haha/issues',
+  FEEDBACK_CHANNEL: 'https://github.com/GeniusTDY/cc-haha-win7/issues',
 })
 
 const shared = {

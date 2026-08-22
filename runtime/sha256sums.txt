@@ -10,8 +10,8 @@ ea70169decdb4787b7503b899495a1edfa27e9077f8bc5e0ef5980cb42fef3e8  git-2.45.2/bin
 ae323edd0835ee7b9e18cc96a7b2bb4b8173ff768317d178af2788406feb71ff  node-pty-1.1.0-win32-x64/prebuilds/win32-x64/pty.node
 e1cb26d868c954ba26817bedf3e4a5744e4ca2030adf51a7156e5ff2fadb881b  node-pty-1.1.0-win32-x64/prebuilds/win32-x64/winpty.dll
 c3a65716f53fed0135a8a633373d5f9c2ab092544d651f27ef0a67096dd3bcd9  node-pty-1.1.0-win32-x64/lib/windowsTerminal.js
-925cc9af8d906a5681779c85b4500b80c0d490b41b071bc612783cd872cdca40  node-fallback/cli.mjs
-c361030cf75fdce17eda4ea4a6bc71e1eeb9d5bd889c27ff6dc3848d031b52c4  node-fallback/server.mjs
+f401161510654aeef988ec7f0018cf33f261eb166cc483f39a2e1a0f50f01f91  node-fallback/cli.mjs
+2f4364136e9fc3fe74b37ae48aad05e1243a6da50e7bd1f4d79f2be4e866e81d  node-fallback/server.mjs
 # 2026-08-20 feed-rewrite rebuild (v3 fix set + app-update.yml repointed
 # at GeniusTDY/cc-haha-win7; current Release asset, renamed from
 # Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe, paired with latest.yml):
