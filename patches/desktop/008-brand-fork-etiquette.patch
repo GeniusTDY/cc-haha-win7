@@ -1,0 +1,427 @@
+From: Win7 port restore
+Subject: [PATCH] desktop: point GUI brand references at the fork and add upstream attribution rows
+
+The Win7 edition ships as GeniusTDY/cc-haha-win7, a fork of
+NanmiCoder/cc-haha. Upstream v0.5.4 still carried the upstream
+repo/author identity in every user-visible surface, so the port
+repointed them at the fork while keeping proper attribution:
+
+  * About page repo entry, sidebar GitHub icon, activity-settings
+    default handle, all 5 locale defaultHandle values, package.json
+    homepage/publish owner+repo, tauri.conf.json updater latest.json
+    URL, backend DEFAULT_PROFILE_SUBTITLE and the matching test
+    fixtures now reference GeniusTDY/cc-haha-win7.
+  * Fork etiquette, two-row entries (identical card style, upstream
+    row first):
+      - About > repository: NanmiCoder/cc-haha (upstream) above
+        GeniusTDY/cc-haha-win7 (this fork)
+      - About > author: upstream author above the Win7 port
+        maintainer
+      - Activity settings default handle renders two links when the
+        subtitle is still the default (custom subtitles keep the
+        single-row rendering)
+  * New i18n keys settings.about.upstreamHint / upstreamAuthorHint /
+    forkMaintainerHint in zh, en, zh-TW, jp, kr (key sets stay
+    aligned).
+
+Action surfaces stay fork-only on purpose: the feedback button
+(fork/issues), the changelog button (fork/releases) and the sidebar
+icon point at the build users actually run; attribution lives on the
+About page.
+
+---
+diff --git a/desktop/package.json b/desktop/package.json
+index 05943a332..840894b20 100644
+--- a/desktop/package.json
++++ b/desktop/package.json
+@@ -3,7 +3,7 @@
+   "private": true,
+   "version": "0.5.4",
+   "description": "Desktop coding agent workbench for Claude Code Haha.",
+-  "homepage": "https://github.com/NanmiCoder/cc-haha",
++  "homepage": "https://github.com/GeniusTDY/cc-haha-win7",
+   "author": {
+     "name": "NanmiCoder",
+     "email": "relakkes@gmail.com"
+@@ -71,8 +71,8 @@
+     "publish": [
+       {
+         "provider": "github",
+-        "owner": "NanmiCoder",
+-        "repo": "cc-haha"
++        "owner": "GeniusTDY",
++        "repo": "cc-haha-win7"
+       }
+     ]
+   },
+diff --git a/desktop/src-tauri/tauri.conf.json b/desktop/src-tauri/tauri.conf.json
+index 7fde82d17..48b5efd3d 100644
+--- a/desktop/src-tauri/tauri.conf.json
++++ b/desktop/src-tauri/tauri.conf.json
+@@ -31,7 +31,7 @@
+     "updater": {
+       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlCOUIwRDExQTc5RTFGMzYKUldRMkg1Nm5FUTJibTJ2cGlHY0pkL0dGemxXMUlzc01pVTVMM1U3WGpmWUtrUC8wK2ErSXhLKzEK",
+       "endpoints": [
+-        "https://github.com/NanmiCoder/cc-haha/releases/latest/download/latest.json"
++        "https://github.com/GeniusTDY/cc-haha-win7/releases/latest/download/latest.json"
+       ],
+       "windows": {
+         "installMode": "passive"
+diff --git a/desktop/src/api/desktopUiPreferences.test.ts b/desktop/src/api/desktopUiPreferences.test.ts
+index 7815c4a76..9a2ed7790 100644
+--- a/desktop/src/api/desktopUiPreferences.test.ts
++++ b/desktop/src/api/desktopUiPreferences.test.ts
+@@ -7,7 +7,7 @@ const preferences = {
+   projectDisplayNames: {},
+   profile: {
+     displayName: 'cc-haha',
+-    subtitle: 'github.com/NanmiCoder/cc-haha',
++    subtitle: 'github.com/GeniusTDY/cc-haha-win7',
+     avatarFile: null,
+     avatarUpdatedAt: null,
+   },
+diff --git a/desktop/src/components/layout/Sidebar.test.tsx b/desktop/src/components/layout/Sidebar.test.tsx
+index 32448a859..5c14df05b 100644
+--- a/desktop/src/components/layout/Sidebar.test.tsx
++++ b/desktop/src/components/layout/Sidebar.test.tsx
+@@ -297,7 +297,7 @@ function makeDesktopUiPreferencesResponse({
+       projectDisplayNames,
+       profile: {
+         displayName: 'cc-haha',
+-        subtitle: 'github.com/NanmiCoder/cc-haha',
++        subtitle: 'github.com/GeniusTDY/cc-haha-win7',
+         avatarFile: null,
+         avatarUpdatedAt: null,
+       },
+diff --git a/desktop/src/components/layout/Sidebar.tsx b/desktop/src/components/layout/Sidebar.tsx
+index 0925649f6..5ae151e35 100644
+--- a/desktop/src/components/layout/Sidebar.tsx
++++ b/desktop/src/components/layout/Sidebar.tsx
+@@ -872,7 +872,7 @@ export function Sidebar({
+           </div>
+           <div className={`flex items-center ${expanded ? 'gap-1.5' : 'flex-col gap-2'}`}>
+             <a
+-              href="https://github.com/NanmiCoder/cc-haha"
++              href="https://github.com/GeniusTDY/cc-haha-win7"
+               target="_blank"
+               rel="noopener noreferrer"
+               className={`sidebar-copy ${expanded ? 'sidebar-copy--visible' : 'sidebar-copy--hidden'} inline-flex items-center justify-center rounded-[var(--radius-sm)] p-1 text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]`}
+diff --git a/desktop/src/i18n/locales/en.ts b/desktop/src/i18n/locales/en.ts
+index 24b2af166..6eeffdd32 100644
+--- a/desktop/src/i18n/locales/en.ts
++++ b/desktop/src/i18n/locales/en.ts
+@@ -426,7 +426,7 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+   'settings.activity.title': 'Token usage',
+   'settings.activity.profileTitle': 'Profile',
+   'settings.activity.profilePrivacy': 'Local only',
+-  'settings.activity.defaultHandle': 'github.com/NanmiCoder/cc-haha',
++  'settings.activity.defaultHandle': 'github.com/GeniusTDY/cc-haha-win7',
+   'settings.activity.editProfile': 'Edit profile',
+   'settings.activity.displayName': 'Display name',
+   'settings.activity.subtitle': 'Second line',
+@@ -1354,9 +1354,12 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+   'settings.about.changelog': 'Release Notes',
+   'settings.about.repo': 'GitHub Repository',
+   'settings.about.starHint': 'If this project helps you, consider giving it a Star',
++  'settings.about.upstreamHint': 'Upstream project this Win7 port is based on',
+   'settings.about.feedback': 'Report an Issue',
+   'settings.about.feedbackDesc': 'Open a GitHub Issue for bugs or usage questions',
+   'settings.about.author': 'Author',
++  'settings.about.upstreamAuthorHint': 'Upstream author · original project developer',
++  'settings.about.forkMaintainerHint': 'Win7 port maintainer',
+   'settings.about.socialMedia': 'Social Media',
+   'settings.about.updates': 'App Updates',
+   'settings.about.updatesDesc': 'Check GitHub Releases, download the installer, and relaunch after install.',
+diff --git a/desktop/src/i18n/locales/jp.ts b/desktop/src/i18n/locales/jp.ts
+index a05a3fa7e..76307cd42 100644
+--- a/desktop/src/i18n/locales/jp.ts
++++ b/desktop/src/i18n/locales/jp.ts
+@@ -428,7 +428,7 @@ export const jp: Record<TranslationKey, string> = {
+   'settings.activity.title': 'トークン使用量',
+   'settings.activity.profileTitle': 'プロフィール',
+   'settings.activity.profilePrivacy': 'ローカルのみ',
+-  'settings.activity.defaultHandle': 'github.com/NanmiCoder/cc-haha',
++  'settings.activity.defaultHandle': 'github.com/GeniusTDY/cc-haha-win7',
+   'settings.activity.editProfile': 'プロフィールを編集',
+   'settings.activity.displayName': '表示名',
+   'settings.activity.subtitle': '2 行目',
+@@ -1356,9 +1356,12 @@ export const jp: Record<TranslationKey, string> = {
+   'settings.about.changelog': 'リリースノート',
+   'settings.about.repo': 'GitHub リポジトリ',
+   'settings.about.starHint': 'このプロジェクトが役立った場合は、Star を付けることをご検討ください',
++  'settings.about.upstreamHint': '本 Win7 移植版の元となるアップストリームプロジェクト',
+   'settings.about.feedback': '問題を報告',
+   'settings.about.feedbackDesc': 'バグや使い方の質問について GitHub Issue を作成します',
+   'settings.about.author': '作者',
++  'settings.about.upstreamAuthorHint': 'アップストリーム作者 · 元プロジェクト開発者',
++  'settings.about.forkMaintainerHint': 'Win7 移植版メンテナー',
+   'settings.about.socialMedia': 'ソーシャルメディア',
+   'settings.about.updates': 'アプリの更新',
+   'settings.about.updatesDesc': 'GitHub Releases を確認し、インストーラーをダウンロードして、インストール後に再起動します。',
+diff --git a/desktop/src/i18n/locales/kr.ts b/desktop/src/i18n/locales/kr.ts
+index 69244d7bf..e051b5554 100644
+--- a/desktop/src/i18n/locales/kr.ts
++++ b/desktop/src/i18n/locales/kr.ts
+@@ -428,7 +428,7 @@ export const kr: Record<TranslationKey, string> = {
+   'settings.activity.title': '토큰 사용량',
+   'settings.activity.profileTitle': '프로필',
+   'settings.activity.profilePrivacy': '로컬 전용',
+-  'settings.activity.defaultHandle': 'github.com/NanmiCoder/cc-haha',
++  'settings.activity.defaultHandle': 'github.com/GeniusTDY/cc-haha-win7',
+   'settings.activity.editProfile': '프로필 편집',
+   'settings.activity.displayName': '표시 이름',
+   'settings.activity.subtitle': '둘째 줄',
+@@ -1356,9 +1356,12 @@ export const kr: Record<TranslationKey, string> = {
+   'settings.about.changelog': '릴리스 노트',
+   'settings.about.repo': 'GitHub 저장소',
+   'settings.about.starHint': '이 프로젝트가 도움이 되었다면 Star를 눌러 주세요',
++  'settings.about.upstreamHint': '이 Win7 이식판의 원본 업스트림 프로젝트',
+   'settings.about.feedback': '문제 신고',
+   'settings.about.feedbackDesc': '버그나 사용 관련 질문은 GitHub Issue를 작성하세요',
+   'settings.about.author': '작성자',
++  'settings.about.upstreamAuthorHint': '업스트림 작성자 · 원본 프로젝트 개발자',
++  'settings.about.forkMaintainerHint': 'Win7 이식판 관리자',
+   'settings.about.socialMedia': '소셜 미디어',
+   'settings.about.updates': '앱 업데이트',
+   'settings.about.updatesDesc': 'GitHub Releases를 확인하고 설치 관리자를 다운로드한 후 설치 후 다시 시작합니다.',
+diff --git a/desktop/src/i18n/locales/zh-TW.ts b/desktop/src/i18n/locales/zh-TW.ts
+index 034d138c8..277db3578 100644
+--- a/desktop/src/i18n/locales/zh-TW.ts
++++ b/desktop/src/i18n/locales/zh-TW.ts
+@@ -427,7 +427,7 @@ export const zh: Record<TranslationKey, string> = {
+   'settings.activity.title': 'Token 用量',
+   'settings.activity.profileTitle': '個人資料',
+   'settings.activity.profilePrivacy': '僅本地',
+-  'settings.activity.defaultHandle': 'github.com/NanmiCoder/cc-haha',
++  'settings.activity.defaultHandle': 'github.com/GeniusTDY/cc-haha-win7',
+   'settings.activity.editProfile': '編輯個人資料',
+   'settings.activity.displayName': '顯示名稱',
+   'settings.activity.subtitle': '第二行',
+@@ -1355,9 +1355,12 @@ export const zh: Record<TranslationKey, string> = {
+   'settings.about.changelog': '更新日誌',
+   'settings.about.repo': 'GitHub 倉庫',
+   'settings.about.starHint': '如果這個專案對你有幫助，歡迎給個 Star',
++  'settings.about.upstreamHint': '上游專案 · 本 Win7 移植版的來源',
+   'settings.about.feedback': '反饋問題',
+   'settings.about.feedbackDesc': '遇到 Bug 或使用問題，前往 GitHub Issue 提交反饋',
+   'settings.about.author': '作者',
++  'settings.about.upstreamAuthorHint': '上游作者 · 原專案開發者',
++  'settings.about.forkMaintainerHint': 'Win7 移植版維護者',
+   'settings.about.socialMedia': '社交媒體',
+   'settings.about.updates': '應用更新',
+   'settings.about.updatesDesc': '檢查 GitHub Releases，下載安裝包，並在安裝後自動重啟。',
+diff --git a/desktop/src/i18n/locales/zh.ts b/desktop/src/i18n/locales/zh.ts
+index 08bfd289d..7c92dc86d 100644
+--- a/desktop/src/i18n/locales/zh.ts
++++ b/desktop/src/i18n/locales/zh.ts
+@@ -427,7 +427,7 @@ export const zh: Record<TranslationKey, string> = {
+   'settings.activity.title': 'Token 用量',
+   'settings.activity.profileTitle': '个人资料',
+   'settings.activity.profilePrivacy': '仅本地',
+-  'settings.activity.defaultHandle': 'github.com/NanmiCoder/cc-haha',
++  'settings.activity.defaultHandle': 'github.com/GeniusTDY/cc-haha-win7',
+   'settings.activity.editProfile': '编辑个人资料',
+   'settings.activity.displayName': '显示名称',
+   'settings.activity.subtitle': '第二行',
+@@ -1355,9 +1355,12 @@ export const zh: Record<TranslationKey, string> = {
+   'settings.about.changelog': '更新日志',
+   'settings.about.repo': 'GitHub 仓库',
+   'settings.about.starHint': '如果这个项目对你有帮助，欢迎给个 Star',
++  'settings.about.upstreamHint': '上游项目 · 本 Win7 移植版的来源',
+   'settings.about.feedback': '反馈问题',
+   'settings.about.feedbackDesc': '遇到 Bug 或使用问题，前往 GitHub Issue 提交反馈',
+   'settings.about.author': '作者',
++  'settings.about.upstreamAuthorHint': '上游作者 · 原项目开发者',
++  'settings.about.forkMaintainerHint': 'Win7 移植版维护者',
+   'settings.about.socialMedia': '社交媒体',
+   'settings.about.updates': '应用更新',
+   'settings.about.updatesDesc': '检查 GitHub Releases，下载安装包，并在安装后自动重启。',
+diff --git a/desktop/src/pages/ActivitySettings.test.tsx b/desktop/src/pages/ActivitySettings.test.tsx
+index 699624246..247d96772 100644
+--- a/desktop/src/pages/ActivitySettings.test.tsx
++++ b/desktop/src/pages/ActivitySettings.test.tsx
+@@ -114,7 +114,7 @@ describe('ActivitySettings', () => {
+         schemaVersion: 2,
+         profile: {
+           displayName: 'cc-haha',
+-          subtitle: 'github.com/NanmiCoder/cc-haha',
++          subtitle: 'github.com/GeniusTDY/cc-haha-win7',
+           avatarFile: null,
+           avatarUpdatedAt: null,
+         },
+@@ -152,7 +152,7 @@ describe('ActivitySettings', () => {
+         schemaVersion: 2,
+         profile: {
+           displayName: 'cc-haha',
+-          subtitle: 'github.com/NanmiCoder/cc-haha',
++          subtitle: 'github.com/GeniusTDY/cc-haha-win7',
+           avatarFile: 'profile/avatar.png',
+           avatarUpdatedAt: '2026-05-09T12:00:00.000Z',
+         },
+@@ -171,7 +171,7 @@ describe('ActivitySettings', () => {
+         schemaVersion: 2,
+         profile: {
+           displayName: 'cc-haha',
+-          subtitle: 'github.com/NanmiCoder/cc-haha',
++          subtitle: 'github.com/GeniusTDY/cc-haha-win7',
+           avatarFile: null,
+           avatarUpdatedAt: null,
+         },
+@@ -201,6 +201,10 @@ describe('ActivitySettings', () => {
+     expect(screen.getByText('cc-haha')).toBeInTheDocument()
+     expect(screen.getByAltText('cc-haha avatar')).toHaveAttribute('src', '/app-icon.png')
+     expect(screen.getByAltText('cc-haha avatar')).toHaveClass('scale-[1.28]')
++    expect(screen.getByRole('link', { name: 'github.com/GeniusTDY/cc-haha-win7' })).toHaveAttribute(
++      'href',
++      'https://github.com/GeniusTDY/cc-haha-win7',
++    )
+     expect(screen.getByRole('link', { name: 'github.com/NanmiCoder/cc-haha' })).toHaveAttribute(
+       'href',
+       'https://github.com/NanmiCoder/cc-haha',
+diff --git a/desktop/src/pages/ActivitySettings.tsx b/desktop/src/pages/ActivitySettings.tsx
+index 460530fc8..4f0044c8c 100644
+--- a/desktop/src/pages/ActivitySettings.tsx
++++ b/desktop/src/pages/ActivitySettings.tsx
+@@ -72,10 +72,12 @@ const DATE_LOCALES: Record<Locale, string> = {
+ }
+ const DEFAULT_PROFILE: DesktopProfilePreferences = {
+   displayName: 'cc-haha',
+-  subtitle: 'github.com/NanmiCoder/cc-haha',
++  subtitle: 'github.com/GeniusTDY/cc-haha-win7',
+   avatarFile: null,
+   avatarUpdatedAt: null,
+ }
++const UPSTREAM_PROFILE_SUBTITLE = 'github.com/NanmiCoder/cc-haha'
++const UPSTREAM_PROFILE_SUBTITLE_HREF = 'https://github.com/NanmiCoder/cc-haha'
+ const DEFAULT_AVATAR_SRC = publicAssetPath('app-icon.png')
+ 
+ function localDateKey(date: Date) {
+@@ -801,7 +803,26 @@ export function ActivitySettings() {
+             <span className="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+           </button>
+         </div>
+-        {profileSubtitleHref ? (
++        {profile.subtitle === DEFAULT_PROFILE.subtitle && profileSubtitleHref ? (
++          <div className="mt-2 flex max-w-full flex-col items-center">
++            <a
++              href={UPSTREAM_PROFILE_SUBTITLE_HREF}
++              target="_blank"
++              rel="noreferrer"
++              className="inline-flex max-w-full items-center justify-center gap-2 truncate text-base text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
++            >
++              <span>{UPSTREAM_PROFILE_SUBTITLE}</span>
++            </a>
++            <a
++              href={profileSubtitleHref}
++              target="_blank"
++              rel="noreferrer"
++              className="inline-flex max-w-full items-center justify-center gap-2 truncate text-base text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
++            >
++              <span>{profile.subtitle}</span>
++            </a>
++          </div>
++        ) : profileSubtitleHref ? (
+           <a
+             href={profileSubtitleHref}
+             target="_blank"
+diff --git a/desktop/src/pages/settings/AboutSettings.tsx b/desktop/src/pages/settings/AboutSettings.tsx
+index fad068ff0..74778011a 100644
+--- a/desktop/src/pages/settings/AboutSettings.tsx
++++ b/desktop/src/pages/settings/AboutSettings.tsx
+@@ -21,10 +21,12 @@ import { isValidHttpProxyUrl } from '../settings/shared'
+  * `./shared`, since the General panel needs it too.
+  */
+ 
+-const GITHUB_REPO = 'https://github.com/NanmiCoder/cc-haha'
++const GITHUB_REPO = 'https://github.com/GeniusTDY/cc-haha-win7'
+ const GITHUB_ISSUES = `${GITHUB_REPO}/issues`
+ const GITHUB_RELEASES = `${GITHUB_REPO}/releases`
++const UPSTREAM_REPO = 'https://github.com/NanmiCoder/cc-haha'
+ const AUTHOR_GITHUB = 'https://github.com/NanmiCoder'
++const FORK_MAINTAINER_GITHUB = 'https://github.com/GeniusTDY'
+ const SOCIAL_LINKS = [
+   { name: 'Bilibili', icon: '/icons/bilibili.svg', url: 'https://space.bilibili.com/434377496', label: '程序员阿江-Relakkes' },
+   { name: 'Douyin', icon: '/icons/douyin.svg', url: 'https://www.douyin.com/user/MS4wLjABAAAATJPY7LAlaa5X-c8uNdWkvz0jUGgpw4eeXIwu_8BhvqE', label: '程序员阿江-Relakkes' },
+@@ -166,15 +168,25 @@ export function AboutSettings() {
+         </div>
+       )}
+ 
+-      {/* GitHub Repo */}
+-      <div className="mt-6 w-full">
++      {/* GitHub Repo (fork etiquette: upstream first, then this fork) */}
++      <div className="mt-6 w-full flex flex-col gap-2">
+         <button
+-          onClick={() => openUrl(GITHUB_REPO)}
++          onClick={() => openUrl(UPSTREAM_REPO)}
+           className="w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-xl)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+         >
+           <img src={publicAssetPath('icons/github.svg')} alt="GitHub" className="w-5 h-5 opacity-70" />
+           <div className="flex-1 text-left">
+             <div className="text-sm font-medium text-[var(--color-text-primary)]">NanmiCoder/cc-haha</div>
++            <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.upstreamHint')}</div>
++          </div>
++        </button>
++        <button
++          onClick={() => openUrl(GITHUB_REPO)}
++          className="w-full flex items-center gap-3 px-4 py-3 rounded-[var(--radius-xl)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
++        >
++          <img src={publicAssetPath('icons/github.svg')} alt="GitHub" className="w-5 h-5 opacity-70" />
++          <div className="flex-1 text-left">
++            <div className="text-sm font-medium text-[var(--color-text-primary)]">GeniusTDY/cc-haha-win7</div>
+             <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.starHint')}</div>
+           </div>
+         </button>
+@@ -371,17 +383,31 @@ export function AboutSettings() {
+       {/* Divider */}
+       <div className="w-full border-t border-[var(--color-border-separator)] my-6" />
+ 
+-      {/* Author */}
++      {/* Author (fork etiquette: upstream author first, then this fork's maintainer) */}
+       <div className="w-full">
+         <h3 className="text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">{t('settings.about.author')}</h3>
+-        <button
+-          onClick={() => openUrl(AUTHOR_GITHUB)}
+-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-lg)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
+-        >
+-          <img src={publicAssetPath('icons/github.svg')} alt="GitHub" className="w-4 h-4 opacity-60" />
+-          <span className="text-sm text-[var(--color-text-primary)]">程序员阿江-Relakkes</span>
+-          <span className="text-xs text-[var(--color-text-tertiary)] ml-auto">GitHub</span>
+-        </button>
++        <div className="w-full flex flex-col gap-2">
++          <button
++            onClick={() => openUrl(AUTHOR_GITHUB)}
++            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-lg)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
++          >
++            <img src={publicAssetPath('icons/github.svg')} alt="GitHub" className="w-4 h-4 opacity-60" />
++            <div className="flex-1 text-left">
++              <div className="text-sm font-medium text-[var(--color-text-primary)]">程序员阿江-Relakkes</div>
++              <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.upstreamAuthorHint')}</div>
++            </div>
++          </button>
++          <button
++            onClick={() => openUrl(FORK_MAINTAINER_GITHUB)}
++            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-[var(--radius-lg)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer"
++          >
++            <img src={publicAssetPath('icons/github.svg')} alt="GitHub" className="w-4 h-4 opacity-60" />
++            <div className="flex-1 text-left">
++              <div className="text-sm font-medium text-[var(--color-text-primary)]">GeniusTDY</div>
++              <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.forkMaintainerHint')}</div>
++            </div>
++          </button>
++        </div>
+       </div>
+ 
+       {/* Social Media */}
+diff --git a/src/server/services/desktopUiPreferencesService.ts b/src/server/services/desktopUiPreferencesService.ts
+index 22c2e496b..d6f319a73 100644
+--- a/src/server/services/desktopUiPreferencesService.ts
++++ b/src/server/services/desktopUiPreferencesService.ts
+@@ -19,7 +19,7 @@ const MIN_PET_SIZE = 96
+ const MAX_PET_SIZE = 192
+ const DEFAULT_PET_SIZE = 144
+ const MAX_PET_SESSION_ID_LENGTH = 200
+-const DEFAULT_PROFILE_SUBTITLE = 'github.com/NanmiCoder/cc-haha'
++const DEFAULT_PROFILE_SUBTITLE = 'github.com/GeniusTDY/cc-haha-win7'
+ const DEFAULT_PET_ID = 'dada-code'
+ 
+ const AVATAR_CONTENT_TYPES = {
