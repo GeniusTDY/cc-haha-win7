@@ -20,7 +20,7 @@
 
 | 目录 | 职责 |
 |---|---|
-| `patches/` | 对上游 v0.5.4 的 6 个补丁（Electron 22 固定 / CSS 垫片 / winpty / Bash 链 / CU 离线 / 免 wine） |
+| `patches/` | 对上游 v0.5.4 的 12 个补丁（Electron 22 固定 / CSS 垫片 / winpty / Bash 链 / CU 离线 / 免 wine / 会话标题本地化 / fork 礼仪 / 更新日志弹窗 / providers_changed 刷新 / H5 输入框容器查询 / CJK 按钮不换行） |
 | `port-src/` | 移植新增源码：Bun API 兼容层、esbuild 构建链、main.cjs 编译产物 |
 | `repack/` | Stage B 全离线安装器打包脚本 |
 | `runtime/` | 装机载荷（~620MB）：Node / Python / PortableGit / VxKex / KB 补丁 / 离线 bundle |

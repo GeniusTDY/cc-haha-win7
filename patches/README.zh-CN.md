@@ -17,6 +17,8 @@
 | 8 | `desktop/008-brand-fork-etiquette.patch` | `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src/{components/layout/Sidebar,pages/ActivitySettings,pages/settings/AboutSettings}.tsx` + 测试 + 5 个语言包、`src/server/services/desktopUiPreferencesService.ts` | 仓库身份指向 GeniusTDY/cc-haha-win7（package.json homepage + electron-updater 发布目标、tauri 更新器端点、侧栏链接、后端 DEFAULT_PROFILE_SUBTITLE），同时按 fork 礼仪将上游放在首位致谢：About 的 "GitHub Repo"/"Author" 卡片以两行条目先列上游再列本 fork/维护者并附提示行，活动页 profile 在副标题仍为默认值时同时展示两条链接（五个语言包新增 `upstreamHint`/`upstreamAuthorHint`/`forkMaintainerHint` 键） |
 | 9 | `desktop/009-changelog-modal.patch` | `desktop/src/pages/settings/AboutSettings.tsx`、`desktop/src/lib/changelogContent{,Data}.ts` + 5 个语言包 | 应用内更新日志弹窗，取代跳转上游 GitHub releases 的浏览器跳转：预烘焙双语语料（上游全部 40 个 release，中英文拆分与 Installation 小节剔除在生成期固化）、带回退的语言映射、裸 `#issue` 引用链接化到上游 tracker、弹窗内版本切换器带"当前版本"指示（五个语言包新增 `settings.about.currentVersion` 键）；同时退役不再使用的 GITHUB_RELEASES 常量 |
 | 10 | `desktop/010-providers-changed-refresh.patch` | `desktop/src/types/chat.ts`、`desktop/src/stores/{chatStore,providerStore,providerStore.test}.ts` | 桌面端监听服务端 `providers_changed` 事件（provider 创建/更新/删除/激活/重排/导入时发出）：`chatStore` 暴露 `registerProvidersChangedHandler()` 并分发事件原因，`providerStore` 注册 500 ms 防抖的 `fetchProviders()` 刷新——在一个窗口导入或更新 provider 后，其余所有打开的窗口自动刷新，无需手动重载 |
+| 11 | `desktop/011-h5-input-width-fix.patch` | `desktop/index.html` | H5 访问"访问主机/IP"行：视口断点 `sm:grid-cols-[minmax(0,1fr)_9rem_9rem]` 按窗口而非网格自身盒子宽度生效，设置页多层卡片嵌套下弹性列被压扁，输入框只有窗口最大化时才能完整显示；改为在该行父包装上设 `container-type:inline-size`，容器宽度不足 28rem 时退回单列 `minmax(0,1fr)`，按容器真实宽度响应（容器查询与 `:has()` 均为 Chromium 105+，Electron 22 的 108 原生支持） |
+| 12 | `desktop/012-button-nowrap-fix.patch` | `desktop/index.html` | `button.inline-flex{white-space:nowrap}`：固定高度按钮（h-6=24px 等）未禁用换行，flex 行空间紧张时 CJK 标签（设置→诊断的"刷新"/"重建本地索引"）折成两行，约 27px 的行盒画出按钮边框；nowrap 保持标签单行并恢复 min-content 宽度保护，flex 不再把按钮压到标签宽度以下 |
 
 Electron 主进程的 node-runtime 回退层不是编号补丁：它以编译产物
 `port-src/desktop-electron/*.cjs` 交付（与 shipped 的 `app.asar`
@@ -83,6 +85,8 @@ git apply ../cc-haha-win7/patches/desktop/007-session-title-locale.patch
 git apply ../cc-haha-win7/patches/desktop/008-brand-fork-etiquette.patch
 git apply ../cc-haha-win7/patches/desktop/009-changelog-modal.patch
 git apply ../cc-haha-win7/patches/desktop/010-providers-changed-refresh.patch
+git apply ../cc-haha-win7/patches/desktop/011-h5-input-width-fix.patch
+git apply ../cc-haha-win7/patches/desktop/012-button-nowrap-fix.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
 # 构建出 node-port bundle（dist/server.mjs）之后：
 python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.mjs
