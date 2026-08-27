@@ -1,0 +1,34 @@
+From: Win7 port restore
+Subject: [PATCH] desktop/index.html: container-query fallback for the H5 host/IP row
+
+The H5 access card lays the host/IP row out as
+sm:grid-cols-[minmax(0,1fr)_9rem_9rem] — a *viewport* breakpoint. On the
+settings page the row sits inside nested cards whose combined chrome
+eats most of the window, so even with the viewport well past `sm` the
+grid box itself can be too narrow for 1fr + 9rem + 9rem, the flexible
+column collapses, and the host/IP input only shows its full width when
+the window is maximized.
+
+Give the row's parent wrapper an inline-size containment context (the
+div one level above the grid — a container query cannot target its own
+container) and drop the grid to a single minmax(0,1fr) column when the
+*container*, not the viewport, is narrower than 28rem. Container
+queries and :has() both ship in Chromium 105+, so Electron 22's
+Chromium 108 handles this natively. The :has() shapes are stable
+structural anchors: the wrapper is the only div whose div > div chain
+ends at #h5-access-public-url, and the grid is its direct child.
+
+Same tag id and rules as the in-place hotfix baked into the shipped
+Offline installer's dist/index.html (<style id="h5-host-input-fix">).
+
+diff --git a/desktop/index.html b/desktop/index.html
+--- a/desktop/index.html
++++ b/desktop/index.html
+@@ -746,6 +746,7 @@
+         })
+       })()
+     </script>
++    <style id="h5-host-input-fix">div:has(> div > div > #h5-access-public-url){container-type:inline-size}@container (max-width: 28rem){div:has(> div > #h5-access-public-url){grid-template-columns:minmax(0,1fr)!important}}</style>
+   </head>
+   <body>
+     <div id="root"></div>

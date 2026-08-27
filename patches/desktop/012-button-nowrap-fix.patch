@@ -1,0 +1,33 @@
+From: Win7 port restore
+Subject: [PATCH] desktop/index.html: keep CJK button labels inside their buttons
+
+The shared Button component renders <button class="inline-flex ...">
+at fixed heights (h-6 = 24px and friends) and never disables wrapping.
+When a flex row runs out of room — the Settings > Diagnostics form is
+the repro — a CJK label with no other break opportunity (the zh-CN
+"Refresh" / "Rebuild local index" buttons) folds onto two lines; the
+two line boxes (~27px) overrun the button's fixed height and the
+glyphs paint outside its border (Range.getClientRects() showed 2 line
+boxes against a 24px button box).
+
+button.inline-flex{white-space:nowrap} keeps every label on one line,
+and via min-content sizing flex can no longer shrink a button below
+its label width — the row gives ground elsewhere instead of clipping
+glyphs. The rule is global to the shared Button component; a post-fix
+scan over every button in the app found zero wrapped labels, and
+Latin labels never wrapped to begin with (they break at spaces).
+
+Same tag id and rules as the in-place hotfix baked into the shipped
+Offline installer's dist/index.html (<style id="cjk-btn-nowrap">).
+
+diff --git a/desktop/index.html b/desktop/index.html
+--- a/desktop/index.html
++++ b/desktop/index.html
+@@ -747,6 +748,7 @@
+       })()
+     </script>
+     <style id="h5-host-input-fix">div:has(> div > div > #h5-access-public-url){container-type:inline-size}@container (max-width: 28rem){div:has(> div > #h5-access-public-url){grid-template-columns:minmax(0,1fr)!important}}</style>
++    <style id="cjk-btn-nowrap">button.inline-flex{white-space:nowrap}</style>
+   </head>
+   <body>
+     <div id="root"></div>
