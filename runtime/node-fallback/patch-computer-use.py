@@ -64,6 +64,18 @@ if "getBundledPythonDirsWin" in src and "const cliMjs2" in src:
 if "getBundledPythonDirsWin" in src:
     print("[NOTE] CU patches present but win32 spawn chain (P9) missing — continuing")
 
+# Source-level P9/P9b: the 2026-08-30 source tree now carries the win32 CLI
+# spawn chain (resolveCliArgs + buildCronCliArgs, keyed on CC_HAHA_CLI_ENTRY)
+# and the nodeSqliteFlagArgs helper in src/server/services/conversationService.ts,
+# so a fresh build already emits both hunks — detect that and skip the
+# bundle-level rewrites below (their upstream-shape anchors no longer exist).
+P9_SOURCE_APPLIED = (
+    "CC_HAHA_CLI_ENTRY" in src
+    and "function nodeSqliteFlagArgs" in src
+)
+if P9_SOURCE_APPLIED:
+    print("[NOTE] P9/P9b already applied at source level — bundle hunks skipped")
+
 shutil.copyfile(PATH, BAK)
 backed_up = True
 
@@ -700,7 +712,9 @@ rep("""Pillow>=11.3.0,<12\\npyautogui>=0.9.54\\npywin32>=306""",
 # runtime/node-fallback/server.mjs: CC_HAHA_CLI_ENTRY direct entry (with the
 # node:sqlite flag) -> ../bin/claude-haha JS launcher -> dist/cli.mjs direct
 # execution -> bin/claude-haha.cmd -> source-tree preload fallback.
-rep("""  resolveCliArgs(baseArgs) {
+# SKIPPED when the source tree already carries the chain (P9_SOURCE_APPLIED).
+if not P9_SOURCE_APPLIED:
+    rep("""  resolveCliArgs(baseArgs) {
     const launcher = resolveClaudeCliLauncher({
       cliPath: process.env.CLAUDE_CLI_PATH,
       execPath: process.execPath
@@ -719,7 +733,7 @@ rep("""  resolveCliArgs(baseArgs) {
     }
     return buildClaudeCliArgs(launcher, baseArgs, process.env.CLAUDE_APP_ROOT);
   }""",
-    """  resolveCliArgs(baseArgs) {
+        """  resolveCliArgs(baseArgs) {
     const moduleDir = path38.dirname(fileURLToPath7(import.meta.url));
     const nodePortEntry = process.env.CC_HAHA_CLI_ENTRY;
     if (nodePortEntry) {
@@ -757,9 +771,10 @@ rep("""  resolveCliArgs(baseArgs) {
   }""", "P9 resolveCliArgs win32 spawn chain")
 
 # ---------------------------------------------------------------- P9b: nodeSqliteFlagArgs helper
-rep("""var ConversationService = class {
+if not P9_SOURCE_APPLIED:
+    rep("""var ConversationService = class {
   sessions = /* @__PURE__ */ new Map();""",
-    """function nodeSqliteFlagArgs(version4 = process.versions.node) {
+        """function nodeSqliteFlagArgs(version4 = process.versions.node) {
   const [major2, minor] = version4.trim().replace(/^v/, "").split(".").map(Number);
   if (Number.isFinite(major2) && Number.isFinite(minor)) {
     if (major2 === 22 && minor >= 5 && minor < 13) return ["--experimental-sqlite"];
