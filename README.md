@@ -20,7 +20,7 @@ Upstream is built on Electron 42 and a Bun sidecar architecture — neither supp
 
 | Directory | Responsibility |
 |---|---|
-| `patches/` | 12 patches against upstream v0.5.4 (Electron 22 pin / CSS shim / winpty / Bash chain / CU offline / wine-free NSIS / session-title locale / fork etiquette / changelog modal / providers_changed refresh / H5 input container query / CJK button nowrap) |
+| `patches/` | 14 patches against upstream v0.5.4 (Electron 22 pin / CSS shim / winpty / Bash chain / CU offline / wine-free NSIS / session-title locale / fork etiquette / changelog modal / providers_changed refresh / H5 input container query / CJK button nowrap / intranet-mode desktop UI + gates / intranet-mode server network policy) |
 | `port-src/` | New sources added by the port: Bun API compat layer, esbuild build pipeline, compiled main.cjs artifacts |
 | `repack/` | Stage B fully-offline installer repack scripts |
 | `runtime/` | Machine payloads (~620MB): Node / Python / PortableGit / VxKex / KB patches / offline bundle |

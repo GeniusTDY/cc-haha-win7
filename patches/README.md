@@ -20,6 +20,8 @@ root (`desktop/` is the Electron app subproject).
 | 10 | `desktop/010-providers-changed-refresh.patch` | `desktop/src/types/chat.ts`, `desktop/src/stores/{chatStore,providerStore,providerStore.test}.ts` | the desktop listens to the server's `providers_changed` event (emitted per provider created/updated/deleted/activated/reordered/imported): `chatStore` exposes `registerProvidersChangedHandler()` and dispatches the event's reason, `providerStore` registers a 500 ms-debounced `fetchProviders()` flush — importing or updating a provider in one window refreshes every other open window without a manual reload |
 | 11 | `desktop/011-h5-input-width-fix.patch` | `desktop/index.html` | H5 access "Host/IP" row: the viewport-based `sm:grid-cols-[minmax(0,1fr)_9rem_9rem]` breakpoint responds to the window, not the grid's own box, so inside the nested settings cards the 1fr column collapses and the input only reaches full width when maximized; a container query on the row's parent wrapper (`container-type:inline-size` + `@container (max-width: 28rem)` → single `minmax(0,1fr)` column) responds to the real container width (container queries and `:has()` are both Chromium 105+, fine on Electron 22's 108) |
 | 12 | `desktop/012-button-nowrap-fix.patch` | `desktop/index.html` | `button.inline-flex{white-space:nowrap}`: fixed-height buttons (h-6 = 24px and friends) never disabled wrapping, so tight flex rows folded CJK labels (the zh-CN "Refresh"/"Rebuild local index" buttons in Settings → Diagnostics) onto two lines whose ~27px of line boxes painted outside the button border; nowrap keeps every label on one line and restores min-content width so flex can no longer shrink a button below its label |
+| 13 | `desktop/013-intranet-mode-ui-gates.patch` | `desktop/src/{types/{settings,chat},stores/{settingsStore,chatStore,updateStore}}.ts`, `desktop/src/pages/{settings/{GeneralSettings,AboutSettings},ComputerUseSettings,Market}.tsx`, `desktop/src/components/layout/Sidebar.tsx`, `desktop/electron/services/{intranetMode{,.test},shell{,.test},updater{,.test}}.ts`, 5 locale files | intranet mode, desktop half: a Settings → General switch (optimistic update, hydrated from the server); the server's `network_policy_changed` broadcast mirrors the flag into every open window with no restart; online-only UI hides (About update card + GitHub/social links, sidebar skill-market entry + an "unavailable" notice for already-open market tabs, Computer Use's "Download Python 3" button — status checks/path config stay since the offline bundle ships Python); authoritative main-process gates read `<CLAUDE_CONFIG_DIR>/settings.json` uncached per call — `openExternalUrl()` refuses http(s) before even loading the electron module (mailto/system-settings survive) and `checkForUpdates()` returns null without touching electron-updater while dropping any pending update |
+| 14 | `cli/014-intranet-mode-network-policy.patch` | `src/utils/networkPolicy{,.test}.ts`, `src/tools/WebSearchTool/{WebSearchTool,backend,backend.test}.ts`, `src/tools/WebFetchTool/utils.ts`, `src/utils/telemetry/instrumentation.ts`, `src/server/{index,services/conversationService,middleware/errorHandler,ws/{events,handler},api/{settings,haha-oauth,haha-grok-oauth,haha-openai-oauth}}.ts` | intranet mode, server/CLI half: `src/utils/networkPolicy.ts` reads the `intranetMode` boolean from `~/.claude/settings.json` UNCACHED per call, so a toggle affects already-running sessions on their next tool use; telemetry fully off (OTLP + BigQuery + init, overriding an inherited `CLAUDE_CODE_ENABLE_TELEMETRY=1`); OAuth start/callback → 403 `INTRANET_MODE_DISABLED` and status reports logged-out without the outbound token refresh (plus 403 on the bare `/callback*` routers); WebSearch disables every backend with a model-facing explanation ("内网模式已禁用 WebSearch — do not retry, answer from the conversation and local files"); WebFetch stays usable against plain-http intranet services (http→https upgrade and the outbound domain-blocklist preflight are skipped); CLI children are stamped `CC_HAHA_INTRANET_MODE=1` + `CLAUDE_CODE_ENABLE_TELEMETRY=0`; `PUT /api/settings/user` broadcasts the toggle to all connected clients |
 
 The Electron main-process node-runtime fallback layer is not a numbered
 patch: it ships as the compiled artifacts `port-src/desktop-electron/*.cjs`
@@ -96,7 +98,9 @@ git apply ../cc-haha-win7/patches/desktop/009-changelog-modal.patch
 git apply ../cc-haha-win7/patches/desktop/010-providers-changed-refresh.patch
 git apply ../cc-haha-win7/patches/desktop/011-h5-input-width-fix.patch
 git apply ../cc-haha-win7/patches/desktop/012-button-nowrap-fix.patch
+git apply ../cc-haha-win7/patches/desktop/013-intranet-mode-ui-gates.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
+git apply ../cc-haha-win7/patches/cli/014-intranet-mode-network-policy.patch
 # after building the node-port bundle (dist/server.mjs):
 python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.mjs
 #   (patch 005 is the historical 2026-08-18 diff — see its STATUS NOTE;
@@ -113,3 +117,34 @@ grep -q 'process.platform !== "win32"' \
   desktop/node_modules/app-builder-lib/out/targets/nsis/NsisTarget.js \
   || echo "patch 006 lost — re-apply"
 ```
+
+## Known deployment pitfall: HarfBuzz ligature crash (0xC0000005)
+
+**Symptom**: the packaged app crashes the renderer at random on Win7
+(`process-gone reason=crashed exitCode=-1073741819`), most reliably right
+after a fresh-session / cleared Local Storage path. A stock Win7 install
+ships no ligature-capable font, and this port's minimal static font
+subset (the ~21KB icon font in `desktop/dist/assets`) cannot shape the
+**ligature icon names** the stock upstream frontend emits.
+
+**Root cause**: upstream `App-*.js` references icons by ligature name
+(`"icon-name"` text nodes). The port's font is a no-ligature static subset
+that maps **PUA codepoints** instead. Feeding ligature names into that
+font hits a HarfBuzz shaping crash path on Chromium 108/Win7 — each side
+is individually correct, only the combination is fatal, and no static
+check catches it. Only a real Win7 VM run reproduces it.
+
+**Fix / rule**: frontend assets that use ligature icon names must never
+be shipped together with the PUA-subset font. Two safe combinations,
+verified by A/B bisection on the Win7 QEMU VM (2026-08-31):
+
+1. PUA-codepoint frontend assets (`__iconCP` mapping) + PUA font subset
+   (the crash-free recipe used in the verified deployment), or
+2. ligature-name frontend assets + a full ligature-capable font
+   (heavier; not used by this port).
+
+Additionally, `index.html` variants that redirect `file://` →
+`http://127.0.0.1:60927` reach the same shaping crash path after
+navigation — use the no-redirect `index.html`. When swapping
+`server.mjs`/`cli.mjs` into an existing asar, keep the frontend assets
+and the font from the same build generation.

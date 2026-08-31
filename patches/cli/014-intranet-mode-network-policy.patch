@@ -1,0 +1,700 @@
+From: Win7 port restore
+Subject: [PATCH] cli/server: intranet mode network policy (telemetry, OAuth, WebSearch, WebFetch)
+
+The server/CLI half of intranet mode. Policy source of truth is the
+intranetMode boolean in ~/.claude/settings.json (written by the desktop
+through PUT /api/settings/user); src/utils/networkPolicy.ts reads it
+UNCACHED on every call, so flipping the switch affects already-running
+sessions on their next tool use — no restart, in either direction.
+
+  - Telemetry: isTelemetryEnabled() / BigQuery metrics / initializeTelemetry
+    all hard-return off under intranet mode, overriding an explicitly
+    enabled CLAUDE_CODE_ENABLE_TELEMETRY inherited from the user's shell.
+  - OAuth: start/callback endpoints throw a 403 INTRANET_MODE_DISABLED
+    ApiError (assertNotIntranetMode in errorHandler); status endpoints skip
+    ensureFreshTokens() (an outbound refresh) and report logged-out; the
+    bare /callback routers in server index return 403 too.
+  - WebSearch: resolveWebSearchProvider() disables every backend regardless
+    of configuration, and the model-facing output explains the policy
+    ("WebSearch is unavailable: intranet mode is enabled (内网模式已禁用
+    WebSearch). Do not retry; answer from the conversation and local files
+    instead.") instead of suggesting settings the user deliberately cannot
+    use.
+  - WebFetch: stays available for intranet services — the http→https
+    upgrade and the outbound domain-blocklist preflight are skipped under
+    intranet mode (internal docservers are plain http behind the firewall).
+  - conversationService.buildChildEnv() stamps CC_HAHA_INTRANET_MODE=1 and
+    CLAUDE_CODE_ENABLE_TELEMETRY=0 on CLI children (fallback for the case
+    where the settings file is unreadable, and to pin telemetry off for
+    sessions that started before the flip).
+  - PUT /api/settings/user broadcasts network_policy_changed to every
+    connected client so open windows update instantly.
+
+Tests: networkPolicy.test.ts (file/env resolution, flip pickup, message),
+WebSearch backend intranet cases.
+
+diff --git a/src/server/api/haha-grok-oauth.ts b/src/server/api/haha-grok-oauth.ts
+index 8febd90..42c7218 100644
+--- a/src/server/api/haha-grok-oauth.ts
++++ b/src/server/api/haha-grok-oauth.ts
+@@ -2,7 +2,8 @@ import {
+   GROK_OAUTH_SUCCESS_HTML,
+   hahaGrokOAuthService,
+ } from '../services/hahaGrokOAuthService.js'
+-import { errorResponse } from '../middleware/errorHandler.js'
++import { assertNotIntranetMode, errorResponse } from '../middleware/errorHandler.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ 
+ export async function handleHahaGrokOAuthApi(
+   req: Request,
+@@ -12,6 +13,8 @@ export async function handleHahaGrokOAuthApi(
+   try {
+     const action = segments[2]
+     if (action === 'start' && req.method === 'POST') {
++      // Intranet mode: authorize round-trip is an outbound internet call.
++      assertNotIntranetMode()
+       const session = await hahaGrokOAuthService.startSession()
+       return Response.json({
+         authorizeUrl: session.authorizeUrl,
+@@ -29,6 +32,10 @@ export async function handleHahaGrokOAuthApi(
+     }
+ 
+     if (action === undefined && req.method === 'GET') {
++      // Intranet mode: ensureFreshTokens() may fire an outbound refresh.
++      if (isIntranetModeEnabled()) {
++        return Response.json({ loggedIn: false, intranetMode: true })
++      }
+       const tokens = await hahaGrokOAuthService.ensureFreshTokens()
+       if (!tokens) return Response.json({ loggedIn: false })
+       return Response.json({
+diff --git a/src/server/api/haha-oauth.ts b/src/server/api/haha-oauth.ts
+index 2803d2d..962fbb6 100644
+--- a/src/server/api/haha-oauth.ts
++++ b/src/server/api/haha-oauth.ts
+@@ -11,7 +11,8 @@
+ 
+ import { z } from 'zod'
+ import { hahaOAuthService } from '../services/hahaOAuthService.js'
+-import { ApiError, errorResponse } from '../middleware/errorHandler.js'
++import { ApiError, assertNotIntranetMode, errorResponse } from '../middleware/errorHandler.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ 
+ const StartRequestSchema = z.object({
+   serverPort: z.number().int().positive(),
+@@ -33,6 +34,9 @@ export async function handleHahaOAuthApi(
+     const action = segments[2] // segments: ['api', 'haha-oauth', <action?>]
+ 
+     if (action === 'start' && req.method === 'POST') {
++      // Intranet mode: the authorize round-trip is an outbound internet
++      // call — refuse instead of handing the browser an unreachable URL.
++      assertNotIntranetMode()
+       let body: unknown
+       try {
+         body = await req.json()
+@@ -53,10 +57,17 @@ export async function handleHahaOAuthApi(
+     }
+ 
+     if (action === 'callback' && req.method === 'GET') {
++      // Token exchange hits the provider's token endpoint — outbound.
++      assertNotIntranetMode()
+       return handleHahaOAuthCallback(url)
+     }
+ 
+     if ((action === undefined || action === 'status') && req.method === 'GET') {
++      // Skip ensureFreshTokens(): a stale token would trigger an outbound
++      // refresh call. Report logged-out instead under intranet mode.
++      if (isIntranetModeEnabled()) {
++        return Response.json({ loggedIn: false, intranetMode: true })
++      }
+       const tokens = await hahaOAuthService.ensureFreshTokens()
+       if (!tokens) {
+         return Response.json({ loggedIn: false })
+diff --git a/src/server/api/haha-openai-oauth.ts b/src/server/api/haha-openai-oauth.ts
+index d2360ff..a990e62 100644
+--- a/src/server/api/haha-openai-oauth.ts
++++ b/src/server/api/haha-openai-oauth.ts
+@@ -10,7 +10,8 @@
+ 
+ import { z } from 'zod'
+ import { hahaOpenAIOAuthService } from '../services/hahaOpenAIOAuthService.js'
+-import { ApiError, errorResponse } from '../middleware/errorHandler.js'
++import { ApiError, assertNotIntranetMode, errorResponse } from '../middleware/errorHandler.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ 
+ const StartRequestSchema = z.object({
+   serverPort: z.number().int().positive(),
+@@ -32,6 +33,8 @@ export async function handleHahaOpenAIOAuthApi(
+     const action = segments[2] // segments: ['api', 'haha-openai-oauth', <action?>]
+ 
+     if (action === 'start' && req.method === 'POST') {
++      // Intranet mode: authorize round-trip is an outbound internet call.
++      assertNotIntranetMode()
+       let body: unknown
+       try {
+         body = await req.json()
+@@ -52,6 +55,10 @@ export async function handleHahaOpenAIOAuthApi(
+     }
+ 
+     if (action === undefined && req.method === 'GET') {
++      // Intranet mode: ensureFreshTokens() may fire an outbound refresh.
++      if (isIntranetModeEnabled()) {
++        return Response.json({ loggedIn: false, intranetMode: true })
++      }
+       const tokens = await hahaOpenAIOAuthService.ensureFreshTokens()
+       if (!tokens) {
+         return Response.json({ loggedIn: false })
+diff --git a/src/server/api/settings.ts b/src/server/api/settings.ts
+index 4f49cd1..b584784 100644
+--- a/src/server/api/settings.ts
++++ b/src/server/api/settings.ts
+@@ -14,6 +14,7 @@ import { SettingsService } from '../services/settingsService.js'
+ import { ApiError, errorResponse } from '../middleware/errorHandler.js'
+ import { ensureDesktopCliLauncherInstalled } from '../services/desktopCliLauncherService.js'
+ import { conversationService } from '../services/conversationService.js'
++import { broadcastNetworkPolicyChanged } from '../ws/handler.js'
+ import {
+   DEFAULT_OUTPUT_STYLE_NAME,
+   getAllOutputStyles,
+@@ -99,6 +100,7 @@ async function handleUserSettings(req: Request): Promise<Response> {
+     const body = await parseJsonBody(req)
+     await settingsService.updateUserSettings(body)
+     syncThinkingSettingToActiveSessions(body)
++    broadcastIntranetModeChange(body)
+     return Response.json({ ok: true })
+   }
+ 
+@@ -252,3 +254,19 @@ function syncThinkingSettingToActiveSessions(settings: Record<string, unknown>):
+     settings.alwaysThinkingEnabled ? null : 0,
+   )
+ }
++
++/**
++ * Intranet-mode toggle: tell every connected client the new policy state so
++ * open windows hide/show online components immediately. CLI sessions need no
++ * push — WebSearch/WebFetch/telemetry re-read the uncached flag per call,
++ * so already-open sessions pick the change up on their next tool use.
++ */
++function broadcastIntranetModeChange(settings: Record<string, unknown>): void {
++  if (
++    !Object.prototype.hasOwnProperty.call(settings, 'intranetMode') ||
++    typeof settings.intranetMode !== 'boolean'
++  ) {
++    return
++  }
++  broadcastNetworkPolicyChanged(settings.intranetMode)
++}
+diff --git a/src/server/index.ts b/src/server/index.ts
+index f705953..bebae2a 100644
+--- a/src/server/index.ts
++++ b/src/server/index.ts
+@@ -24,6 +24,7 @@ import { conversationService } from './services/conversationService.js'
+ import { OPENAI_CODEX_REDIRECT_PATH } from '../services/openaiAuth/client.js'
+ import { ensureDesktopCliLauncherInstalled } from './services/desktopCliLauncherService.js'
+ import { enableConfigs } from '../utils/config.js'
++import { isIntranetModeEnabled } from '../utils/networkPolicy.js'
+ import { diagnosticsService } from './services/diagnosticsService.js'
+ import { ensurePersistentStorageUpgraded } from './services/persistentStorageMigrations.js'
+ import { handleStaticH5Request } from './staticH5.js'
+@@ -425,6 +426,13 @@ export function startServer(port = PORT, host = HOST) {
+         }
+ 
+         if (url.pathname === '/callback') {
++          // Intranet mode: token exchange is an outbound internet call.
++          if (isIntranetModeEnabled()) {
++            return new Response(
++              'Intranet mode is enabled: OAuth login is disabled',
++              { status: 403 },
++            )
++          }
+           return handleHahaOAuthCallback(url)
+         }
+ 
+@@ -432,6 +440,13 @@ export function startServer(port = PORT, host = HOST) {
+           url.pathname === OPENAI_CODEX_REDIRECT_PATH ||
+           url.pathname === '/callback/openai'
+         ) {
++          // Intranet mode: token exchange is an outbound internet call.
++          if (isIntranetModeEnabled()) {
++            return new Response(
++              'Intranet mode is enabled: OAuth login is disabled',
++              { status: 403 },
++            )
++          }
+           return handleHahaOpenAIOAuthCallback(url)
+         }
+ 
+diff --git a/src/server/middleware/errorHandler.ts b/src/server/middleware/errorHandler.ts
+index e03c4af..665aa2f 100644
+--- a/src/server/middleware/errorHandler.ts
++++ b/src/server/middleware/errorHandler.ts
+@@ -3,6 +3,7 @@
+  */
+ 
+ import { diagnosticsService } from '../services/diagnosticsService.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ 
+ export class ApiError extends Error {
+   constructor(
+@@ -31,6 +32,25 @@ export class ApiError extends Error {
+   }
+ }
+ 
++/**
++ * Intranet-mode guard for internet-dependent endpoints (OAuth login flows).
++ * Reads the uncached policy flag, so flipping the toggle in settings takes
++ * effect on the very next request — no server restart.
++ */
++export function intranetModeDisabledError(): ApiError {
++  return new ApiError(
++    403,
++    'Intranet mode is enabled: this online flow is disabled (内网模式已禁用在线登录)',
++    'INTRANET_MODE_DISABLED',
++  )
++}
++
++export function assertNotIntranetMode(): void {
++  if (isIntranetModeEnabled()) {
++    throw intranetModeDisabledError()
++  }
++}
++
+ export function errorResponse(error: unknown): Response {
+   if (error instanceof ApiError) {
+     return Response.json(
+diff --git a/src/server/services/conversationService.ts b/src/server/services/conversationService.ts
+index c404f95..a400957 100644
+--- a/src/server/services/conversationService.ts
++++ b/src/server/services/conversationService.ts
+@@ -54,6 +54,7 @@ import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
+ import { findCanonicalGitRoot } from '../../utils/git.js'
+ import { sanitizePath } from '../../utils/path.js'
+ import { getProcessEnvWithTerminalShellEnvironment } from '../../utils/terminalShellEnvironment.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { attributionHeaderEnvForModel } from './attributionHeaderPolicy.js'
+ import {
+   buildNetworkEnvironment,
+@@ -1622,8 +1623,22 @@ export class ConversationService {
+       // unsafe path when private storage could not be prepared.
+     }
+ 
++    // Intranet mode: pin telemetry off on the CLI child (covers sessions
++    // whose CLI started before the flag flipped in settings.json — the
++    // initializeTelemetry gate reads the file, but CLAUDE_CODE_ENABLE_TELEMETRY
++    // from a user's shell would otherwise re-enable it) and stamp the policy
++    // so fallback paths (settings file unreadable) still see it.
++    let intranetModeEnv: Record<string, string> | undefined
++    if (isIntranetModeEnabled()) {
++      intranetModeEnv = {
++        CLAUDE_CODE_ENABLE_TELEMETRY: '0',
++        CC_HAHA_INTRANET_MODE: '1',
++      }
++    }
++
+     return {
+       ...cleanEnv,
++      ...intranetModeEnv,
+       CLAUDE_CODE_ENABLE_TASKS: '1',
+       CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: '1',
+       // Desktop must fail stuck provider streams instead of leaving the UI running forever.
+diff --git a/src/server/ws/events.ts b/src/server/ws/events.ts
+index daa4d11..bdb8365 100644
+--- a/src/server/ws/events.ts
++++ b/src/server/ws/events.ts
+@@ -115,6 +115,9 @@ export type ServerMessage =
+   // 恢复到进入 plan 前的模式、Shift+Tab 切换）时，把新模式回传给前端，让桌面端
+   // 选择器与 CLI 保持同步，而不是停留在本地影子值上。
+   | { type: 'permission_mode_changed'; mode: PermissionMode }
++  // 内网模式开关切换：广播给所有已连接客户端，让打开中的窗口立即
++  // 隐藏/恢复在线组件并刷新设置页开关，无需重载。
++  | { type: 'network_policy_changed'; intranetMode: boolean }
+   | {
+       type: 'api_retry'
+       attempt: number
+diff --git a/src/server/ws/handler.ts b/src/server/ws/handler.ts
+index 6a55cdc..16b6832 100644
+--- a/src/server/ws/handler.ts
++++ b/src/server/ws/handler.ts
+@@ -4441,6 +4441,26 @@ export function sendToSession(sessionId: string, message: ServerMessage): boolea
+   return true
+ }
+ 
++/**
++ * Broadcast an intranet-mode toggle to every connected client, so open
++ * windows re-read the policy immediately (hide/show online components,
++ * refresh the settings switch) without waiting for a reload. The CLI side
++ * needs no push: tools re-read the uncached flag per call.
++ */
++export function broadcastNetworkPolicyChanged(intranetMode: boolean): void {
++  const message: ServerMessage = {
++    type: 'network_policy_changed',
++    intranetMode,
++  }
++  for (const sockets of activeSessions.values()) {
++    for (const ws of sockets) {
++      if (ws.data.channel === 'client') {
++        sendMessage(ws, message)
++      }
++    }
++  }
++}
++
+ export function updateSessionSlashCommands(
+   sessionId: string,
+   commands: unknown[],
+diff --git a/src/tools/WebFetchTool/utils.ts b/src/tools/WebFetchTool/utils.ts
+index d1f5dfd..f6ce7d8 100644
+--- a/src/tools/WebFetchTool/utils.ts
++++ b/src/tools/WebFetchTool/utils.ts
+@@ -13,6 +13,7 @@ import {
+   persistBinaryContent,
+ } from '../../utils/mcpOutputStorage.js'
+ import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { asSystemPrompt } from '../../utils/systemPromptType.js'
+ import { isPreapprovedHost } from './preapproved.js'
+ import { makeSecondaryModelPrompt } from './prompt.js'
+@@ -385,8 +386,15 @@ export async function getURLMarkdownContent(
+   try {
+     parsedUrl = new URL(url)
+ 
++    // Intranet mode: intranet services are plain http behind the firewall;
++    // upgrading to https breaks every internal URL. Skip the upgrade (and
++    // the outbound blocklist preflight below) so internal docservers stay
++    // fetchable. Uncached policy read — toggle flips apply to running
++    // sessions on the next call.
++    const intranetMode = isIntranetModeEnabled()
++
+     // Upgrade http to https if needed
+-    if (parsedUrl.protocol === 'http:') {
++    if (parsedUrl.protocol === 'http:' && !intranetMode) {
+       parsedUrl.protocol = 'https:'
+       upgradedUrl = parsedUrl.toString()
+     }
+@@ -397,7 +405,7 @@ export async function getURLMarkdownContent(
+     // This is for enterprise customers with restrictive security policies
+     // that prevent outbound connections to claude.ai
+     const settings = getSettings_DEPRECATED()
+-    if (!shouldSkipWebFetchPreflight(settings)) {
++    if (!shouldSkipWebFetchPreflight(settings) && !intranetMode) {
+       const checkResult = await checkDomainBlocklist(hostname)
+       switch (checkResult.status) {
+         case 'allowed':
+diff --git a/src/tools/WebSearchTool/WebSearchTool.ts b/src/tools/WebSearchTool/WebSearchTool.ts
+index a49742f..582a1cb 100644
+--- a/src/tools/WebSearchTool/WebSearchTool.ts
++++ b/src/tools/WebSearchTool/WebSearchTool.ts
+@@ -28,6 +28,7 @@ import {
+   searchWithExternalProvider,
+   shouldFallbackFromNativeError,
+ } from './backend.js'
++import { INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE } from '../../utils/networkPolicy.js'
+ import { getWebSearchPrompt, WEB_SEARCH_TOOL_NAME } from './prompt.js'
+ import {
+   getToolUseSummary,
+@@ -254,7 +255,9 @@ export const WebSearchTool = buildTool({
+         data: makeWebSearchUnavailableOutput(
+           query,
+           durationSeconds,
+-          'Web search is not configured for this model. Use a Claude model for native web search or add a Tavily/Brave API key in Settings.',
++          resolved.disabledByIntranetMode
++            ? INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE
++            : 'Web search is not configured for this model. Use a Claude model for native web search or add a Tavily/Brave API key in Settings.',
+         ),
+       }
+     }
+diff --git a/src/tools/WebSearchTool/backend.test.ts b/src/tools/WebSearchTool/backend.test.ts
+index 772a3b5..557f665 100644
+--- a/src/tools/WebSearchTool/backend.test.ts
++++ b/src/tools/WebSearchTool/backend.test.ts
+@@ -53,6 +53,28 @@ describe('WebSearch backend resolver', () => {
+     ).toBe('brave')
+   })
+ 
++  test('intranet mode disables every backend regardless of configuration', () => {
++    // Even a fully configured Claude + fallback setup goes dark under
++    // intranet mode: every search backend is an outbound internet call.
++    const resolved = resolveWebSearchProvider(
++      'claude-sonnet-4-5',
++      { mode: 'auto', tavilyApiKey: 'tvly-key', braveApiKey: 'brave-key' },
++      true,
++    )
++    expect(resolved.provider).toBe('disabled')
++    expect(resolved.disabledByIntranetMode).toBe(true)
++
++    // Explicit anthropic mode is refused too.
++    expect(
++      resolveWebSearchProvider('claude-sonnet-4-5', { mode: 'anthropic' }, true).provider,
++    ).toBe('disabled')
++
++    // Off (default) keeps the normal resolution untouched.
++    expect(
++      resolveWebSearchProvider('claude-sonnet-4-5', { mode: 'auto' }, false).provider,
++    ).toBe('anthropic')
++  })
++
+   test('isEnabled reflects native Claude or external fallback availability', () => {
+     expect(isWebSearchEnabledForModel('claude-sonnet-4-5', { mode: 'auto' })).toBe(
+       true,
+diff --git a/src/tools/WebSearchTool/backend.ts b/src/tools/WebSearchTool/backend.ts
+index 281b8bd..6518a1d 100644
+--- a/src/tools/WebSearchTool/backend.ts
++++ b/src/tools/WebSearchTool/backend.ts
+@@ -1,5 +1,6 @@
+ import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
+ import type { SettingsJson } from '../../utils/settings/types.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import type { Input, Output, SearchResult } from './WebSearchTool.js'
+ 
+ export type WebSearchMode =
+@@ -20,6 +21,10 @@ export type WebSearchSettings = {
+ export type ResolvedWebSearch = {
+   provider: WebSearchProvider
+   settings: WebSearchSettings
++  /** Set when intranet mode forced the provider off — drives the
++   *  model-facing message so it explains the policy instead of suggesting
++   *  settings the user deliberately cannot use. */
++  disabledByIntranetMode?: boolean
+ }
+ 
+ type ExternalSearchHit = {
+@@ -65,7 +70,15 @@ export function getConfiguredWebSearchSettings(
+ export function resolveWebSearchProvider(
+   model: string | undefined,
+   settings: WebSearchSettings = getConfiguredWebSearchSettings(),
++  intranetMode: boolean = isIntranetModeEnabled(),
+ ): ResolvedWebSearch {
++  // Intranet mode: every search backend is an outbound internet call, so
++  // the tool is disabled regardless of configuration. Uncached policy read —
++  // flipping the toggle applies to already-running sessions.
++  if (intranetMode) {
++    return { provider: 'disabled', settings, disabledByIntranetMode: true }
++  }
++
+   const mode = settings.mode ?? 'auto'
+ 
+   if (mode === 'disabled') {
+diff --git a/src/utils/networkPolicy.test.ts b/src/utils/networkPolicy.test.ts
+new file mode 100644
+index 0000000..bbac43d
+--- /dev/null
++++ b/src/utils/networkPolicy.test.ts
+@@ -0,0 +1,89 @@
++import { afterEach, describe, expect, test } from 'bun:test'
++import fs from 'node:fs'
++import os from 'node:os'
++import path from 'node:path'
++import { isIntranetModeEnabled, INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE } from './networkPolicy.js'
++
++function writeSettings(dir: string, settings: Record<string, unknown> | null): void {
++  const settingsPath = path.join(dir, 'settings.json')
++  if (settings === null) {
++    fs.rmSync(settingsPath, { force: true })
++    return
++  }
++  fs.mkdirSync(dir, { recursive: true })
++  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
++}
++
++describe('isIntranetModeEnabled', () => {
++  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-haha-network-policy-'))
++  const configDir = path.join(tmpRoot, 'claude-config')
++
++  afterEach(() => {
++    fs.rmSync(configDir, { recursive: true, force: true })
++  })
++
++  test('reads intranetMode=true from the user settings file', () => {
++    writeSettings(configDir, { intranetMode: true })
++    expect(isIntranetModeEnabled({ CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv)).toBe(true)
++  })
++
++  test('reads intranetMode=false from the user settings file', () => {
++    writeSettings(configDir, { intranetMode: false })
++    expect(isIntranetModeEnabled({ CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv)).toBe(false)
++  })
++
++  test('missing flag defaults to off', () => {
++    writeSettings(configDir, { theme: 'dark' })
++    expect(isIntranetModeEnabled({ CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv)).toBe(false)
++  })
++
++  test('picks up a flip without process restart (uncached read)', () => {
++    writeSettings(configDir, { intranetMode: false })
++    const env = { CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv
++    expect(isIntranetModeEnabled(env)).toBe(false)
++    writeSettings(configDir, { intranetMode: true })
++    expect(isIntranetModeEnabled(env)).toBe(true)
++  })
++
++  test('settings file wins over the spawn-stamped env var', () => {
++    writeSettings(configDir, { intranetMode: false })
++    expect(
++      isIntranetModeEnabled({
++        CLAUDE_CONFIG_DIR: configDir,
++        CC_HAHA_INTRANET_MODE: '1',
++      } as NodeJS.ProcessEnv),
++    ).toBe(false)
++  })
++
++  test('falls back to CC_HAHA_INTRANET_MODE when the settings file is unreadable', () => {
++    writeSettings(configDir, null)
++    expect(
++      isIntranetModeEnabled({
++        CLAUDE_CONFIG_DIR: configDir,
++        CC_HAHA_INTRANET_MODE: '1',
++      } as NodeJS.ProcessEnv),
++    ).toBe(true)
++    expect(
++      isIntranetModeEnabled({
++        CLAUDE_CONFIG_DIR: configDir,
++        CC_HAHA_INTRANET_MODE: '0',
++      } as NodeJS.ProcessEnv),
++    ).toBe(false)
++  })
++
++  test('corrupt settings JSON falls back to the env var', () => {
++    fs.mkdirSync(configDir, { recursive: true })
++    fs.writeFileSync(path.join(configDir, 'settings.json'), '{not json')
++    expect(
++      isIntranetModeEnabled({
++        CLAUDE_CONFIG_DIR: configDir,
++        CC_HAHA_INTRANET_MODE: '1',
++      } as NodeJS.ProcessEnv),
++    ).toBe(true)
++  })
++
++  test('model-facing WebSearch message explains the policy in both languages', () => {
++    expect(INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE).toContain('intranet mode')
++    expect(INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE).toContain('内网模式已禁用 WebSearch')
++  })
++})
+diff --git a/src/utils/networkPolicy.ts b/src/utils/networkPolicy.ts
+new file mode 100644
+index 0000000..5acffa8
+--- /dev/null
++++ b/src/utils/networkPolicy.ts
+@@ -0,0 +1,67 @@
++/**
++ * Intranet mode (内网模式) — runtime policy gate.
++ *
++ * A single boolean in the user settings file (`intranetMode`) switches the
++ * whole app into an air-gapped posture: no outbound telemetry, no OAuth
++ * login flows, no update checks, WebSearch disabled with an explicit
++ * message to the model, and WebFetch stripped of its internet-facing
++ * preflights (domain blocklist + http→https upgrade) so plain-http
++ * intranet services stay fetchable.
++ *
++ * The flag lives in ~/.claude/settings.json — written by the desktop
++ * settings UI through the server's PUT /api/settings/user — so every
++ * process sharing that file observes the same policy. Reads are
++ * deliberately UNCACHED: a running CLI session must pick up a toggle
++ * flip on the very next tool call, without a restart (switching the
++ * toggle affects already-open sessions).
++ */
++
++import fs from 'node:fs'
++import os from 'node:os'
++import path from 'node:path'
++
++export const INTRANET_MODE_SETTINGS_KEY = 'intranetMode'
++
++function readIntranetModeFromFile(env: NodeJS.ProcessEnv): boolean | null {
++  const configDir = env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
++  const settingsPath = path.join(configDir, 'settings.json')
++  let raw: string
++  try {
++    raw = fs.readFileSync(settingsPath, 'utf8')
++  } catch {
++    return null
++  }
++  try {
++    const parsed = JSON.parse(raw) as Record<string, unknown>
++    return parsed?.[INTRANET_MODE_SETTINGS_KEY] === true ? true
++      : parsed?.[INTRANET_MODE_SETTINGS_KEY] === false ? false
++        : null
++  } catch {
++    return null
++  }
++}
++
++/**
++ * True when intranet mode is active.
++ *
++ * Resolution order:
++ *   1. ~/.claude/settings.json `intranetMode` (authoritative — flips take
++ *      effect immediately in running sessions)
++ *   2. CC_HAHA_INTRANET_MODE env ('1'/'0') — stamped on CLI children by the
++ *      server at spawn time; only consulted when the settings file is
++ *      unreadable, e.g. tests / stripped environments
++ */
++export function isIntranetModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
++  const fromFile = readIntranetModeFromFile(env)
++  if (fromFile !== null) return fromFile
++  return env.CC_HAHA_INTRANET_MODE === '1'
++}
++
++/**
++ * Error message surfaced to the MODEL when it tries to use WebSearch under
++ * intranet mode. The model needs an actionable explanation, not a bare
++ * "disabled" — it should stop retrying the tool for this session.
++ */
++export const INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE =
++  'WebSearch is unavailable: intranet mode is enabled (内网模式已禁用 WebSearch). ' +
++  'Do not retry; answer from the conversation and local files instead.'
+diff --git a/src/utils/telemetry/instrumentation.ts b/src/utils/telemetry/instrumentation.ts
+index 224f048..afff387 100644
+--- a/src/utils/telemetry/instrumentation.ts
++++ b/src/utils/telemetry/instrumentation.ts
+@@ -54,6 +54,7 @@ import { isEnvTruthy } from '../envUtils.js'
+ import { errorMessage } from '../errors.js'
+ import { getMTLSConfig } from '../mtls.js'
+ import { getProxyUrl, shouldBypassProxy } from '../proxy.js'
++import { isIntranetModeEnabled } from '../networkPolicy.js'
+ import { getSettings_DEPRECATED } from '../settings/settings.js'
+ import { jsonStringify } from '../slowOperations.js'
+ import { profileCheckpoint } from '../startupProfiler.js'
+@@ -322,6 +323,10 @@ async function getOtlpTraceExporters() {
+ }
+ 
+ export function isTelemetryEnabled() {
++  // Intranet mode overrides an explicitly enabled CLAUDE_CODE_ENABLE_TELEMETRY:
++  // the server stamps the env on CLI children, but interactive sessions started
++  // before the toggle flip would otherwise keep exporting.
++  if (isIntranetModeEnabled()) return false
+   return isEnvTruthy(process.env.CLAUDE_CODE_ENABLE_TELEMETRY)
+ }
+ 
+@@ -338,6 +343,7 @@ function isBigQueryMetricsEnabled() {
+   // 1. API customers (excluding Claude.ai subscribers and Bedrock/Vertex)
+   // 2. Claude for Enterprise (C4E) users
+   // 3. Claude for Teams users
++  if (isIntranetModeEnabled()) return false
+   const subscriptionType = getSubscriptionType()
+   const isC4EOrTeamUser =
+     isClaudeAISubscriber() &&
+@@ -422,6 +428,25 @@ export async function initializeTelemetry() {
+   profileCheckpoint('telemetry_init_start')
+   bootstrapTelemetry()
+ 
++  // Intranet mode: telemetry is off entirely — no OTLP exporters, no
++  // BigQuery metrics reader, no event logger. Air-gapped deployments must
++  // not emit usage data, and every exporter here is an outbound call.
++  // The policy read is uncached so the flag in ~/.claude/settings.json is
++  // authoritative even when this runs before the server stamps the env.
++  if (isIntranetModeEnabled()) {
++    const intranetResource = resourceFromAttributes({
++      [ATTR_SERVICE_NAME]: 'claude-code',
++      [ATTR_SERVICE_VERSION]: MACRO.VERSION,
++    })
++    const meterProvider = new MeterProvider({
++      resource: intranetResource,
++      views: [],
++      readers: [],
++    })
++    setMeterProvider(meterProvider)
++    return meterProvider.getMeter('com.anthropic.claude_code', MACRO.VERSION)
++  }
++
+   // Console exporters call console.dir on a timer (5s logs/traces, 60s
+   // metrics), writing pretty-printed objects to stdout. In stream-json
+   // mode stdout is the SDK message channel; the first line (`{`) breaks
