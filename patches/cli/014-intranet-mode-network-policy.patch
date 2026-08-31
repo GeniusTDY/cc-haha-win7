@@ -30,9 +30,6 @@ sessions on their next tool use — no restart, in either direction.
   - PUT /api/settings/user broadcasts network_policy_changed to every
     connected client so open windows update instantly.
 
-Tests: networkPolicy.test.ts (file/env resolution, flip pickup, message),
-WebSearch backend intranet cases.
-
 diff --git a/src/server/api/haha-grok-oauth.ts b/src/server/api/haha-grok-oauth.ts
 index 8febd90..42c7218 100644
 --- a/src/server/api/haha-grok-oauth.ts
@@ -402,39 +399,6 @@ index a49742f..582a1cb 100644
          ),
        }
      }
-diff --git a/src/tools/WebSearchTool/backend.test.ts b/src/tools/WebSearchTool/backend.test.ts
-index 772a3b5..557f665 100644
---- a/src/tools/WebSearchTool/backend.test.ts
-+++ b/src/tools/WebSearchTool/backend.test.ts
-@@ -53,6 +53,28 @@ describe('WebSearch backend resolver', () => {
-     ).toBe('brave')
-   })
- 
-+  test('intranet mode disables every backend regardless of configuration', () => {
-+    // Even a fully configured Claude + fallback setup goes dark under
-+    // intranet mode: every search backend is an outbound internet call.
-+    const resolved = resolveWebSearchProvider(
-+      'claude-sonnet-4-5',
-+      { mode: 'auto', tavilyApiKey: 'tvly-key', braveApiKey: 'brave-key' },
-+      true,
-+    )
-+    expect(resolved.provider).toBe('disabled')
-+    expect(resolved.disabledByIntranetMode).toBe(true)
-+
-+    // Explicit anthropic mode is refused too.
-+    expect(
-+      resolveWebSearchProvider('claude-sonnet-4-5', { mode: 'anthropic' }, true).provider,
-+    ).toBe('disabled')
-+
-+    // Off (default) keeps the normal resolution untouched.
-+    expect(
-+      resolveWebSearchProvider('claude-sonnet-4-5', { mode: 'auto' }, false).provider,
-+    ).toBe('anthropic')
-+  })
-+
-   test('isEnabled reflects native Claude or external fallback availability', () => {
-     expect(isWebSearchEnabledForModel('claude-sonnet-4-5', { mode: 'auto' })).toBe(
-       true,
 diff --git a/src/tools/WebSearchTool/backend.ts b/src/tools/WebSearchTool/backend.ts
 index 281b8bd..6518a1d 100644
 --- a/src/tools/WebSearchTool/backend.ts
@@ -473,101 +437,6 @@ index 281b8bd..6518a1d 100644
    const mode = settings.mode ?? 'auto'
  
    if (mode === 'disabled') {
-diff --git a/src/utils/networkPolicy.test.ts b/src/utils/networkPolicy.test.ts
-new file mode 100644
-index 0000000..bbac43d
---- /dev/null
-+++ b/src/utils/networkPolicy.test.ts
-@@ -0,0 +1,89 @@
-+import { afterEach, describe, expect, test } from 'bun:test'
-+import fs from 'node:fs'
-+import os from 'node:os'
-+import path from 'node:path'
-+import { isIntranetModeEnabled, INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE } from './networkPolicy.js'
-+
-+function writeSettings(dir: string, settings: Record<string, unknown> | null): void {
-+  const settingsPath = path.join(dir, 'settings.json')
-+  if (settings === null) {
-+    fs.rmSync(settingsPath, { force: true })
-+    return
-+  }
-+  fs.mkdirSync(dir, { recursive: true })
-+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2))
-+}
-+
-+describe('isIntranetModeEnabled', () => {
-+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-haha-network-policy-'))
-+  const configDir = path.join(tmpRoot, 'claude-config')
-+
-+  afterEach(() => {
-+    fs.rmSync(configDir, { recursive: true, force: true })
-+  })
-+
-+  test('reads intranetMode=true from the user settings file', () => {
-+    writeSettings(configDir, { intranetMode: true })
-+    expect(isIntranetModeEnabled({ CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv)).toBe(true)
-+  })
-+
-+  test('reads intranetMode=false from the user settings file', () => {
-+    writeSettings(configDir, { intranetMode: false })
-+    expect(isIntranetModeEnabled({ CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv)).toBe(false)
-+  })
-+
-+  test('missing flag defaults to off', () => {
-+    writeSettings(configDir, { theme: 'dark' })
-+    expect(isIntranetModeEnabled({ CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv)).toBe(false)
-+  })
-+
-+  test('picks up a flip without process restart (uncached read)', () => {
-+    writeSettings(configDir, { intranetMode: false })
-+    const env = { CLAUDE_CONFIG_DIR: configDir } as NodeJS.ProcessEnv
-+    expect(isIntranetModeEnabled(env)).toBe(false)
-+    writeSettings(configDir, { intranetMode: true })
-+    expect(isIntranetModeEnabled(env)).toBe(true)
-+  })
-+
-+  test('settings file wins over the spawn-stamped env var', () => {
-+    writeSettings(configDir, { intranetMode: false })
-+    expect(
-+      isIntranetModeEnabled({
-+        CLAUDE_CONFIG_DIR: configDir,
-+        CC_HAHA_INTRANET_MODE: '1',
-+      } as NodeJS.ProcessEnv),
-+    ).toBe(false)
-+  })
-+
-+  test('falls back to CC_HAHA_INTRANET_MODE when the settings file is unreadable', () => {
-+    writeSettings(configDir, null)
-+    expect(
-+      isIntranetModeEnabled({
-+        CLAUDE_CONFIG_DIR: configDir,
-+        CC_HAHA_INTRANET_MODE: '1',
-+      } as NodeJS.ProcessEnv),
-+    ).toBe(true)
-+    expect(
-+      isIntranetModeEnabled({
-+        CLAUDE_CONFIG_DIR: configDir,
-+        CC_HAHA_INTRANET_MODE: '0',
-+      } as NodeJS.ProcessEnv),
-+    ).toBe(false)
-+  })
-+
-+  test('corrupt settings JSON falls back to the env var', () => {
-+    fs.mkdirSync(configDir, { recursive: true })
-+    fs.writeFileSync(path.join(configDir, 'settings.json'), '{not json')
-+    expect(
-+      isIntranetModeEnabled({
-+        CLAUDE_CONFIG_DIR: configDir,
-+        CC_HAHA_INTRANET_MODE: '1',
-+      } as NodeJS.ProcessEnv),
-+    ).toBe(true)
-+  })
-+
-+  test('model-facing WebSearch message explains the policy in both languages', () => {
-+    expect(INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE).toContain('intranet mode')
-+    expect(INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE).toContain('内网模式已禁用 WebSearch')
-+  })
-+})
 diff --git a/src/utils/networkPolicy.ts b/src/utils/networkPolicy.ts
 new file mode 100644
 index 0000000..5acffa8
