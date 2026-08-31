@@ -34,78 +34,6 @@ Main-process gates (authoritative, uncached settings read per call):
 
 Locales: en / zh / zh-TW / jp / kr.
 
-diff --git a/desktop/electron/services/intranetMode.test.ts b/desktop/electron/services/intranetMode.test.ts
-new file mode 100644
-index 0000000..92ed914
---- /dev/null
-+++ b/desktop/electron/services/intranetMode.test.ts
-@@ -0,0 +1,66 @@
-+import fs from 'node:fs'
-+import os from 'node:os'
-+import path from 'node:path'
-+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-+import { intranetModeSettingsPath, isIntranetModeEnabled } from './intranetMode'
-+
-+describe('electron intranet mode reader', () => {
-+  let root: string
-+  let homeDir: string
-+
-+  beforeEach(() => {
-+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-haha-intranet-mode-'))
-+    homeDir = path.join(root, 'home')
-+    fs.mkdirSync(homeDir, { recursive: true })
-+  })
-+
-+  afterEach(() => {
-+    fs.rmSync(root, { recursive: true, force: true })
-+  })
-+
-+  function writeSettings(settings: Record<string, unknown>, env: NodeJS.ProcessEnv = {}) {
-+    const settingsPath = intranetModeSettingsPath(env, homeDir)
-+    fs.mkdirSync(path.dirname(settingsPath), { recursive: true })
-+    fs.writeFileSync(settingsPath, JSON.stringify(settings))
-+    return settingsPath
-+  }
-+
-+  it('reads intranetMode=true from ~/.claude/settings.json', () => {
-+    writeSettings({ intranetMode: true, theme: 'dark' })
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(true)
-+  })
-+
-+  it('reads intranetMode=false', () => {
-+    writeSettings({ intranetMode: false })
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(false)
-+  })
-+
-+  it('missing flag / missing file defaults to off', () => {
-+    writeSettings({ theme: 'dark' })
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(false)
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(false)
-+  })
-+
-+  it('honors CLAUDE_CONFIG_DIR over the home fallback', () => {
-+    const customDir = path.join(root, 'portable-config')
-+    fs.mkdirSync(customDir, { recursive: true })
-+    fs.writeFileSync(path.join(customDir, 'settings.json'), JSON.stringify({ intranetMode: true }))
-+    // Home fallback stays off while the override dir is on.
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(false)
-+    expect(isIntranetModeEnabled({ CLAUDE_CONFIG_DIR: customDir }, homeDir)).toBe(true)
-+  })
-+
-+  it('picks up a flip without an app restart (uncached read)', () => {
-+    const settingsPath = writeSettings({ intranetMode: false })
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(false)
-+    fs.writeFileSync(settingsPath, JSON.stringify({ intranetMode: true }))
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(true)
-+  })
-+
-+  it('corrupt settings JSON falls back to off', () => {
-+    const settingsPath = intranetModeSettingsPath({}, homeDir)
-+    fs.mkdirSync(path.dirname(settingsPath), { recursive: true })
-+    fs.writeFileSync(settingsPath, '{ broken')
-+    expect(isIntranetModeEnabled({}, homeDir)).toBe(false)
-+  })
-+})
 diff --git a/desktop/electron/services/intranetMode.ts b/desktop/electron/services/intranetMode.ts
 new file mode 100644
 index 0000000..4e32a91
@@ -156,41 +84,6 @@ index 0000000..4e32a91
 +    return false
 +  }
 +}
-diff --git a/desktop/electron/services/shell.test.ts b/desktop/electron/services/shell.test.ts
-index 8145c27..21aafeb 100644
---- a/desktop/electron/services/shell.test.ts
-+++ b/desktop/electron/services/shell.test.ts
-@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
- import { chmodSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
- import { homedir, tmpdir } from 'node:os'
- import { join } from 'node:path'
--import { expandTildePath, normalizeExternalUrl, normalizeOpenPath, normalizeSystemSettingsUrl } from './shell'
-+import { expandTildePath, normalizeExternalUrl, normalizeOpenPath, normalizeSystemSettingsUrl, openExternalUrl } from './shell'
- 
- describe('Electron shell service', () => {
-   it('allows only explicit external URL schemes', () => {
-@@ -57,4 +57,21 @@ describe('Electron shell service', () => {
-     )
-     expect(() => normalizeSystemSettingsUrl('ms-settings:privacy')).toThrow('Unsupported system settings URL')
-   })
-+
-+  it('refuses http(s) external links under intranet mode without loading the shell module', async () => {
-+    const configDir = mkdtempSync(join(tmpdir(), 'cc-haha-shell-intranet-'))
-+    const prevConfigDir = process.env.CLAUDE_CONFIG_DIR
-+    process.env.CLAUDE_CONFIG_DIR = configDir
-+    try {
-+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ intranetMode: true }))
-+      // The gate runs before `await import('electron')`, so the rejection
-+      // proves the intranet check itself fired (not an electron load failure).
-+      await expect(openExternalUrl('https://example.com/path')).rejects.toThrow('Intranet mode is enabled')
-+      await expect(openExternalUrl('http://example.com/')).rejects.toThrow('Intranet mode is enabled')
-+    } finally {
-+      if (prevConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR
-+      else process.env.CLAUDE_CONFIG_DIR = prevConfigDir
-+      rmSync(configDir, { recursive: true, force: true })
-+    }
-+  })
- })
 diff --git a/desktop/electron/services/shell.ts b/desktop/electron/services/shell.ts
 index 74c70ea..4fb0ef2 100644
 --- a/desktop/electron/services/shell.ts
@@ -221,52 +114,6 @@ index 74c70ea..4fb0ef2 100644
  }
  
  export function normalizeSystemSettingsUrl(target: string): string {
-diff --git a/desktop/electron/services/updater.test.ts b/desktop/electron/services/updater.test.ts
-index d3acf71..3ac0373 100644
---- a/desktop/electron/services/updater.test.ts
-+++ b/desktop/electron/services/updater.test.ts
-@@ -1,6 +1,6 @@
- import { describe, expect, it, vi } from 'vitest'
- import { ElectronUpdaterService, normalizeUpdateInfo, updaterSessionProxyConfig, type ElectronUpdaterLike } from './updater'
--import { mkdtempSync, rmSync } from 'node:fs'
-+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
- import { tmpdir } from 'node:os'
- import { join } from 'node:path'
- 
-@@ -99,6 +99,33 @@ describe('Electron updater service', () => {
-     }
-   })
- 
-+  it('cuts update checks off under intranet mode and forgets the pending update', async () => {
-+    const localUpdater = fakeUpdater()
-+    localUpdater.checkForUpdates.mockResolvedValue({ updateInfo: { version: '1.2.3', body: 'Fixes' } })
-+    const configDir = mkdtempSync(join(tmpdir(), 'cc-haha-updater-intranet-'))
-+    const settingsPath = join(configDir, 'settings.json')
-+    const prevConfigDir = process.env.CLAUDE_CONFIG_DIR
-+    process.env.CLAUDE_CONFIG_DIR = configDir
-+    try {
-+      writeFileSync(settingsPath, JSON.stringify({ intranetMode: false }))
-+      const service = new ElectronUpdaterService(localUpdater)
-+      await expect(service.checkForUpdates()).resolves.toEqual({ version: '1.2.3', body: 'Fixes' })
-+
-+      // Flip the shared settings toggle — the next check must refuse without
-+      // touching electron-updater and drop the pending update, so a later
-+      // download attempt has nothing to act on.
-+      writeFileSync(settingsPath, JSON.stringify({ intranetMode: true }))
-+      localUpdater.checkForUpdates.mockClear()
-+      await expect(service.checkForUpdates()).resolves.toBeNull()
-+      expect(localUpdater.checkForUpdates).not.toHaveBeenCalled()
-+      await expect(service.downloadUpdate(() => {})).rejects.toThrow('No Electron update is available to download')
-+    } finally {
-+      if (prevConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR
-+      else process.env.CLAUDE_CONFIG_DIR = prevConfigDir
-+      rmSync(configDir, { recursive: true, force: true })
-+    }
-+  })
-+
-   it('treats missing GitHub channel metadata as no update', async () => {
-     const service = new ElectronUpdaterService(updater)
-     updater.checkForUpdates.mockRejectedValueOnce(Object.assign(
 diff --git a/desktop/electron/services/updater.ts b/desktop/electron/services/updater.ts
 index d430d85..a80c151 100644
 --- a/desktop/electron/services/updater.ts
