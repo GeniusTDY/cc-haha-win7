@@ -30,6 +30,33 @@ sessions on their next tool use — no restart, in either direction.
   - PUT /api/settings/user broadcasts network_policy_changed to every
     connected client so open windows update instantly.
 
+Audit pass — every remaining app-initiated outbound call is gated so that
+"the app stops all internet access it initiates" holds with no leftovers:
+
+  - API preconnect warmup (apiPreconnect.ts): skipped — pure optimization,
+    the real request handshakes fresh if it is ever allowed.
+  - MCP official-registry prefetch (mcp/officialRegistry.ts): skipped —
+    the registry lives on api.anthropic.com and isOfficialMcpUrl() already
+    fails closed (undefined registry → false).
+  - Release-notes changelog fetch (releaseNotes.ts): skipped — raw
+    .githubusercontent.com is unreachable; the local cache is kept.
+  - Skills market server-side gate (server/services/market/providerFetch.ts):
+    authoritative MarketUpstreamError before any proxied fetch — hiding
+    the UI is not enough, H5/direct API callers are refused too.
+  - Settings sync up/down (settingsSync/index.ts), remote managed settings
+    eligibility (remoteManagedSettings/syncCache.ts — checked before the
+    cache so a toggle flip takes effect immediately), and team memory sync
+    (teamMemorySync/index.ts): all hard-off — they talk to claude.ai.
+  - Usage limits (api/usage.ts → null), referral eligibility/redemptions
+    (api/referral.ts → not-eligible/empty): degrade to inert shapes
+    instead of reaching out with a stored OAuth token.
+  - Voice-stream STT availability (voiceStreamSTT.ts): never available —
+    the WebSocket goes to Anthropic.
+  - RemoteTriggerTool: fails fast with an actionable "do not retry" error
+    (the CCR API lives on claude.ai).
+  - BriefTool attachment upload: skipped silently (local-only briefs stay
+    fully functional).
+
 diff --git a/src/server/api/haha-grok-oauth.ts b/src/server/api/haha-grok-oauth.ts
 index 8febd90..42c7218 100644
 --- a/src/server/api/haha-grok-oauth.ts
@@ -293,6 +320,38 @@ index c404f95..a400957 100644
        CLAUDE_CODE_ENABLE_TASKS: '1',
        CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: '1',
        // Desktop must fail stuck provider streams instead of leaving the UI running forever.
+diff --git a/src/server/services/market/providerFetch.ts b/src/server/services/market/providerFetch.ts
+index 0bd52d9..21c0e7d 100644
+--- a/src/server/services/market/providerFetch.ts
++++ b/src/server/services/market/providerFetch.ts
+@@ -10,6 +10,7 @@ import {
+   getNetworkProxyFetchOptions,
+   loadNetworkSettings,
+ } from '../networkSettings.js'
++import { isIntranetModeEnabled } from '../../../utils/networkPolicy.js'
+ import { recordSourceFailure, recordSourceSuccess } from './cache.js'
+ import { MARKET_ERROR_CODES, MarketUpstreamError, type MarketSource } from './types.js'
+ 
+@@ -100,6 +101,19 @@ async function fetchOnce(source: MarketSource, url: string): Promise<Response> {
+ }
+ 
+ export async function providerFetch(source: MarketSource, url: string): Promise<Response> {
++  // Intranet mode: authoritative server-side gate. The desktop UI hides the
++  // skill market, but any other client (H5 browser, direct API call) must be
++  // refused here rather than having the server proxy an outbound request.
++  if (isIntranetModeEnabled()) {
++    const error = new MarketUpstreamError(
++      source,
++      MARKET_ERROR_CODES.upstreamError,
++      'Skills market unavailable: intranet mode is enabled (内网模式已停用技能市场)',
++    )
++    recordSourceFailure(source, error.message)
++    throw error
++  }
++
+   if (isProviderDisabled(source)) {
+     const error = new MarketUpstreamError(source, MARKET_ERROR_CODES.upstreamError, `${source} provider disabled`)
+     recordSourceFailure(source, error.message)
 diff --git a/src/server/ws/events.ts b/src/server/ws/events.ts
 index daa4d11..bdb8365 100644
 --- a/src/server/ws/events.ts
@@ -338,6 +397,254 @@ index 6a55cdc..16b6832 100644
  export function updateSessionSlashCommands(
    sessionId: string,
    commands: unknown[],
+diff --git a/src/services/api/referral.ts b/src/services/api/referral.ts
+index 13cdc9f..ef3cd65 100644
+--- a/src/services/api/referral.ts
++++ b/src/services/api/referral.ts
+@@ -8,6 +8,7 @@ import {
+ import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+ import { logForDebugging } from '../../utils/debug.js'
+ import { logError } from '../../utils/log.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { isEssentialTrafficOnly } from '../../utils/privacyLevel.js'
+ import { getOAuthHeaders, prepareApiRequest } from '../../utils/teleport/api.js'
+ import type {
+@@ -26,6 +27,12 @@ let fetchInProgress: Promise<ReferralEligibilityResponse | null> | null = null
+ export async function fetchReferralEligibility(
+   campaign: ReferralCampaign = 'claude_code_guest_pass',
+ ): Promise<ReferralEligibilityResponse> {
++  // Intranet mode: referral data lives on claude.ai — degrade to the
++  // "not eligible" shape instead of reaching out with a stored token.
++  if (isIntranetModeEnabled()) {
++    return { eligible: false, reason: 'intranet_mode' } as ReferralEligibilityResponse
++  }
++
+   const { accessToken, orgUUID } = await prepareApiRequest()
+ 
+   const headers = {
+@@ -47,6 +54,11 @@ export async function fetchReferralEligibility(
+ export async function fetchReferralRedemptions(
+   campaign: string = 'claude_code_guest_pass',
+ ): Promise<ReferralRedemptionsResponse> {
++  // Intranet mode: redemption history lives on claude.ai — return empty.
++  if (isIntranetModeEnabled()) {
++    return { redemptions: [] } as ReferralRedemptionsResponse
++  }
++
+   const { accessToken, orgUUID } = await prepareApiRequest()
+ 
+   const headers = {
+diff --git a/src/services/api/usage.ts b/src/services/api/usage.ts
+index 6e2e106..0429a37 100644
+--- a/src/services/api/usage.ts
++++ b/src/services/api/usage.ts
+@@ -6,6 +6,7 @@ import {
+   isClaudeAISubscriber,
+ } from '../../utils/auth.js'
+ import { getAuthHeaders } from '../../utils/http.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
+ import { isOAuthTokenExpired } from '../oauth/client.js'
+ 
+@@ -31,6 +32,12 @@ export type Utilization = {
+ }
+ 
+ export async function fetchUtilization(): Promise<Utilization | null> {
++  // Intranet mode: usage data lives on claude.ai — degrade to "unknown"
++  // (null) instead of reaching out with a stored OAuth token.
++  if (isIntranetModeEnabled()) {
++    return null
++  }
++
+   if (!isClaudeAISubscriber() || !hasProfileScope()) {
+     return {}
+   }
+diff --git a/src/services/mcp/officialRegistry.ts b/src/services/mcp/officialRegistry.ts
+index 3e26292..3d255f2 100644
+--- a/src/services/mcp/officialRegistry.ts
++++ b/src/services/mcp/officialRegistry.ts
+@@ -1,6 +1,7 @@
+ import axios from 'axios'
+ import { logForDebugging } from '../../utils/debug.js'
+ import { errorMessage } from '../../utils/errors.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ 
+ type RegistryServer = {
+   server: {
+@@ -35,6 +36,13 @@ export async function prefetchOfficialMcpUrls(): Promise<void> {
+     return
+   }
+ 
++  // Intranet mode: the registry lives on api.anthropic.com — air-gapped
++  // deployments must not reach out. isOfficialMcpUrl() already fails closed
++  // (undefined registry → false), so skipping the prefetch is safe.
++  if (isIntranetModeEnabled()) {
++    return
++  }
++
+   try {
+     const response = await axios.get<RegistryResponse>(
+       'https://api.anthropic.com/mcp-registry/v0/servers?version=latest&visibility=commercial',
+diff --git a/src/services/remoteManagedSettings/syncCache.ts b/src/services/remoteManagedSettings/syncCache.ts
+index 73bfb5f..46e4734 100644
+--- a/src/services/remoteManagedSettings/syncCache.ts
++++ b/src/services/remoteManagedSettings/syncCache.ts
+@@ -16,6 +16,7 @@ import {
+   getAPIProvider,
+   isFirstPartyAnthropicBaseUrl,
+ } from '../../utils/model/providers.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ 
+ import {
+   resetSyncCache as resetLeafCache,
+@@ -47,6 +48,13 @@ export function resetSyncCache(): void {
+  * getSettings() to avoid circular dependencies during settings loading.
+  */
+ export function isRemoteManagedSettingsEligible(): boolean {
++  // Intranet mode: checked BEFORE the cache so a toggle flip takes effect
++  // immediately in running sessions — remote managed settings live on
++  // claude.ai and must never be fetched in an air-gapped deployment.
++  if (isIntranetModeEnabled()) {
++    return false
++  }
++
+   if (cached !== undefined) return cached
+ 
+   if (process.env.CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH === '1') {
+diff --git a/src/services/settingsSync/index.ts b/src/services/settingsSync/index.ts
+index 2d392b7..7233220 100644
+--- a/src/services/settingsSync/index.ts
++++ b/src/services/settingsSync/index.ts
+@@ -38,6 +38,7 @@ import { getSettingsFilePathForSource } from '../../utils/settings/settings.js'
+ import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
+ import { sleep } from '../../utils/sleep.js'
+ import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
+ import { logEvent } from '../analytics/index.js'
+ import { getRetryDelay } from '../api/withRetry.js'
+@@ -60,6 +61,9 @@ const MAX_FILE_SIZE_BYTES = 500 * 1024 // 500 KB per file (matches backend limit
+ export async function uploadUserSettingsInBackground(): Promise<void> {
+   try {
+     if (
++      // Intranet mode: settings sync talks to claude.ai — air-gapped
++      // deployments must neither upload nor download.
++      isIntranetModeEnabled() ||
+       !feature('UPLOAD_USER_SETTINGS') ||
+       !getFeatureValue_CACHED_MAY_BE_STALE(
+         'tengu_enable_settings_sync_push',
+@@ -160,6 +164,8 @@ async function doDownloadUserSettings(
+   if (feature('DOWNLOAD_USER_SETTINGS')) {
+     try {
+       if (
++        // Intranet mode: never fetch settings from claude.ai.
++        isIntranetModeEnabled() ||
+         !getFeatureValue_CACHED_MAY_BE_STALE('tengu_strap_foyer', false) ||
+         !isUsingOAuth()
+       ) {
+diff --git a/src/services/teamMemorySync/index.ts b/src/services/teamMemorySync/index.ts
+index ef66940..d6e50e0 100644
+--- a/src/services/teamMemorySync/index.ts
++++ b/src/services/teamMemorySync/index.ts
+@@ -54,6 +54,7 @@ import {
+ import { sleep } from '../../utils/sleep.js'
+ import { jsonStringify } from '../../utils/slowOperations.js'
+ import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { logEvent } from '../analytics/index.js'
+ import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../analytics/metadata.js'
+ import { getRetryDelay } from '../api/withRetry.js'
+@@ -760,6 +761,11 @@ async function writeRemoteEntriesToLocal(
+  * Check if team memory sync is available (requires first-party OAuth).
+  */
+ export function isTeamMemorySyncAvailable(): boolean {
++  // Intranet mode: team memory sync pulls from claude.ai — unavailable in
++  // air-gapped deployments even with a valid stored OAuth token.
++  if (isIntranetModeEnabled()) {
++    return false
++  }
+   return isUsingOAuth()
+ }
+ 
+diff --git a/src/services/voiceStreamSTT.ts b/src/services/voiceStreamSTT.ts
+index e1c86f7..f6183cf 100644
+--- a/src/services/voiceStreamSTT.ts
++++ b/src/services/voiceStreamSTT.ts
+@@ -24,6 +24,7 @@ import { getUserAgent } from '../utils/http.js'
+ import { logError } from '../utils/log.js'
+ import { getWebSocketTLSOptions } from '../utils/mtls.js'
+ import { getWebSocketProxyAgent, getWebSocketProxyUrl } from '../utils/proxy.js'
++import { isIntranetModeEnabled } from '../utils/networkPolicy.js'
+ import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
+ 
+ const KEEPALIVE_MSG = '{"type":"KeepAlive"}'
+@@ -99,6 +100,11 @@ export function isVoiceStreamAvailable(): boolean {
+   // voice_stream uses the same OAuth as Claude Code — available when the
+   // user is authenticated with Anthropic (Claude.ai subscriber or has
+   // valid OAuth tokens).
++  // Intranet mode: the STT WebSocket goes to Anthropic — never available
++  // in an air-gapped deployment.
++  if (isIntranetModeEnabled()) {
++    return false
++  }
+   if (!isAnthropicAuthEnabled()) {
+     return false
+   }
+diff --git a/src/tools/BriefTool/upload.ts b/src/tools/BriefTool/upload.ts
+index 306e6f4..ae68396 100644
+--- a/src/tools/BriefTool/upload.ts
++++ b/src/tools/BriefTool/upload.ts
+@@ -25,6 +25,7 @@ import {
+ } from '../../bridge/bridgeConfig.js'
+ import { getOauthConfig } from '../../constants/oauth.js'
+ import { logForDebugging } from '../../utils/debug.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { lazySchema } from '../../utils/lazySchema.js'
+ import { jsonStringify } from '../../utils/slowOperations.js'
+ 
+@@ -94,6 +95,13 @@ export async function uploadBriefAttachment(
+   size: number,
+   ctx: BriefUploadContext,
+ ): Promise<string | undefined> {
++  // Intranet mode: brief attachments upload to claude.ai — skip silently
++  // (local-only briefs remain fully functional).
++  if (isIntranetModeEnabled()) {
++    debug('skip: intranet mode enabled')
++    return undefined
++  }
++
+   // Positive pattern so bun:bundle eliminates the entire body from
+   // non-BRIDGE_MODE builds (negative `if (!feature(...)) return` does not).
+   if (feature('BRIDGE_MODE')) {
+diff --git a/src/tools/RemoteTriggerTool/RemoteTriggerTool.ts b/src/tools/RemoteTriggerTool/RemoteTriggerTool.ts
+index 8e623a1..03fcf2f 100644
+--- a/src/tools/RemoteTriggerTool/RemoteTriggerTool.ts
++++ b/src/tools/RemoteTriggerTool/RemoteTriggerTool.ts
+@@ -10,6 +10,7 @@ import {
+   checkAndRefreshOAuthTokenIfNeeded,
+   getClaudeAIOAuthTokens,
+ } from '../../utils/auth.js'
++import { isIntranetModeEnabled } from '../../utils/networkPolicy.js'
+ import { lazySchema } from '../../utils/lazySchema.js'
+ import { jsonStringify } from '../../utils/slowOperations.js'
+ import { DESCRIPTION, PROMPT, REMOTE_TRIGGER_TOOL_NAME } from './prompt.js'
+@@ -76,6 +77,16 @@ export const RemoteTriggerTool = buildTool({
+     return PROMPT
+   },
+   async call(input: Input, context: ToolUseContext) {
++    // Intranet mode: remote triggers are managed through the claude.ai CCR
++    // API — unreachable in an air-gapped deployment. Fail fast with an
++    // actionable message so the model stops retrying the tool.
++    if (isIntranetModeEnabled()) {
++      throw new Error(
++        'RemoteTrigger is unavailable: intranet mode is enabled (内网模式已停用远程触发器). ' +
++          'Do not retry; remote triggers require claude.ai access.',
++      )
++    }
++
+     await checkAndRefreshOAuthTokenIfNeeded()
+     const accessToken = getClaudeAIOAuthTokens()?.accessToken
+     if (!accessToken) {
 diff --git a/src/tools/WebFetchTool/utils.ts b/src/tools/WebFetchTool/utils.ts
 index d1f5dfd..f6ce7d8 100644
 --- a/src/tools/WebFetchTool/utils.ts
@@ -437,6 +744,41 @@ index 281b8bd..6518a1d 100644
    const mode = settings.mode ?? 'auto'
  
    if (mode === 'disabled') {
+diff --git a/src/utils/apiPreconnect.ts b/src/utils/apiPreconnect.ts
+index 7ee24c1..8fbedae 100644
+--- a/src/utils/apiPreconnect.ts
++++ b/src/utils/apiPreconnect.ts
+@@ -18,6 +18,8 @@
+  * NODE_EXTRA_CA_CERTS was applied).
+  *
+  * Skipped when:
++ * - intranet mode enabled (no outbound connection warming, even to a
++ *   user-configured gateway — preconnect is a pure optimization)
+  * - proxy/mTLS/unix socket configured (preconnect would use wrong transport —
+  *   the SDK passes a custom dispatcher/agent that doesn't share the global pool)
+  * - Bedrock/Vertex/Foundry (different endpoints, different auth)
+@@ -25,6 +27,7 @@
+ 
+ import { getOauthConfig } from '../constants/oauth.js'
+ import { isEnvTruthy } from './envUtils.js'
++import { isIntranetModeEnabled } from './networkPolicy.js'
+ 
+ let fired = false
+ 
+@@ -32,6 +35,13 @@ export function preconnectAnthropicApi(): void {
+   if (fired) return
+   fired = true
+ 
++  // Intranet mode: never warm an outbound connection. Preconnect is only an
++  // optimization (the real request handshakes fresh if needed), so skipping
++  // it costs nothing while guaranteeing zero app-initiated traffic.
++  if (isIntranetModeEnabled()) {
++    return
++  }
++
+   // Skip if using a cloud provider — different endpoint + auth
+   if (
+     isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) ||
 diff --git a/src/utils/networkPolicy.ts b/src/utils/networkPolicy.ts
 new file mode 100644
 index 0000000..5acffa8
@@ -510,6 +852,31 @@ index 0000000..5acffa8
 +export const INTRANET_MODE_WEBSEARCH_DISABLED_MESSAGE =
 +  'WebSearch is unavailable: intranet mode is enabled (内网模式已禁用 WebSearch). ' +
 +  'Do not retry; answer from the conversation and local files instead.'
+diff --git a/src/utils/releaseNotes.ts b/src/utils/releaseNotes.ts
+index 3f0448e..bf8a676 100644
+--- a/src/utils/releaseNotes.ts
++++ b/src/utils/releaseNotes.ts
+@@ -8,6 +8,7 @@ import { getClaudeConfigHomeDir } from './envUtils.js'
+ import { toError } from './errors.js'
+ import { logError } from './log.js'
+ import { isEssentialTrafficOnly } from './privacyLevel.js'
++import { isIntranetModeEnabled } from './networkPolicy.js'
+ import { gt } from './semver.js'
+ 
+ const MAX_RELEASE_NOTES_SHOWN = 5
+@@ -90,6 +91,12 @@ export async function fetchAndStoreChangelog(): Promise<void> {
+     return
+   }
+ 
++  // Intranet mode: the changelog lives on raw.githubusercontent.com —
++  // air-gapped deployments keep whatever is in the local cache instead.
++  if (isIntranetModeEnabled()) {
++    return
++  }
++
+   const response = await axios.get(RAW_CHANGELOG_URL)
+   if (response.status === 200) {
+     const changelogContent = response.data
 diff --git a/src/utils/telemetry/instrumentation.ts b/src/utils/telemetry/instrumentation.ts
 index 224f048..afff387 100644
 --- a/src/utils/telemetry/instrumentation.ts
