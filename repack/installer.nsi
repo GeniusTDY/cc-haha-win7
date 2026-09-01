@@ -75,8 +75,8 @@ LangString MsgDetailFiles ${LANG_SIMPCHINESE} "正在安装应用文件（离线
 LangString MsgDetailFiles ${LANG_ENGLISH} "Installing application files (offline, ~730 MB)..."
 LangString MsgDetailFirewall ${LANG_SIMPCHINESE} "正在为内置 node.exe 添加防火墙规则..."
 LangString MsgDetailFirewall ${LANG_ENGLISH} "Adding firewall rule for bundled node.exe..."
-LangString MsgDetailVxkexSetup ${LANG_SIMPCHINESE} "正在运行内嵌的 VxKex 安装程序（请按其向导操作）..."
-LangString MsgDetailVxkexSetup ${LANG_ENGLISH} "Running bundled VxKex setup (follow its wizard)..."
+LangString MsgDetailVxkexSetup ${LANG_SIMPCHINESE} "正在静默安装 VxKex 兼容层（无需任何操作）..."
+LangString MsgDetailVxkexSetup ${LANG_ENGLISH} "Installing bundled VxKex silently (no interaction needed)..."
 LangString MsgDetailRegNode ${LANG_SIMPCHINESE} "正在向 VxKex 注册 node.exe（WINVERSPOOF:NONE）..."
 LangString MsgDetailRegNode ${LANG_ENGLISH} "Registering node.exe with VxKex (WINVERSPOOF:NONE)..."
 LangString MsgDetailRegPython ${LANG_SIMPCHINESE} "正在向 VxKex 注册 python.exe（UCRT shim）..."
@@ -89,8 +89,8 @@ LangString MsgDetailVerifyNode ${LANG_ENGLISH} "Verifying node.exe runs..."
 ; VxKex / node dialogs
 LangString MsgVxKexNotFound ${LANG_SIMPCHINESE} "未检测到 VxKex 兼容层（Node.js 22 在 Win7 上运行必需）。$\n$\n是否现在运行内嵌的 VxKex 安装程序？（离线，无需网络）"
 LangString MsgVxKexNotFound ${LANG_ENGLISH} "VxKex compatibility layer not found (required for Node.js 22 on Win7).$\n$\nRun the bundled offline VxKex setup now?"
-LangString MsgVxKexInstallFailed ${LANG_SIMPCHINESE} "VxKex 仍未安装（KexCfg.exe 未找到）。$\ncc-haha 将无法启动后端服务。$\n请稍后手动运行：$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe$\n然后以管理员身份运行 resources\runtime\setup-vxkex.bat 完成注册。"
-LangString MsgVxKexInstallFailed ${LANG_ENGLISH} "VxKex is still not installed (KexCfg.exe not found).$\ncc-haha will not be able to start its backend service.$\nPlease run it manually later:$\n$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe$\nthen run resources\runtime\setup-vxkex.bat as an administrator to complete registration."
+LangString MsgVxKexInstallFailed ${LANG_SIMPCHINESE} "VxKex 仍未安装（KexCfg.exe 未找到）。$\ncc-haha 将无法启动后端服务。$\n请稍后以管理员身份手动运行：$\n$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe /SILENTUNATTEND$\n然后运行 resources\runtime\setup-vxkex.bat 完成注册。"
+LangString MsgVxKexInstallFailed ${LANG_ENGLISH} "VxKex is still not installed (KexCfg.exe not found).$\ncc-haha will not be able to start its backend service.$\nPlease run it manually later as administrator:$\n$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe /SILENTUNATTEND$\nthen run resources\runtime\setup-vxkex.bat to complete registration."
 LangString MsgNodeRunFailed ${LANG_SIMPCHINESE} "node.exe 未能运行（exit=$R1）。$\n请以管理员身份重新运行 resources\runtime\setup-vxkex.bat。"
 LangString MsgNodeRunFailed ${LANG_ENGLISH} "node.exe failed to run (exit=$R1).$\nPlease re-run resources\runtime\setup-vxkex.bat as an administrator."
 
@@ -140,7 +140,24 @@ Section "install" SecInstall
   ; NOTE: this NSIS build is 32-bit; under WOW64 "C:\Program Files" file
   ; checks get redirected to (x86). Disable redirection so a 64-bit VxKex
   ; install (KexSetup x64 default) is detected correctly.
+  ; Registry first (works for custom install dirs): the uninstall key
+  ; HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\VxKex carries
+  ; InstallLocation. If VxKex is installed anywhere, do NOT run the bundled
+  ; setup — on the "already installed" path KexSetup exits nonzero and may
+  ; block on a console read, which would hang ExecWait.
   StrCpy $R0 ""
+  SetRegView 64
+  ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\VxKex" "InstallLocation"
+  SetRegView 32
+  ${If} $R1 == ""
+    ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\VxKex" "InstallLocation"
+  ${EndIf}
+  ${If} $R1 != ""
+    IfFileExists "$R1\KexCfg.exe" 0 kex_paths
+      StrCpy $R0 "$R1\KexCfg.exe"
+      Goto kex_have
+  ${EndIf}
+kex_paths:
   ${DisableX64FSRedirection}
   IfFileExists "C:\Program Files\VxKex\KexCfg.exe" 0 +3
     StrCpy $R0 "C:\Program Files\VxKex\KexCfg.exe"
@@ -158,7 +175,17 @@ Section "install" SecInstall
 
 kex_install:
   DetailPrint "$(MsgDetailVxkexSetup)"
-  ExecWait '"$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe"' $R1
+  ; /SILENTUNATTEND: KexSetup installs with no GUI and no prompts. The outer
+  ; SFX stub forwards all command-line arguments to the inner extracted
+  ; KexSetup.exe (verified by disassembly: GetCommandLineW -> skip argv[0]
+  ; -> SHELLEXECUTEINFOW.lpParameters). We are already elevated, so the
+  ; child inherits admin and shows no extra UAC.
+  ; The "cmd /c echo. |" wrapper pipes a newline to the setup's stdin:
+  ; on error paths (e.g. leftover files after a broken uninstall) the
+  ; setup prints a message and waits for a keypress before exiting, which
+  ; would otherwise hang ExecWait forever (verified in VM testing).
+  ; cmd.exe propagates the last pipeline command's exit code to ExecWait.
+  ExecWait 'cmd /c echo. | "$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe" /SILENTUNATTEND' $R1
   ${DisableX64FSRedirection}
   IfFileExists "C:\Program Files\VxKex\KexCfg.exe" 0 +3
     StrCpy $R0 "C:\Program Files\VxKex\KexCfg.exe"

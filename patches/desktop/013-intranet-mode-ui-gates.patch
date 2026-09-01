@@ -1,11 +1,16 @@
 From: Win7 port restore
 Subject: [PATCH] desktop: intranet mode switch, online-component hiding, and main-process gates
 
-A single "Intranet Mode" checkbox (Settings → General) turns the app into
-an air-gapped posture: everything the app initiates outbound stops, while
-user-configured domains (providers, proxies, local paths) are untouched.
+A single "Intranet Mode" switch turns the app into an air-gapped posture:
+everything the app initiates outbound stops, while user-configured domains
+(providers, proxies, local paths) are untouched. The switch lives on its
+own settings page — pinned as the FIRST entry of the settings sidebar,
+above Providers — so the air-gap master switch is one click away.
 
 Settings & sync:
+  - New page desktop/src/pages/settings/IntranetModeSettings.tsx hosts the
+    switch (promoted out of GeneralSettings, which stays untouched);
+    Settings.tsx gains an "intranetMode" rail tab above Providers.
   - UserSettings.intranetMode + settingsStore.setIntranetMode() with
     optimistic update and rollback; hydrated from GET /api/settings/user.
   - The server broadcasts network_policy_changed on every toggle; chatStore
@@ -176,7 +181,16 @@ diff --git a/desktop/src/i18n/locales/en.ts b/desktop/src/i18n/locales/en.ts
 index a8c2b2e..1387859 100644
 --- a/desktop/src/i18n/locales/en.ts
 +++ b/desktop/src/i18n/locales/en.ts
-@@ -1622,6 +1622,11 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+@@ -271,7 +271,8 @@
+   'status.disconnected': 'Disconnected',
+ 
+   // ─── Settings ──────────────────────────────────────
+   'settings.title': 'Settings',
++  'settings.tab.intranetMode': 'Intranet Mode',
+   'settings.tab.providers': 'Providers',
+   'settings.tab.permissions': 'Permissions',
+   'settings.tab.activity': 'Token usage',
+@@ -1622,6 +1623,11 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
    'settings.general.webFetchPreflightDescription': 'Desktop sessions skip Claude\'s domain preflight by default to avoid false failures on third-party providers and restricted networks.',
    'settings.general.webFetchPreflightEnabled': 'Skip WebFetch domain preflight',
    'settings.general.webFetchPreflightHint': 'Turn this off only if you explicitly want to restore the upstream safety preflight before each WebFetch request.',
@@ -188,7 +202,7 @@ index a8c2b2e..1387859 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': 'Choose how agent web search is resolved across official Claude, third-party providers, and local fallback keys.',
    'settings.general.webSearch.mode.auto': 'Auto',
-@@ -2896,6 +2901,7 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+@@ -2896,6 +2902,7 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
    'market.installError.disk': 'Install failed: could not write to disk. Check permissions and free space.',
    'market.installError.notInstallable': 'Install failed: this skill cannot be installed.',
    'market.installError.generic': 'Install failed: {message}',
@@ -200,7 +214,16 @@ diff --git a/desktop/src/i18n/locales/jp.ts b/desktop/src/i18n/locales/jp.ts
 index 0d8ad4c..f2874f3 100644
 --- a/desktop/src/i18n/locales/jp.ts
 +++ b/desktop/src/i18n/locales/jp.ts
-@@ -1624,6 +1624,11 @@ export const jp: Record<TranslationKey, string> = {
+@@ -273,7 +273,8 @@
+   'status.disconnected': '切断されました',
+ 
+   // ─── Settings ──────────────────────────────────────
+   'settings.title': '設定',
++  'settings.tab.intranetMode': 'イントラネットモード',
+   'settings.tab.providers': 'プロバイダー',
+   'settings.tab.permissions': '権限',
+   'settings.tab.activity': 'トークン使用量',
+@@ -1624,6 +1625,11 @@ export const jp: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': 'デスクトップセッションは、サードパーティプロバイダーや制限されたネットワークでの誤った失敗を避けるため、デフォルトで Claude のドメインプリフライトをスキップします。',
    'settings.general.webFetchPreflightEnabled': 'WebFetch のドメインプリフライトをスキップ',
    'settings.general.webFetchPreflightHint': '各 WebFetch リクエスト前の上流の安全プリフライトを明示的に復元したい場合のみ、これをオフにしてください。',
@@ -212,7 +235,7 @@ index 0d8ad4c..f2874f3 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': 'エージェントのウェブ検索を、公式 Claude、サードパーティプロバイダー、ローカルのフォールバックキーのどれで解決するかを選択します。',
    'settings.general.webSearch.mode.auto': '自動',
-@@ -2898,6 +2903,7 @@ export const jp: Record<TranslationKey, string> = {
+@@ -2898,6 +2904,7 @@ export const jp: Record<TranslationKey, string> = {
    'market.installError.disk': 'インストール失敗：ディスクへの書き込みに失敗しました。権限と空き容量を確認してください。',
    'market.installError.notInstallable': 'インストール失敗：このスキルはインストールできません。',
    'market.installError.generic': 'インストール失敗：{message}',
@@ -224,7 +247,16 @@ diff --git a/desktop/src/i18n/locales/kr.ts b/desktop/src/i18n/locales/kr.ts
 index 9629ded..22c9d4e 100644
 --- a/desktop/src/i18n/locales/kr.ts
 +++ b/desktop/src/i18n/locales/kr.ts
-@@ -1624,6 +1624,11 @@ export const kr: Record<TranslationKey, string> = {
+@@ -273,7 +273,8 @@
+   'status.disconnected': '연결 끊김',
+ 
+   // ─── Settings ──────────────────────────────────────
+   'settings.title': '설정',
++  'settings.tab.intranetMode': '인트라넷 모드',
+   'settings.tab.providers': '공급자',
+   'settings.tab.permissions': '권한',
+   'settings.tab.activity': '토큰 사용량',
+@@ -1624,6 +1625,11 @@ export const kr: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': '데스크톱 세션은 타사 공급자와 제한된 네트워크에서의 잘못된 실패를 피하기 위해 기본적으로 Claude의 도메인 사전 확인을 건너뜁니다.',
    'settings.general.webFetchPreflightEnabled': 'WebFetch 도메인 사전 확인 건너뛰기',
    'settings.general.webFetchPreflightHint': '각 WebFetch 요청 전에 업스트림 안전 사전 확인을 명시적으로 복원하려는 경우에만 이를 끄세요.',
@@ -236,7 +268,7 @@ index 9629ded..22c9d4e 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': '에이전트 웹 검색을 공식 Claude, 타사 공급자, 로컬 폴백 키 중 어디에서 해결할지 선택합니다.',
    'settings.general.webSearch.mode.auto': '자동',
-@@ -2898,6 +2903,7 @@ export const kr: Record<TranslationKey, string> = {
+@@ -2898,6 +2904,7 @@ export const kr: Record<TranslationKey, string> = {
    'market.installError.disk': '설치 실패: 디스크에 쓸 수 없습니다. 권한과 여유 공간을 확인하세요.',
    'market.installError.notInstallable': '설치 실패: 이 스킬은 설치할 수 없습니다.',
    'market.installError.generic': '설치 실패: {message}',
@@ -248,7 +280,16 @@ diff --git a/desktop/src/i18n/locales/zh-TW.ts b/desktop/src/i18n/locales/zh-TW.
 index 81ecbd1..f0735ac 100644
 --- a/desktop/src/i18n/locales/zh-TW.ts
 +++ b/desktop/src/i18n/locales/zh-TW.ts
-@@ -1623,6 +1623,11 @@ export const zh: Record<TranslationKey, string> = {
+@@ -273,7 +273,8 @@
+   'status.disconnected': '已斷開',
+ 
+   // ─── Settings ──────────────────────────────────────
+   'settings.title': '設定',
++  'settings.tab.intranetMode': '內網模式',
+   'settings.tab.providers': '服務商',
+   'settings.tab.permissions': '許可權',
+   'settings.tab.activity': 'Token 用量',
+@@ -1623,6 +1624,11 @@ export const zh: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': '桌面端預設跳過 Claude 的域名預檢，避免第三方服務商或受限網路下出現誤報失敗。',
    'settings.general.webFetchPreflightEnabled': '跳過 WebFetch 域名預檢',
    'settings.general.webFetchPreflightHint': '只有在你明確需要恢復上游預設安全預檢時，才建議關閉這個選項。',
@@ -260,7 +301,7 @@ index 81ecbd1..f0735ac 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': '配置 Agent 聯網搜尋在 Claude 原生、第三方供應商和本地 fallback key 之間如何選擇。',
    'settings.general.webSearch.mode.auto': '自動',
-@@ -2890,6 +2895,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -2890,6 +2896,7 @@ export const zh: Record<TranslationKey, string> = {
    'market.installError.disk': '安裝失敗：寫入磁碟失敗，請檢查權限與剩餘空間。',
    'market.installError.notInstallable': '安裝失敗：該技能不可安裝。',
    'market.installError.generic': '安裝失敗：{message}',
@@ -272,7 +313,16 @@ diff --git a/desktop/src/i18n/locales/zh.ts b/desktop/src/i18n/locales/zh.ts
 index 4049156..93e88f8 100644
 --- a/desktop/src/i18n/locales/zh.ts
 +++ b/desktop/src/i18n/locales/zh.ts
-@@ -1623,6 +1623,11 @@ export const zh: Record<TranslationKey, string> = {
+@@ -273,7 +273,8 @@
+   'status.disconnected': '已断开',
+ 
+   // ─── Settings ──────────────────────────────────────
+   'settings.title': '设置',
++  'settings.tab.intranetMode': '内网模式',
+   'settings.tab.providers': '服务商',
+   'settings.tab.permissions': '权限',
+   'settings.tab.activity': 'Token 用量',
+@@ -1623,6 +1624,11 @@ export const zh: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': '桌面端默认跳过 Claude 的域名预检，避免第三方服务商或受限网络下出现误报失败。',
    'settings.general.webFetchPreflightEnabled': '跳过 WebFetch 域名预检',
    'settings.general.webFetchPreflightHint': '只有在你明确需要恢复上游默认安全预检时，才建议关闭这个选项。',
@@ -284,7 +334,7 @@ index 4049156..93e88f8 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': '配置 Agent 联网搜索在 Claude 原生、第三方供应商和本地 fallback key 之间如何选择。',
    'settings.general.webSearch.mode.auto': '自动',
-@@ -2890,6 +2895,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -2890,6 +2896,7 @@ export const zh: Record<TranslationKey, string> = {
    'market.installError.disk': '安装失败：写入磁盘失败，请检查权限与剩余空间。',
    'market.installError.notInstallable': '安装失败：该技能不可安装。',
    'market.installError.generic': '安装失败：{message}',
@@ -463,26 +513,63 @@ index 4ea4e18..72c673c 100644
  
        {/* Changelog modal — fixed per-language content baked from the upstream
            (NanmiCoder/cc-haha) releaseNotes of the same tag; Simplified Chinese
-diff --git a/desktop/src/pages/settings/GeneralSettings.tsx b/desktop/src/pages/settings/GeneralSettings.tsx
-index 9bbb91f..c01798b 100644
---- a/desktop/src/pages/settings/GeneralSettings.tsx
-+++ b/desktop/src/pages/settings/GeneralSettings.tsx
-@@ -72,6 +72,8 @@ export function GeneralSettings() {
-     setOutputStyle,
-     skipWebFetchPreflight,
-     setSkipWebFetchPreflight,
-+    intranetMode,
-+    setIntranetMode,
-     desktopNotificationsEnabled,
-     setDesktopNotificationsEnabled,
-     webSearch,
-@@ -314,6 +316,20 @@ export function GeneralSettings() {
-     void setAutoDreamEnabled(false)
-   }
+diff --git a/desktop/src/pages/Settings.tsx b/desktop/src/pages/Settings.tsx
+index aebc121..749965a 100644
+--- a/desktop/src/pages/Settings.tsx
++++ b/desktop/src/pages/Settings.tsx
+@@ -20,6 +20,7 @@ import { useUIStore } from '../stores/uiStore'
+ import { AgentManager } from '../components/settings/AgentManager'
+ import { H5AccessSettings } from './settings/H5AccessSettings'
+ import { GeneralSettings } from './settings/GeneralSettings'
++import { IntranetModeSettings } from './settings/IntranetModeSettings'
+ import { AboutSettings } from './settings/AboutSettings'
+ import { ProviderSettings } from './settings/ProviderSettings'
  
-+  // 内网模式：乐观更新 + 失败回滚由 store 完成，这里只提示保存失败。
-+  // 服务端持久化成功后会广播 network_policy_changed，其他已打开的
-+  // 窗口（以及 CLI 会话的 WebSearch/WebFetch 闸门）同步生效。
+@@ -60,6 +61,8 @@ export function Settings() {
+           className="w-[195px] flex-shrink-0 flex flex-col overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-surface)] py-4 pl-3 pr-1"
+         >
+           <div className="flex-1 flex flex-col gap-0.5">
++            {/* 内网模式 — 独立设置页，固定在侧边栏首位（空气隔离总开关） */}
++            <TabButton icon="security" label={t('settings.tab.intranetMode')} active={activeTab === 'intranetMode'} onClick={() => setActiveTab('intranetMode')} />
+             <TabButton icon="dns" label={t('settings.tab.providers')} active={activeTab === 'providers'} onClick={() => setActiveTab('providers')} />
+             <TabButton icon="tune" label={t('settings.tab.general')} active={activeTab === 'general'} onClick={() => setActiveTab('general')} />
+             <TabButton icon="qr_code_2" label={t('settings.tab.h5Access')} active={activeTab === 'h5Access'} onClick={() => setActiveTab('h5Access')} />
+@@ -83,6 +86,7 @@ export function Settings() {
+ 
+         {/* Tab content; trace embeds a full-bleed page that manages its own scroll */}
+         <div className={activeTab === 'trace' ? 'flex-1 flex min-h-0 flex-col overflow-hidden' : 'flex-1 overflow-y-auto px-9 py-8'}>
++          {activeTab === 'intranetMode' && <IntranetModeSettings />}
+           {activeTab === 'providers' && <ProviderSettings />}
+           {activeTab === 'activity' && <ActivitySettings />}
+           {activeTab === 'general' && <GeneralSettings />}
+diff --git a/desktop/src/pages/settings/IntranetModeSettings.tsx b/desktop/src/pages/settings/IntranetModeSettings.tsx
+new file mode 100644
+index 0000000..de72841
+--- /dev/null
++++ b/desktop/src/pages/settings/IntranetModeSettings.tsx
+@@ -0,0 +1,66 @@
++import { useSettingsStore } from '../../stores/settingsStore'
++import { useTranslation } from '../../i18n'
++import { useUIStore } from '../../stores/uiStore'
++import { SettingsPageHeader } from '@/components/settings/SettingsSection'
++import { SETTINGS_CHECKBOX_INPUT_CLASS, SettingsCheckboxMark } from './shared'
++
++/**
++ * 内网模式独立设置页（设置侧边栏第一项）。
++ *
++ * The air-gap master switch, promoted from GeneralSettings to its own rail
++ * entry so it is reachable in one click. The store logic is unchanged:
++ * optimistic update + rollback in settingsStore, server persists and
++ * broadcasts network_policy_changed so every open window (and CLI sessions)
++ * follows the flip without a restart.
++ */
++export function IntranetModeSettings() {
++  const t = useTranslation()
++  const intranetMode = useSettingsStore((s) => s.intranetMode)
++  const setIntranetMode = useSettingsStore((s) => s.setIntranetMode)
++  const addToast = useUIStore((s) => s.addToast)
++
++  // 乐观更新 + 失败回滚由 store 完成，这里只提示保存失败。
 +  const handleIntranetModeToggle = async (enabled: boolean) => {
 +    try {
 +      await setIntranetMode(enabled)
@@ -494,17 +581,15 @@ index 9bbb91f..c01798b 100644
 +    }
 +  }
 +
-   const confirmAutoDreamEnable = async () => {
-     setAutoDreamActionRunning(true)
-     try {
-@@ -1150,6 +1166,32 @@ export function GeneralSettings() {
-         </label>
-       </div>
- 
-+      {/* 内网模式 — 空气隔离总开关 */}
-+      <div className="mt-8">
-+        <h2 className="text-[16.5px] font-semibold leading-tight text-[var(--color-text-primary)] mb-1" style={{ fontFamily: 'var(--font-headline)' }}>{t('settings.general.intranetModeTitle')}</h2>
-+        <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.intranetModeDescription')}</p>
++  return (
++    <div className="w-full min-w-0">
++      <SettingsPageHeader
++        title={t('settings.general.intranetModeTitle')}
++        description={t('settings.general.intranetModeDescription')}
++      />
++
++      {/* 空气隔离总开关 */}
++      <div className="mt-2">
 +        <label className="relative flex items-start gap-3 rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3 cursor-pointer hover:border-[var(--color-border-focus)] transition-colors">
 +          <input
 +            type="checkbox"
@@ -526,10 +611,9 @@ index 9bbb91f..c01798b 100644
 +          </div>
 +        </label>
 +      </div>
-+
-       <div className="mt-8">
-         <h2 className="text-[16.5px] font-semibold leading-tight text-[var(--color-text-primary)] mb-1" style={{ fontFamily: 'var(--font-headline)' }}>{t('settings.general.webSearchTitle')}</h2>
-         <p className="text-sm text-[var(--color-text-tertiary)] mb-3">{t('settings.general.webSearchDescription')}</p>
++    </div>
++  )
++}
 diff --git a/desktop/src/stores/chatStore.ts b/desktop/src/stores/chatStore.ts
 index e267bc5..3b05fbf 100644
 --- a/desktop/src/stores/chatStore.ts

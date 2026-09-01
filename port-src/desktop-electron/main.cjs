@@ -4379,7 +4379,8 @@ function installRendererLifecycle({
   onRecoveryExhausted,
   unresponsiveRecoveryDelayMs = DEFAULT_RENDERER_UNRESPONSIVE_RECOVERY_DELAY_MS
 }) {
-  let recoveryAttempted = false;
+  let recoveryAttemptCount = 0;
+  const MAX_RENDERER_RECOVERY_ATTEMPTS = 3;
   let failureReported = false;
   let unresponsiveRecoveryTimer = null;
   let rendererReloadTimer = null;
@@ -4408,35 +4409,67 @@ function installRendererLifecycle({
       recordDiagnostic(`[recovery-already-scheduled] trigger=${trigger}`);
       return;
     }
-    if (recoveryAttempted) {
+    if (recoveryAttemptCount >= MAX_RENDERER_RECOVERY_ATTEMPTS) {
       reportRecoveryFailure(`trigger=${trigger}`);
       return;
     }
-    recoveryAttempted = true;
-    recordDiagnostic(`[recovery-started] trigger=${trigger}`);
+    recoveryAttemptCount += 1;
+    const recoveryAttempt = recoveryAttemptCount;
+    recordDiagnostic(`[recovery-started] trigger=${trigger} attempt=${recoveryAttempt}`);
+    const recoveryDelayMs = recoveryAttempt <= 1 ? 0 : recoveryAttempt === 2 ? 750 : 2000;
     rendererReloadTimer = setTimeout(() => {
       rendererReloadTimer = null;
       if (isQuitting2() || window.isDestroyed() || window.webContents.isDestroyed()) {
         recordDiagnostic(`[recovery-skipped] trigger=${trigger} quitting=${isQuitting2()}`);
         return;
       }
-      try {
-        window.webContents.reload();
-      } catch (error) {
-        reportRecoveryFailure(
-          `trigger=${trigger} reloadError=${error instanceof Error ? error.message : String(error)}`
-        );
+      const finishRecoveryReload = () => {
+        try {
+          window.webContents.reload();
+        } catch (error) {
+          reportRecoveryFailure(
+            `trigger=${trigger} reloadError=${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      };
+      if (recoveryAttempt >= 2) {
+        try {
+          const ses = window.webContents.session;
+          if (ses && typeof ses.clearStorageData === "function") {
+            const storages = recoveryAttempt === 2
+              ? ["localstorage"]
+              : ["localstorage", "shadercache", "cachestorage"];
+            recordDiagnostic(`[recovery-clear-storage] attempt=${recoveryAttempt} storages=${storages.join(",")}`);
+            let settled = false;
+            const proceed = () => {
+              if (settled) return;
+              settled = true;
+              finishRecoveryReload();
+            };
+            const clearing = ses.clearStorageData({ storages });
+            if (clearing && typeof clearing.then === "function") {
+              clearing.then(proceed, proceed);
+              setTimeout(proceed, 5000);
+            } else {
+              proceed();
+            }
+            return;
+          }
+        } catch (error) {
+          recordDiagnostic(`[recovery-clear-storage-error] ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
-    }, 0);
+      finishRecoveryReload();
+    }, recoveryDelayMs);
   };
   window.webContents.on("did-finish-load", () => {
     clearUnresponsiveRecovery();
-    if (recoveryAttempted) recordDiagnostic("[recovery-loaded]");
+    if (recoveryAttemptCount > 0) recordDiagnostic("[recovery-loaded]");
     writeSnapshot("did-finish-load");
   });
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     writeSnapshot(`did-fail-load:${errorCode}:${errorDescription}:${validatedURL}`);
-    if (recoveryAttempted && isMainFrame && errorCode !== -3) {
+    if (recoveryAttemptCount >= MAX_RENDERER_RECOVERY_ATTEMPTS && isMainFrame && errorCode !== -3) {
       reportRecoveryFailure(`loadError=${errorCode}:${errorDescription}`);
     }
   });
