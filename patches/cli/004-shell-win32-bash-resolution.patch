@@ -1,6 +1,10 @@
+
+
+diff --git a/src/utils/Shell.ts b/src/utils/Shell.ts
+index f2e5fcf..129a68c 100644
 --- a/src/utils/Shell.ts
 +++ b/src/utils/Shell.ts
-@@ -39,7 +39,7 @@
+@@ -39,7 +39,7 @@ import { getCachedPowerShellPath } from './shell/powershellDetection.js'
  import { createPowerShellProvider } from './shell/powershellProvider.js'
  import type { ShellProvider, ShellType } from './shell/shellProvider.js'
  import { subprocessEnv } from './subprocessEnv.js'
@@ -9,16 +13,10 @@
  
  const DEFAULT_TIMEOUT = 30 * 60 * 1000 // 30 minutes
  
-@@ -88,6 +88,32 @@
+@@ -88,6 +88,26 @@ export async function findSuitableShell(): Promise<string> {
      }
    }
  
-+  // Win7 offline port: Windows never has the POSIX locations below, so probe
-+  // Git Bash explicitly before the POSIX logic (which would only ever be
-+  // reached from WSL-ish environments). Order: user-installed Git for Windows
-+  // (env override, standard install dirs, PATH — via tryFindGitBashPath),
-+  // then the PortableGit bundled with the offline runtime payload, then a
-+  // bare bash.exe anywhere on PATH.
 +  if (getPlatform() === 'windows') {
 +    const windowsCandidates = [
 +      tryFindGitBashPath(),
@@ -42,6 +40,8 @@
    // Check user's preferred shell from environment
    const env_shell = process.env.SHELL
    // Only consider SHELL if it's bash or zsh
+diff --git a/src/utils/windowsPaths.ts b/src/utils/windowsPaths.ts
+index 776c2e3..753ce6f 100644
 --- a/src/utils/windowsPaths.ts
 +++ b/src/utils/windowsPaths.ts
 @@ -1,3 +1,5 @@
@@ -50,24 +50,10 @@
  import memoize from 'lodash-es/memoize.js'
  import * as path from 'path'
  import * as pathWin32 from 'path/win32'
-@@ -125,6 +127,56 @@
+@@ -124,6 +126,41 @@ export const tryFindGitBashPath = memoize((): string | null => {
+   return null
  })
  
- /**
-+ * Win7 offline port: resolve the PortableGit bash.exe shipped inside the
-+ * installer's runtime payload. Probes, in order:
-+ *
-+ *   1. CC_HAHA_BASH_EXE                  — explicit bash.exe override
-+ *   2. CC_HAHA_RUNTIME_DIR/git-2.45.2/… — runtime dir override
-+ *   3. <dist>/../runtime/git-2.45.2/…    — portable layout (package/dist + runtime)
-+ *   4. <dist>/../../runtime/git-2.45.2/… — installer layout
-+ *                                    (resources/app.asar.unpacked/dist +
-+ *                                     resources/runtime)
-+ *
-+ * In the bundled dist this module lives next to cli.mjs/server.mjs, so the
-+ * relative probes land on the payload's runtime tree. In the source tree the
-+ * probes simply miss and return null.
-+ */
 +export function findBundledGitBashPath(
 +  env: NodeJS.ProcessEnv = process.env,
 +  distDir: string = defaultBundledDistDir(),
@@ -103,7 +89,6 @@
 +  }
 +}
 +
-+/**
+ /**
   * Find the path where `bash.exe` included with git-bash exists, exiting the process if not found.
   */
- export const findGitBashPath = memoize((): string => {

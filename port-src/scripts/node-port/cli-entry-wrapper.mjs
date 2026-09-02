@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Debug wrapper: logs spawn metadata, then execs the real bundled CLI with
-// stderr duplicated to a capture file.
 import { spawn } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 
@@ -48,10 +46,8 @@ child.on('error', e => {
   process.exit(1)
 })
 
-// Forward stdin to child
 process.stdin.on('data', d => child.stdin.write(d))
 process.stdin.on('end', () => child.stdin.end())
 process.stdin.on('error', () => {})
 
-// Stay alive with child
 setInterval(() => {}, 1 << 30)

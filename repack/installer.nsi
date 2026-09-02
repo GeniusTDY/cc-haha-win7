@@ -1,18 +1,4 @@
-﻿; ============================================================
-; Claude Code Haha 0.5.4 - Win7 x64 offline all-in-one installer
-; Rebuilt with native makensis (no wine) from the repacked tree.
-;
-; Contents vs original electron-builder NSIS:
-;   + dist/server.mjs + adapters + cli + recovery + chunks injected
-;   + broken claude-sidecar REMOVED (main.cjs falls back to node.exe)
-;   + complete offline wheels (16) incl. pip/setuptools/wheel
-;   + python38._pth fixed (Lib\site-packages + import site)
-;   + auto VxKex KexCfg registration (node.exe + python.exe)
-;   + firewall rule for bundled node.exe
-;   + all installer texts localized (SimpChinese/English; NSIS picks
-;     the table matching the OS UI language at runtime)
-; ============================================================
-Unicode true
+﻿Unicode true
 ManifestDPIAware true
 SetCompressor /SOLID lzma
 
@@ -38,8 +24,6 @@ ShowUninstDetails show
 !define MUI_UNWELCOMEFINISHPAGE_BITMAP "modern-wizard.bmp"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\Claude Code Haha.exe"
-; finish-page checkbox label — $(FinishRunText) is resolved per the
-; selected language at runtime (LangStrings defined below)
 !define MUI_FINISHPAGE_RUN_TEXT "$(FinishRunText)"
 
 !insertmacro MUI_PAGE_WELCOME
@@ -50,25 +34,12 @@ ShowUninstDetails show
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
-; First inserted language = fallback when the OS UI language matches
-; neither (Chinese-first port; an English UI selects the English table).
 !insertmacro MUI_LANGUAGE "SimpChinese"
 !insertmacro MUI_LANGUAGE "English"
 
-; ------------------------------------------------------------
-; Installer texts — NSIS resolves $(name) from the language table that
-; matches the OS UI language at runtime. The MUI pages above draw their
-; texts from the MUI language files; the block below covers the custom
-; dialogs, the finish-page checkbox and the detail-log lines. Runtime
-; variables ($INSTDIR, $R1, ...) inside a LangString are expanded when
-; the string is used.
-; ------------------------------------------------------------
-
-; finish page
 LangString FinishRunText ${LANG_SIMPCHINESE} "运行 Claude Code Haha"
 LangString FinishRunText ${LANG_ENGLISH} "Run Claude Code Haha"
 
-; detail log
 LangString MsgDetailStop ${LANG_SIMPCHINESE} "正在停止运行中的实例..."
 LangString MsgDetailStop ${LANG_ENGLISH} "Stopping running instances..."
 LangString MsgDetailFiles ${LANG_SIMPCHINESE} "正在安装应用文件（离线，约 730 MB）..."
@@ -86,7 +57,6 @@ LangString MsgDetailRegRg ${LANG_ENGLISH} "Registering rg.exe with VxKex (WaitOn
 LangString MsgDetailVerifyNode ${LANG_SIMPCHINESE} "正在验证 node.exe 可运行..."
 LangString MsgDetailVerifyNode ${LANG_ENGLISH} "Verifying node.exe runs..."
 
-; VxKex / node dialogs
 LangString MsgVxKexNotFound ${LANG_SIMPCHINESE} "未检测到 VxKex 兼容层（Node.js 22 在 Win7 上运行必需）。$\n$\n是否现在运行内嵌的 VxKex 安装程序？（离线，无需网络）"
 LangString MsgVxKexNotFound ${LANG_ENGLISH} "VxKex compatibility layer not found (required for Node.js 22 on Win7).$\n$\nRun the bundled offline VxKex setup now?"
 LangString MsgVxKexInstallFailed ${LANG_SIMPCHINESE} "VxKex 仍未安装（KexCfg.exe 未找到）。$\ncc-haha 将无法启动后端服务。$\n请稍后以管理员身份手动运行：$\n$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe /SILENTUNATTEND$\n然后运行 resources\runtime\setup-vxkex.bat 完成注册。"
@@ -94,7 +64,6 @@ LangString MsgVxKexInstallFailed ${LANG_ENGLISH} "VxKex is still not installed (
 LangString MsgNodeRunFailed ${LANG_SIMPCHINESE} "node.exe 未能运行（exit=$R1）。$\n请以管理员身份重新运行 resources\runtime\setup-vxkex.bat。"
 LangString MsgNodeRunFailed ${LANG_ENGLISH} "node.exe failed to run (exit=$R1).$\nPlease re-run resources\runtime\setup-vxkex.bat as an administrator."
 
-; ------------------------------------------------------------
 Section "install" SecInstall
   SetOutPath "$INSTDIR"
 
@@ -107,13 +76,11 @@ Section "install" SecInstall
   DetailPrint "$(MsgDetailFiles)"
   File /r "app\*"
 
-  ; ---- shortcuts ----
   CreateDirectory "$SMPROGRAMS\Claude Code Haha"
   CreateShortCut "$SMPROGRAMS\Claude Code Haha\Claude Code Haha.lnk" "$INSTDIR\Claude Code Haha.exe"
   CreateShortCut "$SMPROGRAMS\Claude Code Haha\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
   CreateShortCut "$DESKTOP\Claude Code Haha.lnk" "$INSTDIR\Claude Code Haha.exe"
 
-  ; ---- uninstaller + registry ----
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   SetRegView 64
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
@@ -126,25 +93,14 @@ Section "install" SecInstall
   WriteRegDWORD HKLM "${UNINST_KEY}" "EstimatedSize" $0
   WriteRegStr HKLM "${UNINST_KEY}" "NoModify" "1"
   WriteRegStr HKLM "${UNINST_KEY}" "NoRepair" "1"
-  ; remove stale key from previous 32-bit-redirected builds
   SetRegView 32
   DeleteRegKey HKLM "${UNINST_KEY}"
   SetRegView 64
 
-  ; ---- firewall rule for bundled node.exe ----
   DetailPrint "$(MsgDetailFirewall)"
   nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="cc-haha node"'
   nsExec::ExecToLog 'netsh advfirewall firewall add rule name="cc-haha node" dir=in action=allow program="$INSTDIR\resources\runtime\node-v22.17.0\node.exe" enable=yes'
 
-  ; ---- VxKex: register bundled runtimes (Node22 + Python3.8 UCRT) ----
-  ; NOTE: this NSIS build is 32-bit; under WOW64 "C:\Program Files" file
-  ; checks get redirected to (x86). Disable redirection so a 64-bit VxKex
-  ; install (KexSetup x64 default) is detected correctly.
-  ; Registry first (works for custom install dirs): the uninstall key
-  ; HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\VxKex carries
-  ; InstallLocation. If VxKex is installed anywhere, do NOT run the bundled
-  ; setup — on the "already installed" path KexSetup exits nonzero and may
-  ; block on a console read, which would hang ExecWait.
   StrCpy $R0 ""
   SetRegView 64
   ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\VxKex" "InstallLocation"
@@ -170,21 +126,10 @@ kex_paths:
     StrCpy $R0 "C:\Program Files (x86)\VxKex\KexCfg.exe"
     Goto kex_have
 
-  ; VxKex not installed -> offer bundled setup (fully offline)
   MessageBox MB_YESNO|MB_ICONQUESTION "$(MsgVxKexNotFound)" /SD IDYES IDYES kex_install IDNO kex_end
 
 kex_install:
   DetailPrint "$(MsgDetailVxkexSetup)"
-  ; /SILENTUNATTEND: KexSetup installs with no GUI and no prompts. The outer
-  ; SFX stub forwards all command-line arguments to the inner extracted
-  ; KexSetup.exe (verified by disassembly: GetCommandLineW -> skip argv[0]
-  ; -> SHELLEXECUTEINFOW.lpParameters). We are already elevated, so the
-  ; child inherits admin and shows no extra UAC.
-  ; The "cmd /c echo. |" wrapper pipes a newline to the setup's stdin:
-  ; on error paths (e.g. leftover files after a broken uninstall) the
-  ; setup prints a message and waits for a keypress before exiting, which
-  ; would otherwise hang ExecWait forever (verified in VM testing).
-  ; cmd.exe propagates the last pipeline command's exit code to ExecWait.
   ExecWait 'cmd /c echo. | "$INSTDIR\resources\runtime\vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe" /SILENTUNATTEND' $R1
   ${DisableX64FSRedirection}
   IfFileExists "C:\Program Files\VxKex\KexCfg.exe" 0 +3
@@ -217,7 +162,6 @@ kex_have:
 kex_end:
 SectionEnd
 
-; ------------------------------------------------------------
 Section "Uninstall"
   SetRegView 64
   nsExec::ExecToLog 'taskkill /f /im "Claude Code Haha.exe"'

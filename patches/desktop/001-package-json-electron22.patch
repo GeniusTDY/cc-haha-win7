@@ -12,9 +12,11 @@ app-builder-lib code paths whose line positions differ between versions.
 `npmRebuild: false` is already present upstream (desktop builds never
 rebuild node-pty on Linux); no change needed there.
 
+diff --git a/desktop/package.json b/desktop/package.json
+index b86b575..05943a3 100644
 --- a/desktop/package.json
 +++ b/desktop/package.json
-@@ -145,8 +145,8 @@
+@@ -143,8 +143,8 @@
      "@typescript-eslint/parser": "^8",
      "@vitejs/plugin-react": "^6.0.1",
      "@vitest/coverage-v8": "3.2.4",

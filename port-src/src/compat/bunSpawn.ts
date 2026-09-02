@@ -1,13 +1,3 @@
-/**
- * Node.js port: Bun.spawn() compatibility shim.
- *
- * Implements the subset of Bun.spawn semantics used by cc-haha:
- *  - opts: cwd, env, stdin/stdout/stderr ('inherit'|'pipe'|'ignore'),
- *          argv0, windowsHide, onExit
- *  - returned object: pid, stdin (Writable), stdout/stderr (hybrid
- *    ReadableStream with .text()/.json(), usable as Response body and as
- *    async iterable), exited (Promise<number>), kill(signalOrCode)
- */
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { Readable } from 'node:stream'
@@ -26,7 +16,6 @@ export interface NodeBunSpawnOptions {
   killSignal?: NodeJS.Signals
 }
 
-/** ReadableStream with Bun-style Blob helpers, usable as a Response body. */
 export class HybridReadableStream extends ReadableStream<Uint8Array> {
   async text(): Promise<string> {
     const reader = this.getReader()
@@ -55,14 +44,12 @@ function toHybrid(nodeStream: Readable): HybridReadableStream {
         try {
           controller.close()
         } catch {
-          // already closed
         }
       })
       nodeStream.on('error', err => {
         try {
           controller.error(err)
         } catch {
-          // already closed
         }
       })
     },
@@ -108,11 +95,9 @@ export function nodeBunSpawn(
   const exited = new Promise<number>(resolve => {
     child.on('exit', (code, signal) => {
       options.onExit?.(code, signal)
-      // Bun resolves `exited` to the exit code; signal-killed → non-zero.
       resolve(code ?? (signal ? 1 : 0))
     })
     child.on('error', () => {
-      // spawn failures (ENOENT etc.) also settle `exited`.
       resolve(1)
     })
   })

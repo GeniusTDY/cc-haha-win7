@@ -21,8 +21,6 @@ if (!flag) {
   process.exit(2);
 }
 var entrypoints = {
-  // Literal dynamic imports: esbuild code-splits these into chunks that are
-  // only fetched at runtime, keeping non-selected adapters unloaded.
   "--feishu": () => import("./adapters-chunks/feishu-3DIUNOQW.mjs"),
   "--telegram": () => import("./adapters-chunks/telegram-7MO42EDR.mjs"),
   "--wechat": () => import("./adapters-chunks/wechat-JIM7FGX2.mjs"),

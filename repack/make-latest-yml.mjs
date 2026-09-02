@@ -1,30 +1,4 @@
 #!/usr/bin/env node
-// make-latest-yml.mjs — generate the electron-updater feed file (latest.yml)
-// for a built Win7 installer.
-//
-// Attach the generated latest.yml TOGETHER WITH the setup.exe (unchanged file
-// name) to the latest NON-PRERELEASE release of the repo named in the
-// installer's resources/app-update.yml (rewritten by build-repack.sh step 2b
-// to GeniusTDY/cc-haha-win7). electron-updater resolves:
-//   https://github.com/<owner>/<repo>/releases/latest               (tag)
-//   https://github.com/<owner>/<repo>/releases/download/<tag>/latest.yml  (feed)
-//   https://github.com/<owner>/<repo>/releases/download/<tag>/<files[].url> (exe)
-//
-// The updater offers the update only when <version> is semver-greater than
-// the installed app version (the asar package.json version — build-repack.sh
-// step 3 re-stamps it to the build's APP_VERSION via patch-app-asar.mjs
-// --set-version; currently 0.5.4, tracking upstream cc-haha — an equal
-// version offers nothing, so bump APP_VERSION for a real update push).
-//
-// Usage:
-//   node make-latest-yml.mjs <setup.exe> <version> [options]
-//     --tag <tag>      release tag (default: v<version>)
-//     --owner <owner>  repo owner, informational in the header comment
-//                      (default GeniusTDY)
-//     --repo <repo>    repo name (default cc-haha-win7)
-//     --notes <text>   release notes shown in the update dialog
-//
-// Writes latest.yml next to the exe.
 
 import { createHash } from "node:crypto";
 import { statSync, readFileSync, writeFileSync } from "node:fs";

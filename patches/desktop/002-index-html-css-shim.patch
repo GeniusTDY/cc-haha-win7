@@ -23,27 +23,14 @@ engines that already implement them bail out immediately.
 Both blocks byte-identical to those shipped in the restored Offline installer
 (resources/app.asar.unpacked/dist/index.html lines 120-580 and 669-729).
 
+diff --git a/desktop/index.html b/desktop/index.html
+index 83ef535..f516f8b 100644
 --- a/desktop/index.html
 +++ b/desktop/index.html
-@@ -136,6 +136,467 @@
+@@ -136,6 +136,452 @@
        html[data-window-kind="pet"] #root { background: transparent !important; }
        html, body, #root { min-height: 100%; margin: 0; }
      </style>
-+    <!--
-+      Chromium 108 CSS shim (Win7 / Electron 22). Tailwind v4 and the design
-+      tokens rely on color-mix() (Chromium 111+), scrollbar-color (121+) and
-+      the `overlay` transition token (114+); on 108 those declarations are
-+      dropped outright, losing semi-transparent utilities, styled scrollbars
-+      and sibling transition tokens. lightningcss lowers Tailwind's oklch()
-+      palette to lab() inside custom properties (no fallback is possible
-+      there), and lab()/oklch()/lch()/oklab() are likewise Chromium 111+, so
-+      --tw-prose-* and --color-* values die at var() substitution time. This
-+      shim evaluates color-mix() and the lab-family color functions against
-+      the live theme custom properties, rewrites the declarations through the
-+      CSSOM, and injects ::-webkit-scrollbar fallbacks. Newer engines bail out
-+      at the first feature check and pay nothing. Re-runs on theme switches
-+      (data-theme) and on late <style>/<link> inserts (lazy chunks).
-+    -->
 +    <script>
 +      (function () {
 +        var needsColorMix, needsScrollbar, needsLabFn, uaVersion = 0
@@ -493,21 +480,10 @@ Both blocks byte-identical to those shipped in the restored Offline installer
      <script>
        (function () {
          var bootDeadlineMs = 8000
-@@ -224,6 +224,67 @@
+@@ -224,6 +670,56 @@
          }, bootDeadlineMs)
        })()
      </script>
-+    <!--
-+      Chromium 108 runtime polyfill (Win7 / Electron 22): the Set methods
-+      union/intersection/difference/symmetricDifference/isSubsetOf/
-+      isSupersetOf/isDisjointFrom only shipped in Chrome 122, but vendored
-+      dependencies call them — cytoscape's collection algebra and mermaid's
-+      architecture-diagram renderer alone account for ~20 call sites in the
-+      production bundle, each raising "x.union is not a function" on 108.
-+      Classic inline scripts run before the deferred module bundle, so the
-+      patch is installed before any lazy chunk can execute. Engines that
-+      already implement the methods bail out immediately.
-+    -->
 +    <script>
 +      (function () {
 +        if (typeof Set === 'undefined' || typeof Set.prototype.union === 'function') return

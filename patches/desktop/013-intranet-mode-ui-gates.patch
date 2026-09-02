@@ -96,28 +96,13 @@ index 8d551ad..4255edf 100644
    return app.isPackaged ? app.getAppPath() : process.cwd()
 diff --git a/desktop/electron/services/intranetMode.ts b/desktop/electron/services/intranetMode.ts
 new file mode 100644
-index 0000000..0863f80
+index 0000000..f11dd43
 --- /dev/null
 +++ b/desktop/electron/services/intranetMode.ts
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,29 @@
 +import { readFileSync } from 'node:fs'
 +import { homedir } from 'node:os'
 +import path from 'node:path'
-+
-+/**
-+ * Intranet mode — electron main-process reader.
-+ *
-+ * The authoritative flag lives in `<CLAUDE_CONFIG_DIR>/settings.json`
-+ * (default `~/.claude/settings.json`) — the same user-settings file the
-+ * server's PUT /api/settings/user writes and the CLI-side
-+ * `src/utils/networkPolicy.ts` reads. The main process cannot import that
-+ * server source (it lives outside the desktop project), so this tiny reader
-+ * mirrors its resolution: config-dir override first, then the home fallback.
-+ *
-+ * Reads are deliberately UNCACHED: openExternalUrl / checkForUpdates call
-+ * this per invocation, so flipping the toggle in any window takes effect in
-+ * the main process immediately, without an app restart.
-+ */
 +
 +export function intranetModeSettingsPath(
 +  env: NodeJS.ProcessEnv = process.env,
@@ -146,10 +131,10 @@ index 0000000..0863f80
 +}
 diff --git a/desktop/electron/services/intranetNetworkGuard.ts b/desktop/electron/services/intranetNetworkGuard.ts
 new file mode 100644
-index 0000000..d773c3b
+index 0000000..506a2d1
 --- /dev/null
 +++ b/desktop/electron/services/intranetNetworkGuard.ts
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,35 @@
 +import { isIntranetModeEnabled } from './intranetMode'
 +
 +type ElectronCommandLine = {
@@ -167,31 +152,8 @@ index 0000000..d773c3b
 +  whenReady(): PromiseLike<void>
 +}
 +
-+/**
-+ * Fail-safe sink for Chromium's hunspell dictionary downloads: loopback can
-+ * never leave the machine, so even a download attempt that survives the
-+ * spellchecker disable below stays on-host (fails with 404/refused).
-+ */
 +export const INTRANET_SPELLCHECK_DICTIONARY_SINK_URL = 'http://127.0.0.1/dictionaries/'
 +
-+/**
-+ * Intranet mode: Chromium's built-in background networking phones home
-+ * entirely independent of app code (observed as SYN_SENT from the
-+ * NetworkService process). Two layers are needed:
-+ *
-+ * 1. Component updater / background networking — disabled via Chromium
-+ *    switches that must be appended before the app is ready, so this guard
-+ *    runs once at main-process start. A mid-session intranet-mode toggle
-+ *    therefore takes effect for these switches on the next app launch.
-+ * 2. Spellchecker — Chromium downloads missing hunspell dictionaries from
-+ *    redirector.gvt1.com (Google CDN) and retries every ~5 minutes; the
-+ *    component-update switches do not cover it, and disabling the checker
-+ *    alone still leaves one startup download attempt. The spellchecker is
-+ *    disabled per session AND the download URL is repointed at loopback,
-+ *    which is live for sessions created after the toggle.
-+ *
-+ * All app-level gates (OAuth, telemetry, updater, external links) stay live.
-+ */
 +export function installIntranetChromiumNetworkGuard(
 +  app: ElectronAppForChromiumGuard,
 +  getDefaultSession: () => SpellCheckerSession,
@@ -209,7 +171,7 @@ index 0000000..d773c3b
 +  return true
 +}
 diff --git a/desktop/electron/services/shell.ts b/desktop/electron/services/shell.ts
-index 74c70ea..8db6f8d 100644
+index 74c70ea..8c847c6 100644
 --- a/desktop/electron/services/shell.ts
 +++ b/desktop/electron/services/shell.ts
 @@ -2,6 +2,7 @@ import { realpathSync, statSync } from 'node:fs'
@@ -220,18 +182,11 @@ index 74c70ea..8db6f8d 100644
  
  const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
  const ALLOWED_SYSTEM_SETTINGS_URLS = new Set([
-@@ -76,8 +77,19 @@ function isBlockedExecutablePath(realPath: string, isDirectory: boolean) {
+@@ -76,8 +77,12 @@ function isBlockedExecutablePath(realPath: string, isDirectory: boolean) {
  }
  
  export async function openExternalUrl(target: string): Promise<void> {
 +  const url = normalizeExternalUrl(target)
-+  // Intranet-mode choke point: every http(s) external link is refused
-+  // here. This is where all "open a browser" paths converge (renderer
-+  // IPC, the navigation guards' setWindowOpenHandler) — the UI-layer
-+  // component hiding is only the first gate, this is the backstop.
-+  // mailto and system-settings schemes survive: they generate no
-+  // internet traffic. The flag is re-read from disk on every call
-+  // (uncached), so a toggle takes effect immediately.
 +  if (isIntranetModeEnabled() && (url.startsWith('http:') || url.startsWith('https:'))) {
 +    throw new Error('Intranet mode is enabled: external links are disabled (内网模式已禁用外链)')
 +  }
@@ -242,7 +197,7 @@ index 74c70ea..8db6f8d 100644
  
  export function normalizeSystemSettingsUrl(target: string): string {
 diff --git a/desktop/electron/services/systemProxyBridge.ts b/desktop/electron/services/systemProxyBridge.ts
-index 6f47b20..c722972 100644
+index 6f47b20..332e70d 100644
 --- a/desktop/electron/services/systemProxyBridge.ts
 +++ b/desktop/electron/services/systemProxyBridge.ts
 @@ -6,6 +6,8 @@ import { lookup } from 'node:dns/promises'
@@ -267,21 +222,13 @@ index 6f47b20..c722972 100644
  
    start(): Promise<string> {
      if (this.startPromise) return this.startPromise
-@@ -248,6 +254,54 @@ export class SystemProxyBridge implements SystemProxyBridgeLike {
+@@ -248,6 +254,46 @@ export class SystemProxyBridge implements SystemProxyBridgeLike {
    }
  }
  
 +export const INTRANET_PROXY_TARGET_BLOCKED_MESSAGE =
 +  'Intranet mode is enabled: public-internet proxy targets are blocked (内网模式已拦截外网代理目标)'
 +
-+/**
-+ * Intranet mode turns the bridge into an air-gapped one: only loopback,
-+ * RFC1918/ULA and link-local destinations may be reached, so CLI children
-+ * that tunnel through the bridge (e.g. api.anthropic.com on a new session)
-+ * can never open a socket to the public internet. DNS resolution happens
-+ * against the machine's configured (corporate) resolver; a name that does
-+ * not resolve to private addresses is rejected.
-+ */
 +export function isPrivateNetworkAddress(address: string): boolean {
 +  const value = stripIpv6Brackets(address).toLowerCase()
 +  if (value.includes(':')) {
@@ -323,7 +270,7 @@ index 6f47b20..c722972 100644
    const rawUrl = request.url ?? ''
    if (/^https?:\/\//i.test(rawUrl)) return new URL(rawUrl)
 diff --git a/desktop/electron/services/updater.ts b/desktop/electron/services/updater.ts
-index d430d85..d3a285b 100644
+index d430d85..a323f45 100644
 --- a/desktop/electron/services/updater.ts
 +++ b/desktop/electron/services/updater.ts
 @@ -1,6 +1,7 @@
@@ -334,15 +281,10 @@ index d430d85..d3a285b 100644
  
  export type ElectronUpdateInfo = {
    version: string
-@@ -122,6 +123,17 @@ export class ElectronUpdaterService {
+@@ -122,6 +123,12 @@ export class ElectronUpdaterService {
    }
  
    async checkForUpdates(options?: ElectronUpdateCheckOptions): Promise<ElectronUpdateMetadata | null> {
-+    // Intranet mode: update checks are cut off at the root — electron-updater
-+    // is never touched (zero outbound), and any previously known pending
-+    // update is dropped so download/install precondition checks fail
-+    // naturally. The flag is re-read from disk on every check; a toggle
-+    // takes effect without a restart.
 +    if (isIntranetModeEnabled()) {
 +      this.pendingUpdate = null
 +      this.downloaded = false
@@ -353,17 +295,13 @@ index d430d85..d3a285b 100644
      try {
        await this.applyProxy(options)
 diff --git a/desktop/src/api/settings.ts b/desktop/src/api/settings.ts
-index 907bfbd..f9a92dc 100644
+index 907bfbd..f24aff8 100644
 --- a/desktop/src/api/settings.ts
 +++ b/desktop/src/api/settings.ts
-@@ -15,12 +15,23 @@ export type CliLauncherStatus = {
+@@ -15,12 +15,19 @@ export type CliLauncherStatus = {
    lastError: string | null
  }
  
-+// Timestamp of the last user-settings PUT. settingsStore's focus
-+// hydration uses it to dodge the race: while this window's save is
-+// still in flight (optimistic value already on screen), a re-pull
-+// would write the stale value back into the UI.
 +let userSettingsPutAt = 0
 +
 +export function msSinceLastUserSettingsPut(): number {
@@ -381,7 +319,7 @@ index 907bfbd..f9a92dc 100644
    },
  
 diff --git a/desktop/src/components/layout/Sidebar.tsx b/desktop/src/components/layout/Sidebar.tsx
-index 5ae151e..812997e 100644
+index 5ae151e..8b6cdc1 100644
 --- a/desktop/src/components/layout/Sidebar.tsx
 +++ b/desktop/src/components/layout/Sidebar.tsx
 @@ -2,6 +2,7 @@ import { forwardRef, useEffect, useLayoutEffect, useState, useCallback, useMemo,
@@ -392,17 +330,15 @@ index 5ae151e..812997e 100644
  import { useTranslation, type TranslationKey } from '../../i18n'
  import { BrandSeal } from '@/components/composite/BrandSeal'
  import { Button } from '@/components/ui/Button'
-@@ -113,6 +114,9 @@ export function Sidebar({
+@@ -113,6 +114,7 @@ export function Sidebar({
    const openModal = useUIStore((s) => s.openModal)
    const closeModal = useUIStore((s) => s.closeModal)
    const activeTabId = useTabStore((s) => s.activeTabId)
-+  // Intranet mode: the skill-market entry hides (already-open market tabs
-+  // are handled by the Market page itself).
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    const tabs = useTabStore((s) => s.tabs)
    const chatSessions = useChatStore((s) => s.sessions)
    const closeTab = useTabStore((s) => s.closeTab)
-@@ -940,7 +944,7 @@ export function Sidebar({
+@@ -940,7 +942,7 @@ export function Sidebar({
              {t('sidebar.scheduled')}
            </NavItem>
          )}
@@ -572,7 +508,7 @@ index 4049156..fe07e73 100644
    // ─── Window controls / diagram + code viewers ──────────────────────────────────────
    'windowControls.minimize': '最小化窗口',
 diff --git a/desktop/src/pages/ComputerUseSettings.tsx b/desktop/src/pages/ComputerUseSettings.tsx
-index d5f7793..b58b0e8 100644
+index d5f7793..b496166 100644
 --- a/desktop/src/pages/ComputerUseSettings.tsx
 +++ b/desktop/src/pages/ComputerUseSettings.tsx
 @@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
@@ -583,18 +519,15 @@ index d5f7793..b58b0e8 100644
  
  type CheckState = 'loading' | 'ready' | 'error'
  const PYTHON_DOWNLOAD_URLS: Record<string, string> = {
-@@ -50,6 +51,10 @@ async function openExternalUrl(url: string) {
+@@ -50,6 +51,7 @@ async function openExternalUrl(url: string) {
  
  export function ComputerUseSettings() {
    const t = useTranslation()
-+  // Intranet mode: the offline bundle ships Python, so only the
-+  // "Download Python 3" external-link button hides; status checks
-+  // and path config (local capabilities) stay as they are.
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    const [status, setStatus] = useState<ComputerUseStatus | null>(null)
    const [checkState, setCheckState] = useState<CheckState>('loading')
    const [setupRunning, setSetupRunning] = useState(false)
-@@ -469,7 +474,7 @@ export function ComputerUseSettings() {
+@@ -469,7 +471,7 @@ export function ComputerUseSettings() {
  
            {/* Action buttons */}
            <div className="flex gap-3">
@@ -604,7 +537,7 @@ index d5f7793..b58b0e8 100644
                  variant="primary"
                  size="lg"
 diff --git a/desktop/src/pages/Market.tsx b/desktop/src/pages/Market.tsx
-index d1fcdb8..f4de7bf 100644
+index d1fcdb8..cc1598e 100644
 --- a/desktop/src/pages/Market.tsx
 +++ b/desktop/src/pages/Market.tsx
 @@ -3,6 +3,7 @@ import { useTranslation } from '../i18n'
@@ -615,20 +548,15 @@ index d1fcdb8..f4de7bf 100644
  import { InstallConfirmDialog } from '../components/market/InstallConfirmDialog'
  import { MarketHome } from '../components/market/MarketHome'
  import { MarketSkillDetail } from '../components/market/MarketSkillDetail'
-@@ -13,6 +14,12 @@ export function Market() {
+@@ -13,6 +14,7 @@ export function Market() {
    const t = useTranslation()
    const selectedId = useMarketStore((s) => s.selectedId)
    const installingIds = useMarketStore((s) => s.installingIds)
-+  // Intranet mode: the skills market is a pure online capability
-+  // (list/detail/install all go through the internet). The sidebar
-+  // entry is already hidden; this catches market tabs opened BEFORE
-+  // the switch flipped — on the toggle broadcast they immediately
-+  // switch to an unavailable notice and stop issuing market requests.
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    const [confirmInstall, setConfirmInstall] = useState<NormalizedSkill | null>(null)
    const [confirmUninstall, setConfirmUninstall] = useState<NormalizedSkill | null>(null)
  
-@@ -77,6 +84,15 @@ export function Market() {
+@@ -77,6 +79,15 @@ export function Market() {
      }
    }
  
@@ -645,7 +573,7 @@ index d1fcdb8..f4de7bf 100644
      <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-surface)]">
        {selectedId ? (
 diff --git a/desktop/src/pages/Settings.tsx b/desktop/src/pages/Settings.tsx
-index aebc121..345d25a 100644
+index aebc121..1a123ee 100644
 --- a/desktop/src/pages/Settings.tsx
 +++ b/desktop/src/pages/Settings.tsx
 @@ -17,9 +17,11 @@ import { ActivitySettings } from './ActivitySettings'
@@ -668,12 +596,10 @@ index aebc121..345d25a 100644
    const t = useTranslation()
  
    useEffect(() => {
-@@ -35,6 +38,12 @@ export function Settings() {
+@@ -35,6 +38,10 @@ export function Settings() {
      useUIStore.getState().setPendingSettingsTab(null)
    }, [pendingSettingsTab, setActiveTab])
  
-+  // Intranet mode hides "IM Adapters": if the page is active when the
-+  // switch flips, fall back to the intranet-mode page
 +  useEffect(() => {
 +    if (intranetMode && activeTab === 'adapters') setActiveTab('intranetMode')
 +  }, [intranetMode, activeTab, setActiveTab])
@@ -681,22 +607,20 @@ index aebc121..345d25a 100644
    return (
      <div className="flex-1 flex flex-col overflow-hidden bg-[var(--color-surface)]">
        <div className="flex-1 flex overflow-hidden">
-@@ -60,10 +69,13 @@ export function Settings() {
+@@ -60,10 +67,11 @@ export function Settings() {
            className="w-[195px] flex-shrink-0 flex flex-col overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-surface)] py-4 pl-3 pr-1"
          >
            <div className="flex-1 flex flex-col gap-0.5">
-+            {/* Intranet mode — dedicated settings page, pinned first in the rail (the air-gap master switch) */}
 +            <TabButton icon="security" label={t('settings.tab.intranetMode')} active={activeTab === 'intranetMode'} onClick={() => setActiveTab('intranetMode')} />
              <TabButton icon="dns" label={t('settings.tab.providers')} active={activeTab === 'providers'} onClick={() => setActiveTab('providers')} />
              <TabButton icon="tune" label={t('settings.tab.general')} active={activeTab === 'general'} onClick={() => setActiveTab('general')} />
              <TabButton icon="qr_code_2" label={t('settings.tab.h5Access')} active={activeTab === 'h5Access'} onClick={() => setActiveTab('h5Access')} />
 -            <TabButton icon="chat" label={t('settings.tab.adapters')} active={activeTab === 'adapters'} onClick={() => setActiveTab('adapters')} />
-+            {/* Intranet mode hides IM Adapters (external IM channels are unreachable in an air-gapped environment) */}
 +            {!intranetMode && <TabButton icon="chat" label={t('settings.tab.adapters')} active={activeTab === 'adapters'} onClick={() => setActiveTab('adapters')} />}
              <TabButton icon="terminal" label={t('settings.tab.terminal')} active={activeTab === 'terminal'} onClick={() => setActiveTab('terminal')} />
              <TabButton icon="dns" label={t('settings.tab.mcp')} active={activeTab === 'mcp'} onClick={() => setActiveTab('mcp')} />
              <TabButton icon="smart_toy" label={t('settings.tab.agents')} active={activeTab === 'agents'} onClick={() => setActiveTab('agents')} />
-@@ -83,11 +95,12 @@ export function Settings() {
+@@ -83,11 +91,12 @@ export function Settings() {
  
          {/* Tab content; trace embeds a full-bleed page that manages its own scroll */}
          <div className={activeTab === 'trace' ? 'flex-1 flex min-h-0 flex-col overflow-hidden' : 'flex-1 overflow-y-auto px-9 py-8'}>
@@ -711,58 +635,35 @@ index aebc121..345d25a 100644
            {activeTab === 'mcp' && <McpSettings />}
            {activeTab === 'agents' && <AgentManager />}
 diff --git a/desktop/src/pages/settings/AboutSettings.tsx b/desktop/src/pages/settings/AboutSettings.tsx
-index 4ea4e18..6f65080 100644
+index cc67565..af14b5d 100644
 --- a/desktop/src/pages/settings/AboutSettings.tsx
 +++ b/desktop/src/pages/settings/AboutSettings.tsx
-@@ -38,6 +38,11 @@ const SOCIAL_LINKS = [
+@@ -38,6 +38,7 @@ const SOCIAL_LINKS = [
  export function AboutSettings() {
    const t = useTranslation()
    const locale = useSettingsStore((s) => s.locale)
-+  // Intranet mode: the whole "check for updates / update proxy / release
-+  // notes" card and the external-link sections are not rendered; the
-+  // updater itself is cut off in the main process (updater.ts) — this
-+  // only keeps the entry points out of the UI.
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    const [version, setVersion] = useState('')
    const updateProxy = useSettingsStore((s) => s.updateProxy)
    const setUpdateProxy = useSettingsStore((s) => s.setUpdateProxy)
-@@ -75,7 +80,9 @@ export function AboutSettings() {
+@@ -66,7 +67,7 @@ export function AboutSettings() {
      if (changelogBody) {
        setChangelogVersion(version)
        setShowChangelog(true)
 -    } else {
 +    } else if (!intranetMode) {
-+      // Under intranet mode, never jump out when there is no local changelog
-+    // (the external-link channel is cut).
        openUrl(`${UPSTREAM_REPO}/releases/tag/v${version}`)
      }
    }
-@@ -106,6 +113,10 @@ export function AboutSettings() {
+@@ -97,6 +98,7 @@ export function AboutSettings() {
    }, [updateProxy])
  
    const openUrl = (url: string) => {
-+    // Intranet mode: the main-process openExternal choke point refuses
-+    // http(s) links; short-circuit here so a failed shell.open doesn't
-+    // fall through to window.open and pull up the system browser.
 +    if (intranetMode) return
      void getDesktopHost().shell.open(url).catch(() => window.open(url, '_blank'))
    }
  
-@@ -194,7 +205,12 @@ export function AboutSettings() {
-         </div>
-       )}
- 
--      {/* GitHub Repo (fork etiquette: upstream first, then this fork) */}
-+      {/* GitHub Repo (fork etiquette: upstream first, then this fork)
-+          Stays visible under intranet mode: this is attribution/source
-+          information, not a functional entry — intranet mode blocks
-+          network behaviour, it does not hide information. Clicks
-+          short-circuit to a no-op via openUrl (hover styling unchanged —
-+          the cards stay "alive", they just cannot navigate). */}
-       <div className="mt-6 w-full flex flex-col gap-2">
-         <button
-           onClick={() => openUrl(UPSTREAM_REPO)}
-@@ -218,6 +234,7 @@ export function AboutSettings() {
+@@ -208,6 +210,7 @@ export function AboutSettings() {
          </button>
        </div>
  
@@ -770,7 +671,7 @@ index 4ea4e18..6f65080 100644
        <Card radius="xl" surface="low" padding="none" className="mt-4 w-full p-4">
          <div className="flex items-start justify-between gap-3">
            <div>
-@@ -405,11 +422,13 @@ export function AboutSettings() {
+@@ -395,10 +398,12 @@ export function AboutSettings() {
            )}
          </div>
        </Card>
@@ -779,12 +680,11 @@ index 4ea4e18..6f65080 100644
        {/* Divider */}
        <div className="w-full border-t border-[var(--color-border-separator)] my-6" />
  
-       {/* Author (fork etiquette: upstream author first, then this fork's maintainer) */}
 +      {!intranetMode && (
        <div className="w-full">
          <h3 className="text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">{t('settings.about.author')}</h3>
          <div className="w-full flex flex-col gap-2">
-@@ -431,12 +450,14 @@ export function AboutSettings() {
+@@ -420,12 +425,14 @@ export function AboutSettings() {
              <div className="flex-1 text-left">
                <div className="text-sm font-medium text-[var(--color-text-primary)]">GeniusTDY</div>
                <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.forkMaintainerHint')}</div>
@@ -801,7 +701,7 @@ index 4ea4e18..6f65080 100644
        <div className="w-full mt-4">
          <h3 className="text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">{t('settings.about.socialMedia')}</h3>
          <div className="flex flex-col gap-0.5">
-@@ -453,7 +474,9 @@ export function AboutSettings() {
+@@ -442,7 +449,9 @@ export function AboutSettings() {
            ))}
          </div>
        </div>
@@ -811,30 +711,27 @@ index 4ea4e18..6f65080 100644
        <div className="mt-6 w-full">
          <button
            onClick={() => openUrl(GITHUB_ISSUES)}
-@@ -466,6 +489,7 @@ export function AboutSettings() {
+@@ -455,6 +464,7 @@ export function AboutSettings() {
            </div>
          </button>
        </div>
 +      )}
  
-       {/* Changelog modal — fixed per-language content baked from the upstream
-           (NanmiCoder/cc-haha) releaseNotes of the same tag; Simplified Chinese
+       {showChangelog && modalEntry && modalBody && (
+         <Modal
 diff --git a/desktop/src/pages/settings/GeneralSettings.tsx b/desktop/src/pages/settings/GeneralSettings.tsx
-index 9bbb91f..e45c1a8 100644
+index 9bbb91f..6f8dd3e 100644
 --- a/desktop/src/pages/settings/GeneralSettings.tsx
 +++ b/desktop/src/pages/settings/GeneralSettings.tsx
-@@ -89,6 +89,10 @@ export function GeneralSettings() {
+@@ -89,6 +89,7 @@ export function GeneralSettings() {
      uiZoom,
      setUiZoom,
    } = useSettingsStore()
-+  // Intranet mode: WebSearch is force-disabled by the CLI network
-+  // policy; the Tavily/Brave "Get API Key" links are pure online
-+  // entries (external SaaS consoles), unreachable on an intranet — hide.
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    // Read the theme from the store that owns it. settingsStore keeps a copy for
    // its own consumers, but that copy is only refreshed on an explicit setTheme
    // — an OS flip updates uiStore alone and would leave this picker highlighting
-@@ -1187,15 +1191,17 @@ export function GeneralSettings() {
+@@ -1187,15 +1188,17 @@ export function GeneralSettings() {
              />
              <div className="-mt-1 flex items-center justify-between gap-3 text-xs text-[var(--color-text-tertiary)]">
                <span>{t('settings.general.webSearchTavilyFreeHint')}</span>
@@ -861,7 +758,7 @@ index 9bbb91f..e45c1a8 100644
              </div>
              <Input
                id="web-search-brave-key"
-@@ -1213,15 +1219,17 @@ export function GeneralSettings() {
+@@ -1213,15 +1216,17 @@ export function GeneralSettings() {
              />
              <div className="-mt-1 flex items-center justify-between gap-3 text-xs text-[var(--color-text-tertiary)]">
                <span>{t('settings.general.webSearchBraveFreeHint')}</span>
@@ -890,33 +787,22 @@ index 9bbb91f..e45c1a8 100644
            <div className="mt-4 flex flex-col gap-3">
 diff --git a/desktop/src/pages/settings/IntranetModeSettings.tsx b/desktop/src/pages/settings/IntranetModeSettings.tsx
 new file mode 100644
-index 0000000..fe93447
+index 0000000..3db8c50
 --- /dev/null
 +++ b/desktop/src/pages/settings/IntranetModeSettings.tsx
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,55 @@
 +import { useSettingsStore } from '../../stores/settingsStore'
 +import { useTranslation } from '../../i18n'
 +import { useUIStore } from '../../stores/uiStore'
 +import { SettingsPageHeader } from '@/components/settings/SettingsSection'
 +import { SETTINGS_CHECKBOX_INPUT_CLASS, SettingsCheckboxMark } from './shared'
 +
-+/**
-+ * Dedicated intranet-mode settings page (first entry of the settings rail).
-+ *
-+ * The air-gap master switch, promoted from GeneralSettings to its own rail
-+ * entry so it is reachable in one click. The store logic is unchanged:
-+ * optimistic update + rollback in settingsStore, server persists and
-+ * broadcasts network_policy_changed so every open window (and CLI sessions)
-+ * follows the flip without a restart.
-+ */
 +export function IntranetModeSettings() {
 +  const t = useTranslation()
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
 +  const setIntranetMode = useSettingsStore((s) => s.setIntranetMode)
 +  const addToast = useUIStore((s) => s.addToast)
 +
-+  // Optimistic update + rollback-on-failure live in the store; this
-+  // only surfaces save errors.
 +  const handleIntranetModeToggle = async (enabled: boolean) => {
 +    try {
 +      await setIntranetMode(enabled)
@@ -935,7 +821,6 @@ index 0000000..fe93447
 +        description={t('settings.general.intranetModeDescription')}
 +      />
 +
-+      {/* The air-gap master switch */}
 +      <div className="mt-2">
 +        <label className="relative flex items-start gap-3 rounded-[var(--radius-xl)] border border-[var(--color-border)] bg-[var(--color-surface-container-low)] px-4 py-3 cursor-pointer hover:border-[var(--color-border-focus)] transition-colors">
 +          <input
@@ -962,10 +847,10 @@ index 0000000..fe93447
 +  )
 +}
 diff --git a/desktop/src/pages/settings/ProviderSettings.tsx b/desktop/src/pages/settings/ProviderSettings.tsx
-index f86e03e..53fb75e 100644
+index f86e03e..0fdbd34 100644
 --- a/desktop/src/pages/settings/ProviderSettings.tsx
 +++ b/desktop/src/pages/settings/ProviderSettings.tsx
-@@ -200,10 +200,16 @@ export function ProviderSettings() {
+@@ -200,10 +200,12 @@ export function ProviderSettings() {
      await fetchSettings()
    }
  
@@ -977,28 +862,20 @@ index f86e03e..53fb75e 100644
 +
 +  const providerItems = useMemo(() => {
 +    const items = buildProviderListItems(providers, providerOrder)
-+    // Intranet mode: the three official providers (Claude/ChatGPT/Grok)
-+    // depend on public-internet OAuth login and are unusable on an
-+    // intranet — hide their cards (server-side state untouched, same
-+    // policy as the hidden "IM Adapters" tab).
 +    return intranetMode ? items.filter((item) => item.kind === 'saved') : items
 +  }, [intranetMode, providerOrder, providers])
  
    const handleProviderDragEnd = (event: DragEndEvent) => {
      const { active, over } = event
-@@ -962,6 +968,11 @@ function openExternalUrl(url: string) {
+@@ -962,6 +964,7 @@ function openExternalUrl(url: string) {
  function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderFormProps) {
    const { createProvider, updateProvider, testConfig, fetchModels } = useProviderStore()
    const fetchSettings = useSettingsStore((s) => s.fetchAll)
-+  // Intranet mode: the preset "Get API Key" button and the promo strip
-+  // are pure online entries (external links to SaaS consoles),
-+  // unreachable on an intranet — hide them. The modal itself stays:
-+  // adding intranet/self-hosted providers is the core use case.
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    const addToast = useUIStore((s) => s.addToast)
    const t = useTranslation()
    const baseUrlInputId = useId()
-@@ -1712,7 +1723,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
+@@ -1712,7 +1715,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
            </div>
          </div>
  
@@ -1008,7 +885,7 @@ index f86e03e..53fb75e 100644
              {apiKeyUrl && (
                <button
 diff --git a/desktop/src/stores/chatStore.ts b/desktop/src/stores/chatStore.ts
-index e267bc5..0e72b19 100644
+index e267bc5..6586995 100644
 --- a/desktop/src/stores/chatStore.ts
 +++ b/desktop/src/stores/chatStore.ts
 @@ -8,6 +8,7 @@ import { useCLITaskStore } from './cliTaskStore'
@@ -1019,17 +896,11 @@ index e267bc5..0e72b19 100644
  import { randomSpinnerVerb } from '../config/spinnerVerbs'
  import { notifyDesktop } from '../lib/desktopNotifications'
  import { deriveSessionTitle, isPlaceholderSessionTitle } from '../lib/sessionTitle'
-@@ -2965,6 +2966,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
+@@ -2965,6 +2966,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
          break
        }
  
 +      case 'network_policy_changed': {
-+        // The intranet-mode switch was toggled (by any client): mirror the
-+        // authoritative value into the settings store. Consumers (the
-+        // settings-page switch, the About/Sidebar/ComputerUse component
-+        // hiding, updateStore's update gate) subscribe to useSettingsStore
-+        // and re-render immediately. Only local state changes here — going
-+        // through setIntranetMode would write the settings file again.
 +        useSettingsStore.setState({ intranetMode: msg.intranetMode })
 +        break
 +      }
@@ -1038,7 +909,7 @@ index e267bc5..0e72b19 100644
          const session = get().sessions[sessionId]
          if (!session) break
 diff --git a/desktop/src/stores/settingsStore.ts b/desktop/src/stores/settingsStore.ts
-index 385b02b..94e7915 100644
+index 385b02b..4a19867 100644
 --- a/desktop/src/stores/settingsStore.ts
 +++ b/desktop/src/stores/settingsStore.ts
 @@ -1,6 +1,6 @@
@@ -1057,15 +928,10 @@ index 385b02b..94e7915 100644
    type WebSearchSettings,
  } from '../types/settings'
  import type { TraceCaptureSettings } from '../types/trace'
-@@ -49,6 +50,32 @@ export const UI_ZOOM_STEP = APP_ZOOM_CONTROL_STEP
+@@ -49,6 +50,27 @@ export const UI_ZOOM_STEP = APP_ZOOM_CONTROL_STEP
  export const UI_ZOOM_DEFAULT = DEFAULT_APP_ZOOM
  let desktopNotificationsSaveQueue: Promise<void> = Promise.resolve()
  
-+/**
-+ * Normalize a /api/settings/user response into the slice of store state
-+ * derived from user settings. Shared by fetchAll's full load and the
-+ * focus hydration (bottom of file) so both paths write the same shape.
-+ */
 +function userSettingsPatch(userSettings: UserSettings) {
 +  const desktopTerminal = normalizeDesktopTerminalSettings(userSettings.desktopTerminal)
 +  lastPersistedDesktopTerminal = desktopTerminal
@@ -1090,7 +956,7 @@ index 385b02b..94e7915 100644
  type SettingsStore = {
    permissionMode: PermissionMode
    currentModel: ModelInfo | null
-@@ -73,6 +100,7 @@ type SettingsStore = {
+@@ -73,6 +95,7 @@ type SettingsStore = {
    outputStyleError: string | null
    skipWebFetchPreflight: boolean
    desktopNotificationsEnabled: boolean
@@ -1098,7 +964,7 @@ index 385b02b..94e7915 100644
    desktopTerminal: DesktopTerminalSettings
    webSearch: WebSearchSettings
    updateProxy: UpdateProxySettings
-@@ -104,6 +132,7 @@ type SettingsStore = {
+@@ -104,6 +127,7 @@ type SettingsStore = {
    fetchOutputStyles: (workDir?: string | null) => Promise<void>
    setOutputStyle: (outputStyle: string, workDir?: string | null) => Promise<void>
    setSkipWebFetchPreflight: (enabled: boolean) => Promise<void>
@@ -1106,7 +972,7 @@ index 385b02b..94e7915 100644
    setDesktopNotificationsEnabled: (enabled: boolean) => Promise<void>
    setDesktopTerminal: (settings: DesktopTerminalSettings) => Promise<void>
    setWebSearch: (settings: WebSearchSettings) => Promise<void>
-@@ -198,6 +227,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -198,6 +222,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
    outputStyleError: null,
    skipWebFetchPreflight: true,
    desktopNotificationsEnabled: false,
@@ -1114,7 +980,7 @@ index 385b02b..94e7915 100644
    desktopTerminal: DEFAULT_DESKTOP_TERMINAL_SETTINGS,
    webSearch: { mode: 'auto', tavilyApiKey: '', braveApiKey: '' },
    updateProxy: DEFAULT_UPDATE_PROXY_SETTINGS,
-@@ -245,8 +275,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -245,8 +270,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
          loadH5AccessSettings(previousH5Access),
          loadTraceCaptureSettings(),
        ])
@@ -1123,7 +989,7 @@ index 385b02b..94e7915 100644
        // Nothing to do for the theme here: uiStore already applied it at
        // startup, and re-applying would re-persist and re-report it on every
        // provider switch.
-@@ -257,23 +285,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -257,23 +280,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
          activeProviderName: modelsRes.provider?.name ?? null,
          currentModel: model,
          effortLevel: level,
@@ -1148,14 +1014,10 @@ index 385b02b..94e7915 100644
          isLoading: false,
          error: null,
        })
-@@ -450,6 +466,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -450,6 +461,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
      }
    },
  
-+  // Intranet-mode switch. After persisting, the server broadcasts
-+  // network_policy_changed to every connected client, so open windows
-+  // and CLI sessions pick it up without a restart — an optimistic
-+  // local mirror update (rollback on failure) is all that's needed.
 +  setIntranetMode: async (enabled) => {
 +    const prev = get().intranetMode
 +    if (prev === enabled) return
@@ -1171,33 +1033,18 @@ index 385b02b..94e7915 100644
    setDesktopNotificationsEnabled: async (enabled) => {
      const prev = get().desktopNotificationsEnabled
      set({ desktopNotificationsEnabled: enabled })
-@@ -835,3 +867,37 @@ function isDesktopTerminalStartupShell(value: unknown): value is DesktopTerminal
+@@ -835,3 +858,22 @@ function isDesktopTerminalStartupShell(value: unknown): value is DesktopTerminal
      || value === 'cmd'
      || value === 'custom'
  }
 +
-+// Focus hydration: silently re-pull user settings when the window
-+// gains focus. Background: the network_policy_changed broadcast rides
-+// per-session WebSockets, so a freshly restarted app with no open
-+// session misses the live push and would act on stale state at the
-+// next interaction. Window focus (switching back from another window,
-+// un-minimizing) is a reliable "the user is about to interact" signal
-+// — one /api/settings/user re-pull aligns the state without touching
-+// the server's broadcast architecture. The 500 ms delay rides out
-+// fast focus churn during window switches and leaves in-flight PUTs
-+// time to complete.
 +function setupFocusHydration() {
 +  const handleFocus = async () => {
-+    // Skip while this window's save is still in flight: the optimistic
-+    // value is already on screen, and a re-pull would write the stale
-+    // value back into the UI.
 +    if (msSinceLastUserSettingsPut() < 1000) return
 +    try {
 +      const userSettings = await settingsApi.getUser()
 +      useSettingsStore.setState(userSettingsPatch(userSettings))
 +    } catch (e) {
-+      // Silent failure: focus hydration is a fallback mechanism — it must
-+      // not block the user or surface errors.
 +      console.debug('Focus hydration failed:', e)
 +    }
 +  }
@@ -1230,49 +1077,37 @@ index 3ea100c..8dbebeb 100644
    | 'activity'
    | 'general'
 diff --git a/desktop/src/stores/updateStore.ts b/desktop/src/stores/updateStore.ts
-index 58e767f..0b5efc2 100644
+index 58e767f..d2a1934 100644
 --- a/desktop/src/stores/updateStore.ts
 +++ b/desktop/src/stores/updateStore.ts
-@@ -210,6 +210,12 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
+@@ -210,6 +210,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
    checkForUpdates: async ({ silent = false, autoDownload = true } = {}) => {
      const host = getUpdateHost()
      if (!host) return null
-+    // Intranet mode: the whole update channel is off (the main-process
-+    // updater choke point refuses too). Return early so the state
-+    // machine never enters checking / errors — the settings-page update
-+    // card isn't rendered under intranet mode anyway. Toggles take
-+    // effect immediately (the flag is read fresh every time).
 +    if (useSettingsStore.getState().intranetMode) return null
      if (downloadPromise && get().status === 'downloading' && pendingUpdate) return pendingUpdate
      clearRelaunchWatchdog()
  
 diff --git a/desktop/src/types/chat.ts b/desktop/src/types/chat.ts
-index 4520b25..f4718cb 100644
+index 4520b25..3f79e86 100644
 --- a/desktop/src/types/chat.ts
 +++ b/desktop/src/types/chat.ts
-@@ -136,6 +136,10 @@ export type ServerMessage =
+@@ -136,6 +136,7 @@ export type ServerMessage =
    // 桌面端据此把选择器校正回 CLI 的真实权限，避免本地影子值漂移。
    | { type: 'permission_mode_changed'; mode: PermissionMode }
    | { type: 'providers_changed'; reason: 'created' | 'updated' | 'deleted' | 'activated' | 'reordered' | 'imported' }
-+  // Server-broadcast intranet-mode switch change: any client toggling the
-+  // switch affects everyone; open windows hide/restore online components
-+  // immediately, no restart needed.
 +  | { type: 'network_policy_changed'; intranetMode: boolean }
    | {
        type: 'api_retry'
        attempt: number
 diff --git a/desktop/src/types/settings.ts b/desktop/src/types/settings.ts
-index 2f6e4b2..eb0b85b 100644
+index 2f6e4b2..10ef4e7 100644
 --- a/desktop/src/types/settings.ts
 +++ b/desktop/src/types/settings.ts
-@@ -161,6 +161,11 @@ export type UserSettings = {
+@@ -161,6 +161,7 @@ export type UserSettings = {
    outputStyle?: string
    skipWebFetchPreflight?: boolean
    desktopNotificationsEnabled?: boolean
-+  // Intranet-mode master switch: when true, telemetry / online login /
-+  // updates / WebSearch are all cut off, and the desktop hides online
-+  // components (Python download, update check, update proxy, skills
-+  // market, About-page external links).
 +  intranetMode?: boolean
    webSearch?: WebSearchSettings
    updateProxy?: Partial<UpdateProxySettings>

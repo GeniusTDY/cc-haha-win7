@@ -1,14 +1,3 @@
-/**
- * Node.js port: Bun.file() compatibility shim.
- *
- * Returns a ReadableStream subclass (so `new Response(file)` accepts it as a
- * body) carrying Bun File semantics used by cc-haha:
- *   file.size / file.type / file.slice(start, endExclusive) / file.text()
- *   file.stream() is the object itself (it IS a ReadableStream).
- *
- * Slicing maps to fs.createReadStream({ start, end }) windows, so Range
- * requests stream from disk without buffering.
- */
 
 import { createReadStream, statSync } from 'node:fs'
 import { extname } from 'node:path'
@@ -69,14 +58,12 @@ export class NodeBunFile extends ReadableStream<Uint8Array> {
           try {
             controller.close()
           } catch {
-            // already closed
           }
         })
         nodeStream.on('error', err => {
           try {
             controller.error(err)
           } catch {
-            // already closed
           }
         })
       },
@@ -106,7 +93,6 @@ export class NodeBunFile extends ReadableStream<Uint8Array> {
     return statSync(this.path).mtimeMs
   }
 
-  /** Bun slice: [start, endExclusive) relative to this file's window. */
   slice(sliceStart: number, sliceEndExclusive?: number): NodeBunFile {
     const base = this.start ?? 0
     const total = statSync(this.path).size

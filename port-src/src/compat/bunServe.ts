@@ -1,25 +1,3 @@
-/**
- * Node.js port: Bun.serve() compatibility shim over node:http + ws.
- *
- * Implements the surface used by cc-haha's local server:
- *   nodeServe<Data>({
- *     port, hostname, idleTimeout,
- *     fetch(request, server) => Response | undefined,
- *     websocket: { open, message, close },
- *   })
- *   → server: {
- *       port, hostname,
- *       upgrade(request, { data }) → boolean,
- *       requestIP(request) → { address, port, family } | null,
- *       stop(force?),
- *       listening: Promise<void>,   // Node-port addition
- *     }
- *
- * Bun binds synchronously and exposes `port` immediately; node:http binds on
- * the next event-loop turn. Callers that need the real port right away should
- * `await server.listening` (cc-haha's startServer does). Servers prewarmed at
- * module-load time are bound long before their port is read.
- */
 
 import * as http from 'node:http'
 import * as net from 'node:net'
@@ -88,10 +66,6 @@ export function nodeServe<Data = unknown>(
   })
 
   function wrapWs(ws: WsWebSocket): NodeServeWebSocket<Data> {
-    // Bind the prototype methods FIRST: `wrapped` aliases `ws`, so assigning
-    // `wrapped.send = ...` replaces the instance property that `ws.send`
-    // resolves to — calling `ws.send()` inside the wrapper would recurse
-    // infinitely (caught as RangeError during e2e).
     const originalSend = ws.send.bind(ws)
     const originalClose = ws.close.bind(ws)
     const originalTerminate = ws.terminate.bind(ws)
@@ -105,7 +79,6 @@ export function nodeServe<Data = unknown>(
       try {
         originalClose(code ?? 1000, reason ?? '')
       } catch {
-        // already closing
       }
     }
     wrapped.terminate = (): void => {
@@ -129,7 +102,6 @@ export function nodeServe<Data = unknown>(
         handlers.close?.(wrapped, code ?? 1005, reason.toString('utf8'))
       })
       ws.on('error', () => {
-        // Prevent unhandled 'error' from crashing the process.
       })
       handlers.open?.(wrapped)
     })
@@ -210,11 +182,6 @@ export function nodeServe<Data = unknown>(
     }
 
     if (rawSocket) {
-      // Upgrade request that the handler did NOT upgrade — write the
-      // returned HTTP response onto the raw socket, then drop it. If the
-      // handshake already completed, the socket now speaks WebSocket and
-      // must not receive raw HTTP bytes (a post-upgrade fetch error would
-      // otherwise corrupt the frame stream as a bogus "RSV1" frame).
       if (upgradedRequests.has(webRequest)) {
         if (response) {
           void response.body?.cancel().catch(() => {})
@@ -274,7 +241,6 @@ export function nodeServe<Data = unknown>(
       res.destroy(err as Error)
     })
     res.on('close', () => {
-      // Client went away mid-stream (SSE etc.) — cancel the upstream body.
       if (!nodeBody.destroyed && !nodeBody.readableEnded) {
         nodeBody.destroy()
         void response!.body?.cancel().catch(() => {})
@@ -283,9 +249,6 @@ export function nodeServe<Data = unknown>(
   }
 
   const nodeServer = http.createServer((incoming, res) => {
-    // Bun.serve tolerates abrupt client resets; node:http emits 'error' on
-    // the request stream — without a listener it escalates to an uncaught
-    // exception and kills the whole server process.
     incoming.on('error', () => {
       res.destroy()
     })
@@ -294,7 +257,6 @@ export function nodeServe<Data = unknown>(
   })
 
   nodeServer.on('clientError', (err, socket) => {
-    // Malformed HTTP / TLS-on-HTTP-port noise: log nothing, just drop.
     if (socket.writable) {
       socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
     } else {
@@ -307,8 +269,6 @@ export function nodeServe<Data = unknown>(
       socket.destroy()
       return
     }
-    // Same reset tolerance for upgraded sockets (post-handshake resets
-    // surface here as unhandled 'error' otherwise).
     socket.on('error', () => socket.destroy())
     void handleRequest(incoming, null, socket, head)
   })

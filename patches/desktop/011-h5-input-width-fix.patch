@@ -22,9 +22,10 @@ Same tag id and rules as the in-place hotfix baked into the shipped
 Offline installer's dist/index.html (<style id="h5-host-input-fix">).
 
 diff --git a/desktop/index.html b/desktop/index.html
+index f516f8b..21e889c 100644
 --- a/desktop/index.html
 +++ b/desktop/index.html
-@@ -746,6 +746,7 @@
+@@ -720,6 +720,7 @@
          })
        })()
      </script>

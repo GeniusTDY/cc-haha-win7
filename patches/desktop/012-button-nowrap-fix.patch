@@ -21,9 +21,10 @@ Same tag id and rules as the in-place hotfix baked into the shipped
 Offline installer's dist/index.html (<style id="cjk-btn-nowrap">).
 
 diff --git a/desktop/index.html b/desktop/index.html
+index 21e889c..c56c4a0 100644
 --- a/desktop/index.html
 +++ b/desktop/index.html
-@@ -747,6 +748,7 @@
+@@ -721,6 +721,7 @@
        })()
      </script>
      <style id="h5-host-input-fix">div:has(> div > div > #h5-access-public-url){container-type:inline-size}@container (max-width: 28rem){div:has(> div > #h5-access-public-url){grid-template-columns:minmax(0,1fr)!important}}</style>

@@ -1,8 +1,3 @@
-// adapters/index.ts — IM adapter dispatcher (Win7 port overlay file).
-// Reconstructed from the shipped dist/adapters.mjs artifact: single entry
-// point for all five IM adapters, one literal dynamic import per adapter so
-// esbuild code-splits each into a chunk that is only fetched when its
-// --flag is passed.
 
 const flag = process.argv.find(
   (arg) =>
@@ -21,8 +16,6 @@ if (!flag) {
 }
 
 const entrypoints = {
-  // Literal dynamic imports: esbuild code-splits these into chunks that are
-  // only fetched at runtime, keeping non-selected adapters unloaded.
   '--feishu': () => import('./feishu/index.ts'),
   '--telegram': () => import('./telegram/index.ts'),
   '--wechat': () => import('./wechat/index.ts'),

@@ -1,26 +1,3 @@
-// strip-cjk-comments.mjs — post-build pass for dist/adapters-chunks/*.mjs
-//
-// The IM adapter chunks bundle third-party SDKs (@larksuiteoapi, dingtalk,
-// grammy) whose sources carry Chinese JSDoc API docs; esbuild preserves
-// doc comments attached to statements, so they leak into the artifacts.
-// This pass removes every comment that contains CJK text — comments only,
-// never string literals — so the repo's no-Chinese-comment invariant holds
-// across source rebuilds (the committed runtime/node-fallback chunks are
-// already stripped; this keeps fresh dist output identical in kind).
-//
-// Lexer notes (why this is safe):
-//   - full state machine over the source: '…"…' strings, `…` templates
-//     with nested ${…} interpolation, /…/x regex literals vs division,
-//     //… and /*…*/ comments;
-//   - removals are recorded as spans of the ORIGINAL source and spliced
-//     out afterwards; a span is only recorded inside a verified comment;
-//   - whole-line comments drop their lines; trailing comments drop their
-//     preceding whitespace; inline ones are replaced by a single space so
-//     adjacent tokens can never join;
-//   - the template-interpolation stack must be empty at EOF or the pass
-//     refuses to emit (lexer derailed -> no output written).
-//   - correctness is proven independently: esbuild --minify-whitespace
-//     renders original and stripped sources byte-identically.
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/

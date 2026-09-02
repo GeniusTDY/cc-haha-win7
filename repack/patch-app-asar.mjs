@@ -1,38 +1,4 @@
 #!/usr/bin/env node
-/**
- * patch-app-asar.mjs — surgical app.asar patcher (Win7 port, Stage B).
- *
- * Replaces `electron-dist/main.cjs` inside an electron-builder app.asar and
- * applies two idempotent fixes to it in one pass, without a full
- * extract/repack roundtrip:
- *
- *   1. read the asar header (size pickle + header pickle)
- *   2. read the packed main.cjs bytes from the data section
- *   3. insert the `useConpty = false` forcing (exact-once anchor match)
- *      + re-stamp the node-runtime probe dirs to the versioned layout
- *      (`"runtime", "node"` -> `"runtime", "node-v22.17.0"`), so seeds
- *      built before the version-stamp refactor keep resolving node.exe
- *   4. append the patched bytes to the END of the data section and repoint
- *      the header entry (offset/size/integrity) — every other file keeps its
- *      original offset, so the rest of the archive stays byte-identical
- *      (the old main.cjs bytes simply become unreachable dead space)
- *   5. write the new archive atomically and re-verify by parsing it back
- *
- * `--set-version <ver>` additionally bumps the asar root package.json
- * `"version"` field in place (same byte length only — the replacement is
- * written at the file's original offset and only its integrity hash is
- * repointed, so no other entry moves). This is what makes a rebuilt
- * installer semver-greater than the installed one for electron-updater.
- *
- * Why surgical: the shipped main.cjs contains the Win7 node-runtime fallback
- * layer (NODE_RUNTIME_EXE_ENV / resolveNodeRuntimeExecutable / …) that is NOT
- * in the current desktop/electron sources, so a wholesale rebuild would lose
- * it. The bundled main.cjs already carries the pipe-fallback half of patch
- * 006; the only missing runtime change is forcing node-pty's winpty backend
- * on legacy Windows (ConPTY is Win10 1809+).
- *
- * Usage: node patch-app-asar.mjs <path/to/app.asar> [--verify-only]
- */
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -43,12 +9,8 @@ const { Pickle } = await import(
   path.join(HERE, 'asar-tool', 'node_modules', '@electron', 'asar', 'lib', 'pickle.js')
 )
 
-const BLOCK_SIZE = 4 * 1024 * 1024 // must match electron-builder's integrity blockSize
+const BLOCK_SIZE = 4 * 1024 * 1024
 
-// ---------------------------------------------------------------------------
-// The winpty patch applied to the compiled main.cjs (mirrors the runtime part
-// of patches/desktop/003-terminal-winpty-fallback.patch).
-// ---------------------------------------------------------------------------
 const ANCHOR =
   '      };\n' +
   '      try {\n' +
@@ -69,8 +31,6 @@ const INSERTION =
   '      } catch (error) {\n' +
   '        if (!isLegacyWindows(this.platform)) throw error;'
 
-// Node-runtime probe dirs were re-stamped with their versions during the
-// version-stamp refactor; older asar seeds still probe `runtime/node`.
 const NODE_DIR_OLD = '"runtime", "node", "node.exe"'
 const NODE_DIR_NEW = '"runtime", "node-v22.17.0", "node.exe"'
 
@@ -90,9 +50,6 @@ function patchMainCjs(src) {
   return { src, already: !didWinpty && !didPaths, didWinpty, didPaths }
 }
 
-// ---------------------------------------------------------------------------
-// asar primitives
-// ---------------------------------------------------------------------------
 function readArchive(archivePath) {
   const fd = fs.openSync(archivePath, 'r')
   try {
@@ -134,9 +91,6 @@ function integrityFor(buf) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// main
-// ---------------------------------------------------------------------------
 const archivePath = process.argv[2]
 const verifyOnly = process.argv.includes('--verify-only')
 const setVersionIdx = process.argv.indexOf('--set-version')
@@ -163,7 +117,6 @@ try {
 
   const { src: patched, already, didWinpty, didPaths } = patchMainCjs(mainBuf.toString('utf8'))
 
-  // --set-version: bump the root package.json "version" in place (same length)
   let pkgPatch = null
   if (setVersion) {
     const pkgEntry = header.files['package.json']
@@ -196,10 +149,8 @@ try {
   }
   console.log(`[PATCH] main.cjs: winpty forcing ${didWinpty ? 'inserted' : 'already present'}, node runtime dir ${didPaths ? 'version-stamped (node -> node-v22.17.0)' : 'already version-stamped'}`)
   const patchedBuf = Buffer.from(patched, 'utf8')
-  new Function(patched) // syntax check without executing
+  new Function(patched)
 
-  // Repoint the entry: append at the end of the data section. Mutate in place
-  // to keep the JSON key order of every other entry untouched.
   entry.size = patchedBuf.length
   entry.offset = String(dataSize)
   entry.integrity = integrityFor(patchedBuf)
@@ -211,15 +162,11 @@ try {
   sizePickle.writeUInt32(newHeaderBuf.length)
   const newSizeBuf = sizePickle.toBuffer()
 
-  // data section = original data (fd, dataSize bytes) + patched main.cjs;
-  // a same-length package.json version bump is pwritten over its original
-  // region so no other entry's offset shifts.
   const tmp = archivePath + '.tmp'
   const out = fs.openSync(tmp, 'w')
   try {
     fs.writeSync(out, newSizeBuf)
     fs.writeSync(out, newHeaderBuf)
-    // copy the original data section in chunks (it is ~185 MB)
     const CHUNK = 8 * 1024 * 1024
     const chunk = Buffer.alloc(CHUNK)
     let read = 0
@@ -237,7 +184,6 @@ try {
     fs.closeSync(out)
   }
 
-  // verify the rewritten archive by parsing it back
   const check = readArchive(tmp)
   try {
     const checkEntry = check.header.files['electron-dist'].files['main.cjs']

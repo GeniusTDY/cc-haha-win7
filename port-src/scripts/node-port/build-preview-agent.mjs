@@ -1,26 +1,15 @@
 #!/usr/bin/env node
-/**
- * Node port of desktop/scripts/build-preview-agent.ts (drops `bun build`).
- *
- * Bundles src/preview-agent/index.ts to src-tauri/resources/preview-agent.js
- * as a minified IIFE with esbuild, mirroring the original bun invocation:
- *   bun build ./src/preview-agent/index.ts --outfile=<tmp> --format=iife --minify
- */
 
 import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-// Works from both <root>/port-src/scripts/node-port/ (documented overlay
-// layout) and <root>/scripts/node-port/ (legacy copied layout).
 const root = existsSync(path.join(here, '..', '..', 'package.json'))
   ? path.resolve(here, '..', '..')
   : path.resolve(here, '..', '..', '..')
 const desktopDir = path.join(root, 'desktop')
 
-// esbuild: vendored copy in port-src/vendor/node_modules/ first (pinned
-// 0.28.2, zero registry access on a fresh clone), repo node_modules second.
 async function loadEsbuild() {
   const vendored = [
     path.join(here, '..', '..', 'vendor', 'node_modules', 'esbuild', 'lib', 'main.js'),

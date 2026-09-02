@@ -1,16 +1,3 @@
-#!/usr/bin/env python3
-# Patch the node-port bundles for Win7: Computer Use offline support in
-# dist/server.mjs (P1-P9b) plus the VT-input gate in the sibling dist/cli.mjs
-# (P10). Every replacement asserts exactly-once match; aborts with
-# no changes on failure.
-#
-# Identifier-adaptive: esbuild renames top-level import aliases per build
-# (join187 -> join183, __dirname2 -> __dirname3, ...) because its renamer
-# numbers colliding symbols by frequency histogram. All esbuild-generated
-# aliases used below are therefore auto-detected from the bundle instead of
-# hard-coded, so this script survives rebuilds of dist/server.mjs.
-#
-# Usage: python3 patch-computer-use.py [path/to/server.mjs]
 import re
 import shutil
 import sys
@@ -20,14 +7,6 @@ BAK = PATH + ".pre-cu.bak"
 
 src = open(PATH, encoding="utf-8").read()
 
-# --------------------------------------------------------------------------
-# P10: cli.mjs VT-input gate (sibling of server.mjs; patched first so the
-# server-side "already patched" early-exit below cannot skip it on re-runs).
-# Win7 conhost has no VT *input*; upstream defaultBindings enables VT mode on
-# Windows from the node version alone, so the bundled node 22.17.0 wrongly
-# turns it on under Win7 (mode-cycle/keys misbehave). Restore the v2 port
-# gate: SUPPORTS_TERMINAL_VT_MODE = !windows || parseFloat(osN.release()) >= 10 && <runtime check>.
-# Adaptive: esbuild renumbers os aliases per build; pick the first free osN.
 import os as _osp
 
 CLI_PATH = _osp.path.join(_osp.path.dirname(_osp.path.abspath(PATH)), "cli.mjs")
@@ -64,11 +43,6 @@ if "getBundledPythonDirsWin" in src and "const cliMjs2" in src:
 if "getBundledPythonDirsWin" in src:
     print("[NOTE] CU patches present but win32 spawn chain (P9) missing — continuing")
 
-# Source-level P9/P9b: the 2026-08-30 source tree now carries the win32 CLI
-# spawn chain (resolveCliArgs + buildCronCliArgs, keyed on CC_HAHA_CLI_ENTRY)
-# and the nodeSqliteFlagArgs helper in src/server/services/conversationService.ts,
-# so a fresh build already emits both hunks — detect that and skip the
-# bundle-level rewrites below (their upstream-shape anchors no longer exist).
 P9_SOURCE_APPLIED = (
     "CC_HAHA_CLI_ENTRY" in src
     and "function nodeSqliteFlagArgs" in src
@@ -79,11 +53,7 @@ if P9_SOURCE_APPLIED:
 shutil.copyfile(PATH, BAK)
 backed_up = True
 
-# --------------------------------------------------------------------------
-# Auto-detect esbuild-generated identifiers (import aliases + renamed locals)
-# --------------------------------------------------------------------------
 detect_fail = []
-
 
 def module_prologue(marker):
     """Return the import block that follows a module comment marker."""
@@ -93,8 +63,6 @@ def module_prologue(marker):
     )
     return m.group(1) if m else ""
 
-
-# --- src/server/api/computer-use.ts prologue (CU api module) --------------
 cu_pro = module_prologue("// src/server/api/computer-use.ts")
 cu_join = re.search(r"\bjoin as (\w+)\b", cu_pro)
 cu_readfile = re.search(r"\breadFile as (\w+)\b", cu_pro)
@@ -105,7 +73,6 @@ if not (cu_join and cu_readfile and cu_writefile and cu_path and cu_futp):
     detect_fail.append("computer-use.ts prologue aliases")
     print(f"[FAIL] computer-use.ts prologue incomplete: {cu_pro!r}")
 
-# --- src/utils/computerUse/pythonBridge.ts prologue -----------------------
 pb_pro = module_prologue("// src/utils/computerUse/pythonBridge.ts")
 pb_path = re.search(r"import (\w+) from \"(?:node:)?path\";", pb_pro)
 pb_readfile = re.search(r"\breadFile as (\w+)\b", pb_pro)
@@ -114,7 +81,6 @@ if not (pb_path and pb_readfile and pb_writefile):
     detect_fail.append("pythonBridge.ts prologue aliases")
     print(f"[FAIL] pythonBridge.ts prologue incomplete: {pb_pro!r}")
 
-# --- context-bound identifiers --------------------------------------------
 m = re.search(r"async function detectPythonRuntime\((\w+), (\w+), (\w+), (\w+)\) \{", src)
 if m:
     cu_platform, cu_runcmd = m.group(1), m.group(2)
@@ -123,7 +89,6 @@ else:
     cu_platform = cu_runcmd = None
     detect_fail.append("detectPythonRuntime signature")
 
-# identifiers as used inside the patch contexts below
 SUB = {}
 for old, detected, label in [
     ("join187", cu_join and cu_join.group(1), "join (computer-use.ts)"),
@@ -144,7 +109,6 @@ for old, detected, label in [
         SUB[old] = detected
         print(f"[detect] {old} -> {detected}  ({label})")
 
-# pathExists aliases differ per module (pathExists3 = CU api, pathExists2 = pythonBridge)
 m = re.search(r"let venvExists = await (\w+)\(venvPython\);", src)
 if m:
     SUB["pathExists3"] = m.group(1)
@@ -156,7 +120,6 @@ if m:
     SUB["pathExists2"] = m.group(1)
     print(f"[detect] pathExists (pythonBridge) = {m.group(1)}")
 else:
-    # P7c already applied: probe the runtimeRoots loop shape instead
     m = re.search(r"if \(await (\w+)\(reqCandidate\)\) \{", src)
     if m:
         SUB["pathExists2"] = m.group(1)
@@ -164,7 +127,6 @@ else:
     else:
         detect_fail.append("pathExists2")
 
-# pythonBridge module-level var list (__dirname2 drifted to __dirname3 etc.)
 m = re.search(r"var (__dirname\d+), projectRoot, runtimeStateRoot", src)
 if m:
     SUB["__dirname2"] = m.group(1)
@@ -172,7 +134,6 @@ if m:
 else:
     detect_fail.append("pythonBridge __dirname var")
 
-# installSetupDependencies default install fn alias
 m = re.search(r"installSetupDependencies\(\w+, \w+, install = (\w+)\) \{", src)
 if m:
     SUB["runPipInstallWithFallback2"] = m.group(1)
@@ -180,23 +141,17 @@ if m:
 else:
     detect_fail.append("runPipInstallWithFallback2")
 
-# --- P9 (win32 CLI spawn chain) identifiers -------------------------------
-# path alias inside resolveCliArgs (matches `pathNN.resolve(import.meta.dir, ...)`)
 m = re.search(r"(path\d+)\.resolve\(import\.meta\.dir, \"\.\./\.\./\.\./preload\.ts\"\)", src)
 if m:
     SUB["path38"] = m.group(1)
     print(f"[detect] resolveCliArgs path alias = {m.group(1)}")
 else:
-    # already applied (P9 replaced import.meta.dir with moduleDir): find the
-    # alias from the patched call shape instead
     m = re.search(r"const moduleDir = (path\d+)\.dirname\(", src)
     if m:
         SUB["path38"] = m.group(1)
         print(f"[detect] resolveCliArgs path alias (patched shape) = {m.group(1)}")
     else:
         detect_fail.append("path38")
-# fs alias visible in the ConversationService scope (any node:fs import alias
-# works — they all refer to the same module)
 m = re.search(r"if \(!((?:fs\d+))\.existsSync\(lockFile\)\)", src)
 if m:
     SUB["fs26"] = m.group(1)
@@ -208,7 +163,6 @@ else:
         print(f"[detect] fs alias (first import) = {m.group(1)}")
     else:
         detect_fail.append("fs26")
-# fileURLToPath alias (any node:url import alias works)
 m = re.search(r"import \{ fileURLToPath as ((?:fileURLToPath\d+)) \}", src)
 if m:
     SUB["fileURLToPath7"] = m.group(1)
@@ -220,8 +174,6 @@ if detect_fail:
     print(f"\ndetection failed for: {detect_fail} - aborting, no changes written")
     sys.exit(2)
 
-# identifiers that are semantic source names (stable across builds); verify
-# they exist so a failure is loud instead of a silent no-op
 for stable in ["venvRoot", "venvRoot2", "installStampPath", "installStampPath2",
                "config4", "helperPath2", "reqPath", "projectRoot", "pythonRuntime",
                "baseInterpreterMarkerPath", "effectiveVenvCreated", "helperFileName",
@@ -234,13 +186,10 @@ for stable in ["venvRoot", "venvRoot2", "installStampPath", "installStampPath2",
 
 word_sub = re.compile(r"\b(" + "|".join(sorted(SUB, key=len, reverse=True)) + r")\b")
 
-
 def adapt(s):
     return word_sub.sub(lambda mm: SUB[mm.group(1)], s)
 
-
 n_fail = 0
-
 
 def rep(old, new, label):
     global src, n_fail
@@ -257,14 +206,11 @@ def rep(old, new, label):
     src = src.replace(old, new)
     print(f"[OK] {label}")
 
-
-# ---------------------------------------------------------------- P1: min python 3.9 -> 3.8
 rep("""var MIN_PYTHON_MAJOR = 3;
 var MIN_PYTHON_MINOR = 9;""",
     """var MIN_PYTHON_MAJOR = 3;
 var MIN_PYTHON_MINOR = 8;""", "P1 MIN_PYTHON_MINOR 9->8")
 
-# ---------------------------------------------------------------- P2: bundled python helpers + detection
 rep("""async function detectPythonRuntime(platform5, runCommand2, venvPythonPath, customPythonPath) {""",
     """function getBundledPythonCandidatesWin() {
   try {
@@ -313,14 +259,12 @@ ${bundledResult.stderr}`),
   for (const candidate of getPythonCandidates(platform5)) {
     const versionResult = await runCommand2(candidate.command, [...candidate.prefixArgs, "--version"]);""", "P2b bundled detection in detectPythonRuntime")
 
-# ---------------------------------------------------------------- P3: runSetup effective python var
 rep("""  const venvPython = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
   let venvExists = await pathExists3(venvPython);""",
     """  const venvPython = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
   let effectivePythonCmd = venvPython;
   let venvExists = await pathExists3(venvPython);""", "P3 effectivePythonCmd declared")
 
-# ---------------------------------------------------------------- P3b: venv failure -> bundled fallback
 rep("""    if (!venvResult.ok) {
       steps.push({
         name: "venv",
@@ -381,7 +325,6 @@ rep("""    if (!venvResult.ok) {
       steps.push({ name: "venv", ok: true, message: "\\u865A\\u62DF\\u73AF\\u5883\\u5DF2\\u521B\\u5EFA" });
     }""", "P3b venv fallback to bundled")
 
-# ---------------------------------------------------------------- P3c: pip block -> get-pip + offline build deps
 rep("""  if (!await pathExists3(pipPath)) {
     const pipResult = await runCommand(venvPython, [
       "-m",
@@ -463,11 +406,9 @@ rep("""  if (!await pathExists3(pipPath)) {
     }
   }""", "P3c pip bootstrap offline")
 
-# ---------------------------------------------------------------- P3d: deps install with effective python
 rep("""    const installResult = await installSetupDependencies(venvPython, reqPath);""",
     """    const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""", "P3d installSetupDependencies effective")
 
-# ---------------------------------------------------------------- P3e: runSetup deps self-heal probe
 rep("""  try {
     installedDigest = (await readFile85(installStampPath2, "utf8")).trim();
   } catch {
@@ -486,7 +427,6 @@ rep("""  try {
   if (needsInstall) {
     const installResult = await installSetupDependencies(effectivePythonCmd, reqPath);""", "P3e setup deps self-heal probe")
 
-# ---------------------------------------------------------------- P4: installSetupDependencies offline wheels
 rep("""async function installSetupDependencies(venvPython, reqPath, install = runPipInstallWithFallback2) {
   await install(venvPython, ["-m", "pip", "install", "--upgrade", "pip"]);
   return install(venvPython, ["-m", "pip", "install", "-r", reqPath]);
@@ -504,7 +444,6 @@ rep("""async function installSetupDependencies(venvPython, reqPath, install = ru
   return install(pythonCmd, ["-m", "pip", "install", "-r", reqPath]);
 }""", "P4 installSetupDependencies offline")
 
-# ---------------------------------------------------------------- P5: checkStatus base-interpreter mode
 rep("""  let effectiveVenvCreated = venvCreated;
   if (venvCreated) {
     const matches = await venvBaseInterpreterMatches(config4.pythonPath);
@@ -518,7 +457,6 @@ rep("""  let effectiveVenvCreated = venvCreated;
     effectiveVenvCreated = true;
   }""", "P5 checkStatus base mode")
 
-# ---------------------------------------------------------------- P6: listInstalledApps fallback python
 rep("""  const pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.exe") : join187(venvRoot2, "bin", "python3");
   if (!await pathExists3(pythonBin) || !await pathExists3(helperPath2)) {
     return [];
@@ -534,11 +472,9 @@ rep("""  const pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.ex
     return [];
   }""", "P6 listInstalledApps fallback")
 
-# ---------------------------------------------------------------- P7: pythonBridge — var list
 rep("""var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise;""",
     """var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise, basePythonOverride;""", "P7a basePythonOverride var")
 
-# ---------------------------------------------------------------- P7b: pythonBinPath + bundled dirs helper
 rep("""function pythonBinPath() {
   return isWindows2 ? path17.join(venvRoot, "Scripts", "python.exe") : path17.join(venvRoot, "bin", "python3");
 }""",
@@ -559,7 +495,6 @@ function getBundledPythonDirsWin() {
   }
 }""", "P7b pythonBinPath override + dirs helper (versioned python dir)")
 
-# ---------------------------------------------------------------- P7c: ensureRuntimeFiles multi-root
 rep("""  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.txt";
   const devRequirements = path17.join(projectRoot, "runtime", devReqFile);
   const devHelper = path17.join(projectRoot, "runtime", helperFileName);
@@ -589,7 +524,6 @@ rep("""  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.
     }
   }""", "P7c ensureRuntimeFiles multi-root")
 
-# ---------------------------------------------------------------- P7d: ensureBootstrapped venv fallback
 rep("""    if (!await pathExists2(pythonBinPath())) {
       logForDebugging("creating runtime venv at %s", { level: "debug" });
       const pythonCmd = await getVenvCreationPythonCommand();
@@ -611,7 +545,6 @@ rep("""    if (!await pathExists2(pythonBinPath())) {
       }
     }""", "P7d ensureBootstrapped venv fallback")
 
-# ---------------------------------------------------------------- P7e: ensureBootstrapped pip block
 rep("""    const pipBin = isWindows2 ? path17.join(venvRoot, "Scripts", "pip.exe") : path17.join(venvRoot, "bin", "pip");
     if (!await pathExists2(pipBin)) {
       logForDebugging("bootstrapping pip with ensurepip", { level: "debug" });
@@ -658,7 +591,6 @@ rep("""    const pipBin = isWindows2 ? path17.join(venvRoot, "Scripts", "pip.exe
       }
     }""", "P7e ensureBootstrapped pip offline")
 
-# ---------------------------------------------------------------- P7f: installRuntimeDependencies offline
 rep("""async function installRuntimeDependencies(requirementsPath2, install = runPipInstallWithFallback) {
   await install(["-m", "pip", "install", "--upgrade", "pip"], "pip upgrade");
   await install(["-m", "pip", "install", "-r", requirementsPath2], "python dependency install");
@@ -681,7 +613,6 @@ rep("""async function installRuntimeDependencies(requirementsPath2, install = ru
   await install(["-m", "pip", "install", "-r", requirementsPath2], "python dependency install");
 }""", "P7f installRuntimeDependencies offline")
 
-# ---------------------------------------------------------------- P7g: runtime deps self-heal probe
 rep("""    try {
       installedDigest = (await readFile28(installStampPath, "utf8")).trim();
     } catch {
@@ -700,19 +631,9 @@ rep("""    try {
     if (needsRuntimeInstall) {
       logForDebugging("installing python runtime dependencies", { level: "debug" });""", "P7g runtime deps self-heal probe")
 
-# ---------------------------------------------------------------- P8: Pillow py38-compatible range (win)
-# (matches runtime/requirements-win.txt exactly: Pillow>=10.0,<10.5)
 rep("""Pillow>=11.3.0,<12\\npyautogui>=0.9.54\\npywin32>=306""",
     """Pillow>=10.0,<10.5\\npyautogui>=0.9.54\\npywin32>=306""", "P8 win requirements Pillow >=10,<10.5 (py38)")
 
-# ---------------------------------------------------------------- P9: win32 CLI spawn chain (resolveCliArgs)
-# The node-port build emits Bun-flavored fallbacks (`--preload` +
-# import.meta.dir) that Node 22 rejects (`bad option`, exit 9) or crashes on
-# (import.meta.dir is undefined). Restore the chain shipped in
-# runtime/node-fallback/server.mjs: CC_HAHA_CLI_ENTRY direct entry (with the
-# node:sqlite flag) -> ../bin/claude-haha JS launcher -> dist/cli.mjs direct
-# execution -> bin/claude-haha.cmd -> source-tree preload fallback.
-# SKIPPED when the source tree already carries the chain (P9_SOURCE_APPLIED).
 if not P9_SOURCE_APPLIED:
     rep("""  resolveCliArgs(baseArgs) {
     const launcher = resolveClaudeCliLauncher({
@@ -770,7 +691,6 @@ if not P9_SOURCE_APPLIED:
     return buildClaudeCliArgs(launcher, baseArgs, process.env.CLAUDE_APP_ROOT);
   }""", "P9 resolveCliArgs win32 spawn chain")
 
-# ---------------------------------------------------------------- P9b: nodeSqliteFlagArgs helper
 if not P9_SOURCE_APPLIED:
     rep("""var ConversationService = class {
   sessions = /* @__PURE__ */ new Map();""",

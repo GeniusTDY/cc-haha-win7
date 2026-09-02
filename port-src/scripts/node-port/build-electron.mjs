@@ -1,34 +1,14 @@
 #!/usr/bin/env node
-/**
- * Node-port desktop shell build: esbuild replacement for the four
- * `bun build` invocations in desktop/package.json's build:electron.
- *
- *   electron/main.ts           -> electron-dist/main.cjs          (external: electron, node-pty)
- *   electron/preload.ts        -> electron-dist/preload.cjs       (external: electron)
- *   electron/pet-preload.ts    -> electron-dist/pet-preload.cjs   (external: electron)
- *   electron/preview-preload.ts-> electron-dist/preview-preload.cjs (external: electron)
- *
- * Usage:  node scripts/node-port/build-electron.mjs   (from repo root or desktop/)
- *
- * Win7 note: the produced main.cjs runs under Electron >= 22 equally well as
- * under the Electron 22 LTS line (the last Win7-capable Chromium). node-pty
- * is kept external so its prebuilds (winpty fallback on Windows builds <
- * 10.0.19041) resolve from node_modules at runtime.
- */
 
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-// Works from both <root>/port-src/scripts/node-port/ (documented overlay
-// layout) and <root>/scripts/node-port/ (legacy copied layout).
 const root = existsSync(path.join(here, '..', '..', 'package.json'))
   ? path.resolve(here, '..', '..')
   : path.resolve(here, '..', '..', '..')
 
-// esbuild: vendored copy in port-src/vendor/node_modules/ first (pinned
-// 0.28.2, zero registry access on a fresh clone), repo node_modules second.
 async function loadEsbuild() {
   const vendored = [
     path.join(here, '..', '..', 'vendor', 'node_modules', 'esbuild', 'lib', 'main.js'),
@@ -52,8 +32,6 @@ const bundles = [
   {
     entry: path.join(desktopDir, 'electron', 'main.ts'),
     outfile: path.join(outDir, 'main.cjs'),
-    // electron-updater ships in the packaged app's node_modules (optional at
-    // dev time), so keep it external alongside electron and node-pty.
     external: ['electron', 'node-pty', 'electron-updater'],
   },
   {
@@ -84,11 +62,7 @@ for (const cfg of bundles) {
     format: 'cjs',
     external: cfg.external,
     sourcemap: false,
-    // electron-updater and other optional native/optional deps stay external
-    // unless explicitly bundled; match bun's default of following package.json
-    // "browser" fields off and node builtins inlined as requires.
     logLevel: 'info',
-    // Keep dynamic require/import of electron at runtime.
     define: {},
   })
   console.log(`[build-electron] ${rel} -> ${path.relative(root, cfg.outfile)}`)

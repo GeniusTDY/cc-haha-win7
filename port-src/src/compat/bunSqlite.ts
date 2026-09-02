@@ -1,24 +1,3 @@
-/**
- * Node.js port: `bun:sqlite` shim on top of the built-in `node:sqlite`
- * (DatabaseSync). Maps the small Bun API surface used by cc-haha:
- *   new Database(path)
- *   db.exec(sql)
- *   db.query(sql) → statement with .get(...)/.all(...)/.run(...)
- *   db.clearQueryCache()  (no-op — node:sqlite caches nothing to clear)
- *   db.close(force?)
- *
- * node:sqlite accepts null | number | bigint | string | Uint8Array params;
- * Bun additionally accepts booleans, so they are mapped to 1/0.
- *
- * node:sqlite is loaded through createRequire instead of a static ESM
- * import on purpose: on Node 22.5–22.12 / 23.0–23.3 the module only
- * exists behind --experimental-sqlite, and a static import fails at ESM
- * link time — an uncatchable ERR_UNKNOWN_BUILTIN_MODULE that kills
- * `node dist/server.mjs` / `node dist/cli.mjs` before any code runs.
- * require() throws the same error at evaluation time, which lets us
- * transparently re-exec the process with the flag (bin/claude-haha and
- * the Electron sidecar already inject it; this covers direct invocation).
- */
 
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
@@ -35,9 +14,6 @@ function loadNodeSqlite(): typeof import('node:sqlite') {
   }
 }
 
-// Mirrors sqliteFlagArgs() in bin/claude-haha and nodeSqliteFlagArgs() in
-// conversationService.ts: exactly the versions where the flag is required
-// and still accepted.
 function reexecWithSqliteFlag(): never {
   const [major, minor] = process.versions.node.replace(/^v/, '').split('.').map(Number)
   const flaggable =
@@ -95,7 +71,6 @@ class WrappedStatement {
   }
 
   finalize(): void {
-    // node:sqlite has no explicit statement finalize; GC handles it.
   }
 }
 
@@ -125,7 +100,6 @@ export class Database {
   }
 
   clearQueryCache(): void {
-    // Intentional no-op for API parity.
   }
 
   close(_force?: boolean): void {

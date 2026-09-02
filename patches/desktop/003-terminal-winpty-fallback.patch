@@ -1,3 +1,7 @@
+
+
+diff --git a/desktop/electron/services/terminal.ts b/desktop/electron/services/terminal.ts
+index 5ef01ff..2305a4d 100644
 --- a/desktop/electron/services/terminal.ts
 +++ b/desktop/electron/services/terminal.ts
 @@ -1,4 +1,4 @@
@@ -6,21 +10,15 @@
  import { createHash } from 'node:crypto'
  import fs from 'node:fs'
  import { createRequire } from 'node:module'
-@@ -52,6 +52,13 @@
+@@ -52,6 +52,7 @@ export type TerminalPtySpawnOptions = {
    rows: number
    cwd: string
    env: Record<string, string>
-+  /**
-+   * Win7/8 port: force node-pty's winpty backend. ConPTY is a Win10 1809+
-+   * OS feature; node-pty 1.1.0 still ships the winpty agent + N-API binding in
-+   * prebuilds/win32-x64, so passing `useConpty: false` restores full TTY
-+   * emulation on legacy Windows instead of relying on its build-number probe.
-+   */
 +  useConpty?: boolean
  }
  
  export type TerminalPtyFactory = {
-@@ -103,6 +110,7 @@
+@@ -103,6 +104,7 @@ export type ElectronTerminalServiceOptions = {
    app?: TerminalAppLike
    env?: NodeJS.ProcessEnv
    platform?: NodeJS.Platform
@@ -28,7 +26,7 @@
    ptyFactory?: TerminalPtyFactory | (() => Promise<TerminalPtyFactory>)
    nodePtySourceDir?: string
    nodePtyCacheDir?: string
-@@ -546,22 +554,130 @@
+@@ -546,22 +548,112 @@ export function prepareNodePtyRuntime(sourceDir: string, cacheDir: string): stri
    return cacheDir
  }
  
@@ -37,11 +35,6 @@
 -    const moduleDir = prepareNodePtyRuntime(sourceDir, cacheDir)
 -    const requireFromNodePty = createRequire(path.join(moduleDir, 'package.json'))
 -    return requireFromNodePty(moduleDir) as TerminalPtyFactory
-+/**
-+ * Win7/8 detection: ConPTY requires Windows 10 1809 (build 18309 in node-pty's
-+ * probe). Anything below must use the winpty backend — or, if node-pty is not
-+ * loadable at all, the line-based pipe fallback below.
-+ */
 +export function isLegacyWindows(
 +  platform: NodeJS.Platform = process.platform,
 +  release: string = os.release(),
@@ -54,11 +47,6 @@
 +const PIPE_PTY_NOTICE =
 +  '[terminal] node-pty unavailable on this Windows version - using pipe fallback (no full TTY emulation)\r\n'
 +
-+/**
-+ * Last-resort line-based terminal used only on legacy Windows when node-pty
-+ * cannot be loaded or spawned. No TTY emulation: full-screen programs (vim,
-+ * htop) render degraded, resize is a no-op.
-+ */
 +function createPipePtyFactory(): TerminalPtyFactory {
 +  return {
 +    spawn(shell: string, args: string[], options: TerminalPtySpawnOptions) {
@@ -97,12 +85,8 @@
 +          child.stdin?.write(data)
 +        },
 +        resize() {
-+          // A plain pipe has no screen buffer to resize.
 +        },
 +        kill() {
-+          // Mirror the tree-kill semantics of the real PTY path without adding
-+          // a tree-kill dependency: taskkill /T kills the whole console child
-+          // tree on Windows.
 +          if (child.pid && process.platform === 'win32') {
 +            try {
 +              childSpawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
@@ -110,13 +94,11 @@
 +                stdio: 'ignore',
 +              })
 +            } catch {
-+              // child.kill() below is the final fallback.
 +            }
 +          }
 +          try {
 +            child.kill()
 +          } catch {
-+            // Renderer teardown must not surface a kill error.
 +          }
 +        },
 +        onData(handler: (data: string) => void) {
@@ -130,8 +112,7 @@
 +    },
    }
 +}
- 
--  return import('node-pty') as Promise<TerminalPtyFactory>
++
 +async function loadNodePtyFactory(
 +  sourceDir?: string,
 +  cacheDir?: string,
@@ -144,11 +125,10 @@
 +      const requireFromNodePty = createRequire(path.join(moduleDir, 'package.json'))
 +      return requireFromNodePty(moduleDir) as TerminalPtyFactory
 +    }
-+
+ 
+-  return import('node-pty') as Promise<TerminalPtyFactory>
 +    return import('node-pty') as Promise<TerminalPtyFactory>
 +  } catch (error) {
-+    // A pruned/broken node-pty payload must not take the terminal tab down on
-+    // Win7/8 — degrade to the line-based pipe instead.
 +    if (isLegacyWindows(platform, release)) return createPipePtyFactory()
 +    throw error
 +  }
@@ -166,7 +146,7 @@
    if (typeof factory === 'function') return factory()
    return factory
  }
-@@ -570,6 +686,7 @@
+@@ -570,6 +662,7 @@ export class ElectronTerminalService {
    private readonly app?: TerminalAppLike
    private readonly env: NodeJS.ProcessEnv
    private readonly platform: NodeJS.Platform
@@ -174,7 +154,7 @@
    private readonly ptyFactory?: TerminalPtyFactory | (() => Promise<TerminalPtyFactory>)
    private readonly nodePtySourceDir?: string
    private readonly nodePtyCacheDir?: string
-@@ -583,6 +700,7 @@
+@@ -583,6 +676,7 @@ export class ElectronTerminalService {
      this.app = options.app
      this.env = options.env ?? process.env
      this.platform = options.platform ?? process.platform
@@ -182,7 +162,7 @@
      this.ptyFactory = options.ptyFactory
      this.nodePtySourceDir = options.nodePtySourceDir
      this.nodePtyCacheDir = options.nodePtyCacheDir
-@@ -656,13 +774,20 @@
+@@ -656,13 +750,20 @@ export class ElectronTerminalService {
      webContents.on('did-navigate', onOwnerNavigated)
  
      try {
@@ -205,16 +185,13 @@
          name: 'xterm-256color',
          cols,
          rows,
-@@ -672,7 +797,19 @@
+@@ -672,7 +773,16 @@ export class ElectronTerminalService {
            TERM: 'xterm-256color',
            COLORTERM: 'truecolor',
          },
 -      })
 +      }
 +      if (legacyWindows) {
-+        // ConPTY is a Win10 1809+ OS feature: force the winpty backend that
-+        // node-pty 1.1.0 still ships (prebuilds/win32-x64 winpty-agent.exe +
-+        // N-API pty.node) for full TTY emulation on Win7/8.
 +        ptySpawnOptions.useConpty = false
 +      }
 +      try {

@@ -94,44 +94,21 @@ index 7c92dc8..4049156 100644
    'settings.about.starHint': '如果这个项目对你有帮助，欢迎给个 Star',
 diff --git a/desktop/src/lib/changelogContent.ts b/desktop/src/lib/changelogContent.ts
 new file mode 100644
-index 0000000..76cfb84
+index 0000000..6017a3e
 --- /dev/null
 +++ b/desktop/src/lib/changelogContent.ts
-@@ -0,0 +1,73 @@
-+/**
-+ * Fixed, pre-baked changelog content for the About panel's release-notes
-+ * modal (round50 rewrite). The corpus lives in changelogContentData.ts
-+ * (generated): one entry per upstream (NanmiCoder/cc-haha) release, holding
-+ * the exact Markdown the modal displays per language — the bilingual split
-+ * and the Installation-section removal were baked in at generation time, so
-+ * rendering is a pure lookup. What still happens at render time:
-+ *
-+ *   - language mapping + fallback: zhBody for the Simplified-Chinese locale,
-+ *     enBody for every other locale (zh-TW included); a null bucket (upstream
-+ *     shipped no such section) falls back to the other language, so a
-+ *     monolingual release body still renders a non-empty modal
-+ *   - issue-reference linkification: bare `#1190` refs become links to the
-+ *     upstream issue tracker (linkUpstreamIssueRefs, unchanged logic)
-+ */
+@@ -0,0 +1,31 @@
 +import { CHANGELOG_CONTENT_DATA } from './changelogContentData'
 +
 +export type ChangelogEntryData = {
-+  /** App version this entry documents (upstream tag = `v${version}`). */
 +  version: string
-+  /** Chinese section (Installation removed) — null when upstream shipped none. */
 +  zhBody: string | null
-+  /** English section (Installation removed) — null when upstream shipped none. */
 +  enBody: string | null
-+  /** Upstream release page for this tag. */
 +  upstreamUrl: string
 +}
 +
 +export const CHANGELOG_CONTENT: readonly ChangelogEntryData[] = CHANGELOG_CONTENT_DATA
 +
-+/**
-+ * All bundled versions, newest-first (the generated corpus order) — the
-+ * changelog modal's version switcher lists these.
-+ */
 +export function listChangelogVersions(): readonly string[] {
 +  return CHANGELOG_CONTENT.map((entry) => entry.version)
 +}
@@ -140,29 +117,10 @@ index 0000000..76cfb84
 +  return CHANGELOG_CONTENT.find((entry) => entry.version === appVersion) ?? null
 +}
 +
-+/**
-+ * Picks the body to display for a locale, with the fallback chain: prefer
-+ * the locale's language bucket, fall back to the other one when upstream
-+ * didn't ship it (monolingual release body).
-+ */
 +export function resolveChangelogBody(entry: ChangelogEntryData, locale: string): string | null {
 +  return locale === 'zh' ? entry.zhBody ?? entry.enBody : entry.enBody ?? entry.zhBody
 +}
 +
-+/**
-+ * Rewrites bare upstream issue references (`#1190`) into Markdown links to the
-+ * upstream repository's issue tracker. GitHub renders these automatically on
-+ * release pages, but the baked body is plain text, so the same convenience
-+ * has to be restored here before the modal renders it.
-+ *
-+ * Guards: a `#` must be followed by digits (headings use `# ` and never
-+ * match), and references already inside link text `[#123](…)` or a link
-+ * destination `](#123)` are skipped so a re-run never nests links. Plain
-+ * prose parens `(#123)` still linkify — only `](` counts as a destination.
-+ * Code spans and fenced blocks are matched ahead of the issue alternative and
-+ * returned verbatim: `` `#123` `` is example text, and linkifying it would
-+ * leave the literal `[#123](url)` visible inside the code span.
-+ */
 +export function linkUpstreamIssueRefs(text: string, entry: ChangelogEntryData): string {
 +  const repoUrl = entry.upstreamUrl.replace(/\/releases\/.*$/, '')
 +  return text.replace(
@@ -173,32 +131,10 @@ index 0000000..76cfb84
 +}
 diff --git a/desktop/src/lib/changelogContentData.ts b/desktop/src/lib/changelogContentData.ts
 new file mode 100644
-index 0000000..44e9c02
+index 0000000..c0a9da3
 --- /dev/null
 +++ b/desktop/src/lib/changelogContentData.ts
-@@ -0,0 +1,266 @@
-+/**
-+ * Pre-baked changelog content for the About panel's release-notes modal —
-+ * one entry per upstream (NanmiCoder/cc-haha) release, holding the FIXED
-+ * Markdown the modal displays per language (round50 rewrite: the render-time
-+ * split/strip pipeline is gone; the modal looks these up directly).
-+ *
-+ * GENERATED FILE — do not edit by hand.
-+ * Regenerate with: node vm/r50-gen-data.mjs (source of truth: the same r41
-+ * upstream snapshot the old pipeline read). Per entry:
-+ *   zhBody / enBody — that language section of the upstream releaseNotes with
-+ *     the Installation section already removed; null when upstream shipped no
-+ *     such section (render-time fallback serves the other language); a
-+ *     monolingual body is baked into its own language's bucket only
-+ *   upstreamUrl     — the upstream release page for this tag
-+ * Issue-reference linkification is NOT baked (stays at render time,
-+ * linkUpstreamIssueRefs in changelogContent.ts). Equivalence with the old
-+ * render pipeline is asserted by the generator against vm/r45-content.json:
-+ * the 38 LF-body releases are byte-identical; v0.4.3/v0.4.0 additionally
-+ * had the old strip's CRLF bug repaired at bake time (the old regex only
-+ * removed the heading line on 
-+ bodies — their install sections now go).
-+ */
+@@ -0,0 +1,244 @@
 +import type { ChangelogEntryData } from './changelogContent'
 +
 +export const CHANGELOG_CONTENT_DATA: readonly ChangelogEntryData[] = [
@@ -444,7 +380,7 @@ index 0000000..44e9c02
 +  },
 +]
 diff --git a/desktop/src/pages/settings/AboutSettings.tsx b/desktop/src/pages/settings/AboutSettings.tsx
-index 7477801..4ea4e18 100644
+index 319d7bd..cc67565 100644
 --- a/desktop/src/pages/settings/AboutSettings.tsx
 +++ b/desktop/src/pages/settings/AboutSettings.tsx
 @@ -11,7 +11,10 @@ import { formatBytes } from '../../lib/formatBytes'
@@ -475,23 +411,14 @@ index 7477801..4ea4e18 100644
    const [version, setVersion] = useState('')
    const updateProxy = useSettingsStore((s) => s.updateProxy)
    const setUpdateProxy = useSettingsStore((s) => s.setUpdateProxy)
-@@ -53,6 +56,29 @@ export function AboutSettings() {
+@@ -53,6 +56,20 @@ export function AboutSettings() {
    const [updateProxyDraft, setUpdateProxyDraft] = useState(updateProxy)
    const [updateProxySaveError, setUpdateProxySaveError] = useState<string | null>(null)
    const [isSavingUpdateProxy, setIsSavingUpdateProxy] = useState(false)
 +  const [showChangelog, setShowChangelog] = useState(false)
-+  // Version the modal is showing. Opens on this build's version; the
-+  // in-modal switcher re-points it to any bundled historical release.
 +  const [changelogVersion, setChangelogVersion] = useState<string | null>(null)
-+  // Fixed changelog content (pre-baked per language) for the tag matching
-+  // this build. resolveChangelogBody picks the locale's language bucket with
-+  // a fallback to the other one (upstream ships monolingual bodies for 37 of
-+  // the 40 releases); null means nothing renderable — the button falls back
-+  // to the browser.
 +  const changelogEntry = getChangelogEntry(version)
 +  const changelogBody = changelogEntry ? resolveChangelogBody(changelogEntry, locale) : null
-+  // The version the modal displays (may differ from this build's version once
-+  // the user switches); resolved through the same locale/fallback logic.
 +  const modalEntry = changelogVersion ? getChangelogEntry(changelogVersion) : null
 +  const modalBody = modalEntry ? resolveChangelogBody(modalEntry, locale) : null
 +  const openChangelog = () => {
@@ -505,7 +432,7 @@ index 7477801..4ea4e18 100644
  
    useEffect(() => {
      let cancelled = false
-@@ -162,7 +188,7 @@ export function AboutSettings() {
+@@ -162,7 +179,7 @@ export function AboutSettings() {
          <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
            <span>{t('settings.about.version')} {version}</span>
            <span className="text-[var(--color-border)]">·</span>
@@ -514,21 +441,11 @@ index 7477801..4ea4e18 100644
              {t('settings.about.changelog')}
            </Button>
          </div>
-@@ -440,6 +466,48 @@ export function AboutSettings() {
+@@ -438,6 +455,38 @@ export function AboutSettings() {
            </div>
          </button>
        </div>
 +
-+      {/* Changelog modal — fixed per-language content baked from the upstream
-+          (NanmiCoder/cc-haha) releaseNotes of the same tag; Simplified Chinese
-+          shows the Chinese section, every other locale (including zh-TW) shows
-+          the English section, falling back to the other language when upstream
-+          shipped only one; the Installation section is already removed at bake
-+          time (its asset instructions describe upstream builds, not this Win7
-+          offline package) and bare issue refs become links at render time.
-+          The version switcher re-points the modal at any bundled historical
-+          release (all 40 upstream releases ship in the corpus); `key` remounts
-+          the dialog on switch so the body scrolls back to the top. */}
 +      {showChangelog && modalEntry && modalBody && (
 +        <Modal
 +          key={modalEntry.version}
