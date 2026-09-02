@@ -142,7 +142,7 @@ kex_install:
   IfFileExists "C:\Program Files (x86)\VxKex\KexCfg.exe" 0 +3
     StrCpy $R0 "C:\Program Files (x86)\VxKex\KexCfg.exe"
     Goto kex_have
-  MessageBox MB_ICONEXCLAMATION "$(MsgVxKexInstallFailed)"
+  MessageBox MB_ICONEXCLAMATION "$(MsgVxKexInstallFailed)" /SD IDOK
   Goto kex_end
 
 kex_have:
@@ -156,7 +156,7 @@ kex_have:
   nsExec::ExecToLog '"$INSTDIR\resources\runtime\node-v22.17.0\node.exe" --version'
   Pop $R1
   ${If} $R1 != 0
-    MessageBox MB_ICONEXCLAMATION "$(MsgNodeRunFailed)"
+    MessageBox MB_ICONEXCLAMATION "$(MsgNodeRunFailed)" /SD IDOK
   ${EndIf}
 
 kex_end:

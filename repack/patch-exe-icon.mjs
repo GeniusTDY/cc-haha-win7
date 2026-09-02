@@ -328,8 +328,13 @@ if (built.size > rsrcSec.rawSize) {
 const out = Buffer.from(exe)
 built.buf.copy(out, rsrcSec.rawOff)
 out.fill(0, rsrcSec.rawOff + built.size, rsrcSec.rawOff + rsrcSec.rawSize)
-out.writeUInt32LE(built.size, rsrcSec.headerOff + 8)
-out.writeUInt32LE(built.size, pe.ddBase + 2 * 8 + 4)
+// Keep the ORIGINAL .rsrc VirtualSize and resource DataDirectory size.
+// Shrinking them to built.size makes the Win7 loader reject the image with
+// STATUS_INVALID_IMAGE_FORMAT ("not a valid Win32 application"), even though
+// the section raw size and file layout are unchanged. The zero padding above
+// keeps everything after built.size inside the section valid.
+out.writeUInt32LE(rsrcSec.vsz, rsrcSec.headerOff + 8)
+out.writeUInt32LE(exe.readUInt32LE(pe.ddBase + 2 * 8 + 4), pe.ddBase + 2 * 8 + 4)
 
 const cksOff = pe.peOff + 24 + 64
 out.writeUInt32LE(peChecksum(out, cksOff), cksOff)
