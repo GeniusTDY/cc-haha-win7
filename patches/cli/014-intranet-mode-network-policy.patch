@@ -353,15 +353,16 @@ index 0bd52d9..21c0e7d 100644
      const error = new MarketUpstreamError(source, MARKET_ERROR_CODES.upstreamError, `${source} provider disabled`)
      recordSourceFailure(source, error.message)
 diff --git a/src/server/ws/events.ts b/src/server/ws/events.ts
-index daa4d11..bdb8365 100644
+index daa4d11..70110bb 100644
 --- a/src/server/ws/events.ts
 +++ b/src/server/ws/events.ts
-@@ -115,6 +115,9 @@ export type ServerMessage =
+@@ -115,6 +115,10 @@ export type ServerMessage =
    // 恢复到进入 plan 前的模式、Shift+Tab 切换）时，把新模式回传给前端，让桌面端
    // 选择器与 CLI 保持同步，而不是停留在本地影子值上。
    | { type: 'permission_mode_changed'; mode: PermissionMode }
-+  // 内网模式开关切换：广播给所有已连接客户端，让打开中的窗口立即
-+  // 隐藏/恢复在线组件并刷新设置页开关，无需重载。
++  // Intranet-mode switch toggled: broadcast to every connected client so
++  // open windows hide/restore online components and refresh the
++  // settings-page switch immediately, without a reload.
 +  | { type: 'network_policy_changed'; intranetMode: boolean }
    | {
        type: 'api_retry'
@@ -781,12 +782,12 @@ index 7ee24c1..8fbedae 100644
      isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK) ||
 diff --git a/src/utils/networkPolicy.ts b/src/utils/networkPolicy.ts
 new file mode 100644
-index 0000000..5acffa8
+index 0000000..a35ece7
 --- /dev/null
 +++ b/src/utils/networkPolicy.ts
 @@ -0,0 +1,67 @@
 +/**
-+ * Intranet mode (内网模式) — runtime policy gate.
++ * Intranet mode — runtime policy gate.
 + *
 + * A single boolean in the user settings file (`intranetMode`) switches the
 + * whole app into an air-gapped posture: no outbound telemetry, no OAuth
