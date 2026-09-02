@@ -28,12 +28,43 @@ UI hiding (first gate, cosmetic only; the main process still enforces):
   - Computer Use: only the "Download Python 3" external-link button hides
     (the offline bundle ships Python); status checks and path config stay.
   - Update store never enters the checking state.
+  - Provider form modal (add/edit provider): the preset "Get API Key"
+    button and the preset promo strip hide — both are pure online entry
+    points (external links to SaaS consoles). The modal itself stays:
+    adding intranet/self-hosted providers is THE air-gap use case.
+  - General settings → WebSearch: the Tavily/Brave "Get API Key" links
+    hide (WebSearch itself is force-disabled server-side by patch 014).
+  - About: the two GitHub repo cards (upstream + this fork) STAY visible
+    under intranet mode — they are attribution/source information, not
+    functional online entries; intranet mode blocks network behaviour,
+    it does not hide information. Clicking them is a no-op via the
+    openUrl() short-circuit; hover styling is unchanged.
+
+Focus hydration (broadcast edge case):
+  - The network_policy_changed broadcast rides per-session WebSockets, so
+    a freshly restarted app with no open session missed remote flips and
+    needed a page reload. settingsStore now re-pulls GET /api/settings/user
+    on window focus / visibilitychange→visible (500 ms debounce): the two
+    paths share userSettingsPatch() so full loads and hydration write the
+    same shape. api/settings.ts stamps every PUT; hydration skips when a
+    save is still in flight (<1 s) so the optimistic UI is never clobbered
+    by a stale server read.
 
 Main-process gates (authoritative, uncached settings read per call):
   - electron/services/intranetMode.ts reads intranetMode from
     <CLAUDE_CONFIG_DIR>/settings.json — the same file the server writes;
     the reader lives in the desktop project because the electron bundle
     cannot import server sources.
+  - electron/services/intranetNetworkGuard.ts (new): Chromium's own
+    background networking (spell-check dictionary downloads, component
+    updater) is disabled/pinned to a loopback sink — observed as SYN_SENT
+    from the NetworkService process, entirely independent of app code.
+    main.ts installs the guard.
+  - electron/services/systemProxyBridge.ts: under intranet mode the
+    bridge only forwards to loopback / RFC1918 / ULA / link-local
+    destinations (DNS-resolved and checked), so CLI children tunnelling
+    through the bridge can never open a socket to the public internet.
+  - uiStore.ts: 'intranetMode' joins SettingsTab (the rail tab type).
   - shell.ts openExternalUrl(): http(s) targets are refused before the
     electron module even loads (choke point for IPC + setWindowOpenHandler);
     mailto / system-settings schemes survive.
@@ -42,6 +73,28 @@ Main-process gates (authoritative, uncached settings read per call):
     has nothing to act on.
 
 Locales: en / zh / zh-TW / jp / kr.
+
+
+diff --git a/desktop/electron/main.ts b/desktop/electron/main.ts
+index 8d551ad..4255edf 100644
+--- a/desktop/electron/main.ts
++++ b/desktop/electron/main.ts
+@@ -36,6 +36,7 @@ import {
+   setAppMode,
+ } from './services/appMode'
+ import { installMacOsChromiumKeychainPromptGuard } from './services/keychain'
++import { installIntranetChromiumNetworkGuard } from './services/intranetNetworkGuard'
+ import { installStdioWriteFailureGuards } from './services/stdioGuards'
+ import { applyWindowsAppUserModelId } from './services/appIdentity'
+ import { installMainWindowNavigationGuards, installPreviewNavigationGuards } from './services/navigationGuards'
+@@ -101,6 +102,7 @@ let trayController: TrayController | null = null
+ // stdio, and an unguarded write failure there surfaces as a crash dialog.
+ installStdioWriteFailureGuards()
+ installMacOsChromiumKeychainPromptGuard(app)
++installIntranetChromiumNetworkGuard(app, () => session.defaultSession)
+ 
+ function appRoot() {
+   return app.isPackaged ? app.getAppPath() : process.cwd()
 
 diff --git a/desktop/electron/services/intranetMode.ts b/desktop/electron/services/intranetMode.ts
 new file mode 100644
@@ -93,6 +146,72 @@ index 0000000..4e32a91
 +    return false
 +  }
 +}
+
+diff --git a/desktop/electron/services/intranetNetworkGuard.ts b/desktop/electron/services/intranetNetworkGuard.ts
+new file mode 100644
+index 0000000..d773c3b
+--- /dev/null
++++ b/desktop/electron/services/intranetNetworkGuard.ts
+@@ -0,0 +1,58 @@
++import { isIntranetModeEnabled } from './intranetMode'
++
++type ElectronCommandLine = {
++  appendSwitch(name: string, value?: string): void
++}
++
++type SpellCheckerSession = {
++  setSpellCheckerEnabled(enabled: boolean): void
++  setSpellCheckerDictionaryDownloadURL(url: string): void
++}
++
++type ElectronAppForChromiumGuard = {
++  commandLine: ElectronCommandLine
++  on(event: 'session-created', listener: (session: SpellCheckerSession) => void): unknown
++  whenReady(): PromiseLike<void>
++}
++
++/**
++ * Fail-safe sink for Chromium's hunspell dictionary downloads: loopback can
++ * never leave the machine, so even a download attempt that survives the
++ * spellchecker disable below stays on-host (fails with 404/refused).
++ */
++export const INTRANET_SPELLCHECK_DICTIONARY_SINK_URL = 'http://127.0.0.1/dictionaries/'
++
++/**
++ * Intranet mode: Chromium's built-in background networking phones home
++ * entirely independent of app code (observed as SYN_SENT from the
++ * NetworkService process). Two layers are needed:
++ *
++ * 1. Component updater / background networking — disabled via Chromium
++ *    switches that must be appended before the app is ready, so this guard
++ *    runs once at main-process start. A mid-session intranet-mode toggle
++ *    therefore takes effect for these switches on the next app launch.
++ * 2. Spellchecker — Chromium downloads missing hunspell dictionaries from
++ *    redirector.gvt1.com (Google CDN) and retries every ~5 minutes; the
++ *    component-update switches do not cover it, and disabling the checker
++ *    alone still leaves one startup download attempt. The spellchecker is
++ *    disabled per session AND the download URL is repointed at loopback,
++ *    which is live for sessions created after the toggle.
++ *
++ * All app-level gates (OAuth, telemetry, updater, external links) stay live.
++ */
++export function installIntranetChromiumNetworkGuard(
++  app: ElectronAppForChromiumGuard,
++  getDefaultSession: () => SpellCheckerSession,
++  isIntranetMode: () => boolean = isIntranetModeEnabled,
++): boolean {
++  if (!isIntranetMode()) return false
++  app.commandLine.appendSwitch('disable-component-update')
++  app.commandLine.appendSwitch('disable-background-networking')
++  const disableSpellChecker = (ses: SpellCheckerSession) => {
++    ses.setSpellCheckerEnabled(false)
++    ses.setSpellCheckerDictionaryDownloadURL(INTRANET_SPELLCHECK_DICTIONARY_SINK_URL)
++  }
++  app.on('session-created', disableSpellChecker)
++  void Promise.resolve(app.whenReady()).then(() => disableSpellChecker(getDefaultSession()))
++  return true
++}
+
 diff --git a/desktop/electron/services/shell.ts b/desktop/electron/services/shell.ts
 index 74c70ea..4fb0ef2 100644
 --- a/desktop/electron/services/shell.ts
@@ -123,6 +242,89 @@ index 74c70ea..4fb0ef2 100644
  }
  
  export function normalizeSystemSettingsUrl(target: string): string {
+
+diff --git a/desktop/electron/services/systemProxyBridge.ts b/desktop/electron/services/systemProxyBridge.ts
+index 6f47b20..c722972 100644
+--- a/desktop/electron/services/systemProxyBridge.ts
++++ b/desktop/electron/services/systemProxyBridge.ts
+@@ -6,6 +6,8 @@ import { lookup } from 'node:dns/promises'
+ import type { Duplex } from 'node:stream'
+ import { pipeline } from 'node:stream/promises'
+ 
++import { isIntranetModeEnabled } from './intranetMode'
++
+ export const SYSTEM_PROXY_BRIDGE_HOST = '127.0.0.1'
+ const CONNECT_TIMEOUT_MS = 10_000
+ const MAX_BUFFERED_REQUEST_BYTES = 32 * 1024 * 1024
+@@ -64,7 +66,11 @@ export class SystemProxyBridge implements SystemProxyBridgeLike {
+   private readonly clientSockets = new Set<net.Socket>()
+   private readonly outboundSockets = new Set<Duplex>()
+ 
+-  constructor(private readonly resolveSystemProxy: (url: string) => Promise<string>) {}
++  constructor(
++    private readonly resolveSystemProxy: (url: string) => Promise<string>,
++    private readonly isIntranetMode: () => boolean = isIntranetModeEnabled,
++    private readonly resolveHostname: (hostname: string) => Promise<string[]> = lookupAllAddresses,
++  ) {}
+ 
+   start(): Promise<string> {
+     if (this.startPromise) return this.startPromise
+@@ -248,6 +254,54 @@ export class SystemProxyBridge implements SystemProxyBridgeLike {
+   }
+ }
+ 
++export const INTRANET_PROXY_TARGET_BLOCKED_MESSAGE =
++  'Intranet mode is enabled: public-internet proxy targets are blocked (内网模式已拦截外网代理目标)'
++
++/**
++ * Intranet mode turns the bridge into an air-gapped one: only loopback,
++ * RFC1918/ULA and link-local destinations may be reached, so CLI children
++ * that tunnel through the bridge (e.g. api.anthropic.com on a new session)
++ * can never open a socket to the public internet. DNS resolution happens
++ * against the machine's configured (corporate) resolver; a name that does
++ * not resolve to private addresses is rejected.
++ */
++export function isPrivateNetworkAddress(address: string): boolean {
++  const value = stripIpv6Brackets(address).toLowerCase()
++  if (value.includes(':')) {
++    return value === '::1' || value.startsWith('fe80:') || value.startsWith('fc') || value.startsWith('fd')
++  }
++  const octets = value.split('.')
++  if (octets.length !== 4) return false
++  const [first, second] = octets.map(Number)
++  if (first === 0 || first === 10 || first === 127) return true
++  if (first === 172 && second >= 16 && second <= 31) return true
++  if (first === 192 && second === 168) return true
++  return first === 169 && second === 254
++}
++
++async function lookupAllAddresses(hostname: string): Promise<string[]> {
++  const results = await lookup(hostname, { all: true })
++  return results.map(result => result.address)
++}
++
++export async function isIntranetProxyTargetAllowed(
++  hostname: string,
++  isIntranetMode: () => boolean,
++  resolveHost: (hostname: string) => Promise<string[]> = lookupAllAddresses,
++): Promise<boolean> {
++  if (!isIntranetMode()) return true
++  const host = stripIpv6Brackets(hostname).toLowerCase()
++  if (!host) return false
++  if (isLoopbackHostname(host)) return true
++  if (net.isIP(host)) return isPrivateNetworkAddress(host)
++  try {
++    const addresses = await resolveHost(host)
++    return addresses.length > 0 && addresses.every(isPrivateNetworkAddress)
++  } catch {
++    return false
++  }
++}
++
+ function resolveHttpTarget(request: http.IncomingMessage): URL {
+   const rawUrl = request.url ?? ''
+   if (/^https?:\/\//i.test(rawUrl)) return new URL(rawUrl)
+
 diff --git a/desktop/electron/services/updater.ts b/desktop/electron/services/updater.ts
 index d430d85..a80c151 100644
 --- a/desktop/electron/services/updater.ts
@@ -151,6 +353,34 @@ index d430d85..a80c151 100644
      let result: ElectronUpdateCheckResult
      try {
        await this.applyProxy(options)
+
+diff --git a/desktop/src/api/settings.ts b/desktop/src/api/settings.ts
+index 907bfbd..bb1b7d5 100644
+--- a/desktop/src/api/settings.ts
++++ b/desktop/src/api/settings.ts
+@@ -15,12 +15,21 @@ export type CliLauncherStatus = {
+   lastError: string | null
+ }
+ 
++// 最近一次用户设置 PUT 的发起时间。settingsStore 的焦点水合用它避开
++// 竞态：本窗口的保存仍在途（乐观值已上屏）时，重拉会把旧值写回 UI。
++let userSettingsPutAt = 0
++
++export function msSinceLastUserSettingsPut(): number {
++  return Date.now() - userSettingsPutAt
++}
++
+ export const settingsApi = {
+   getUser() {
+     return api.get<UserSettings>('/api/settings/user')
+   },
+ 
+   updateUser(settings: Partial<UserSettings>) {
++    userSettingsPutAt = Date.now()
+     return api.put<{ ok: true }>('/api/settings/user', settings)
+   },
+ 
+
 diff --git a/desktop/src/components/layout/Sidebar.tsx b/desktop/src/components/layout/Sidebar.tsx
 index 5ae151e..b19d624 100644
 --- a/desktop/src/components/layout/Sidebar.tsx
@@ -181,6 +411,7 @@ index 5ae151e..b19d624 100644
            <NavItem
              active={activeTabId === MARKET_TAB_ID}
              collapsed={!expanded}
+
 diff --git a/desktop/src/i18n/locales/en.ts b/desktop/src/i18n/locales/en.ts
 --- a/desktop/src/i18n/locales/en.ts
 +++ b/desktop/src/i18n/locales/en.ts
@@ -372,6 +603,7 @@ index d5f7793..c1220db 100644
                <Button
                  variant="primary"
                  size="lg"
+
 diff --git a/desktop/src/pages/Market.tsx b/desktop/src/pages/Market.tsx
 index d1fcdb8..6541806 100644
 --- a/desktop/src/pages/Market.tsx
@@ -411,8 +643,9 @@ index d1fcdb8..6541806 100644
    return (
      <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-surface)]">
        {selectedId ? (
+
 diff --git a/desktop/src/pages/settings/AboutSettings.tsx b/desktop/src/pages/settings/AboutSettings.tsx
-index 4ea4e18..72c673c 100644
+index 4ea4e18..1746710 100644
 --- a/desktop/src/pages/settings/AboutSettings.tsx
 +++ b/desktop/src/pages/settings/AboutSettings.tsx
 @@ -38,6 +38,9 @@ const SOCIAL_LINKS = [
@@ -445,25 +678,27 @@ index 4ea4e18..72c673c 100644
      void getDesktopHost().shell.open(url).catch(() => window.open(url, '_blank'))
    }
  
-@@ -195,6 +202,7 @@ export function AboutSettings() {
+@@ -194,7 +201,10 @@ export function AboutSettings() {
+         </div>
        )}
  
-       {/* GitHub Repo (fork etiquette: upstream first, then this fork) */}
-+      {!intranetMode && (
+-      {/* GitHub Repo (fork etiquette: upstream first, then this fork) */}
++      {/* GitHub Repo (fork etiquette: upstream first, then this fork)
++          内网模式下保留展示：这是软件出处的署名信息，不是功能入口——内网
++          模式拦网络行为，不该藏信息。点击由 openUrl 短路为无反应（hover
++          高亮保留，卡片仍"活着"只是不可跳转）。 */}
        <div className="mt-6 w-full flex flex-col gap-2">
          <button
            onClick={() => openUrl(UPSTREAM_REPO)}
-@@ -217,7 +225,9 @@ export function AboutSettings() {
-           </div>
+@@ -218,6 +228,7 @@ export function AboutSettings() {
          </button>
        </div>
-+      )}
  
 +      {!intranetMode && (
        <Card radius="xl" surface="low" padding="none" className="mt-4 w-full p-4">
          <div className="flex items-start justify-between gap-3">
            <div>
-@@ -405,11 +415,13 @@ export function AboutSettings() {
+@@ -405,11 +416,13 @@ export function AboutSettings() {
            )}
          </div>
        </Card>
@@ -477,7 +712,7 @@ index 4ea4e18..72c673c 100644
        <div className="w-full">
          <h3 className="text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">{t('settings.about.author')}</h3>
          <div className="w-full flex flex-col gap-2">
-@@ -431,12 +443,14 @@ export function AboutSettings() {
+@@ -431,12 +444,14 @@ export function AboutSettings() {
              <div className="flex-1 text-left">
                <div className="text-sm font-medium text-[var(--color-text-primary)]">GeniusTDY</div>
                <div className="text-xs text-[var(--color-text-tertiary)]">{t('settings.about.forkMaintainerHint')}</div>
@@ -494,7 +729,7 @@ index 4ea4e18..72c673c 100644
        <div className="w-full mt-4">
          <h3 className="text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">{t('settings.about.socialMedia')}</h3>
          <div className="flex flex-col gap-0.5">
-@@ -453,7 +467,9 @@ export function AboutSettings() {
+@@ -453,7 +468,9 @@ export function AboutSettings() {
            ))}
          </div>
        </div>
@@ -504,7 +739,7 @@ index 4ea4e18..72c673c 100644
        <div className="mt-6 w-full">
          <button
            onClick={() => openUrl(GITHUB_ISSUES)}
-@@ -466,6 +482,7 @@ export function AboutSettings() {
+@@ -466,6 +483,7 @@ export function AboutSettings() {
            </div>
          </button>
        </div>
@@ -512,6 +747,76 @@ index 4ea4e18..72c673c 100644
  
        {/* Changelog modal — fixed per-language content baked from the upstream
            (NanmiCoder/cc-haha) releaseNotes of the same tag; Simplified Chinese
+
+diff --git a/desktop/src/pages/settings/GeneralSettings.tsx b/desktop/src/pages/settings/GeneralSettings.tsx
+index 9bbb91f..20ce273 100644
+--- a/desktop/src/pages/settings/GeneralSettings.tsx
++++ b/desktop/src/pages/settings/GeneralSettings.tsx
+@@ -89,6 +89,9 @@ export function GeneralSettings() {
+     uiZoom,
+     setUiZoom,
+   } = useSettingsStore()
++  // 内网模式：WebSearch 已被 CLI 网络策略强制禁用，Tavily/Brave 的
++  // 「获取 API Key」是纯在线入口（外链 SaaS 控制台），内网不可达，隐藏。
++  const intranetMode = useSettingsStore((s) => s.intranetMode)
+   // Read the theme from the store that owns it. settingsStore keeps a copy for
+   // its own consumers, but that copy is only refreshed on an explicit setTheme
+   // — an OS flip updates uiStore alone and would leave this picker highlighting
+@@ -1187,15 +1190,17 @@ export function GeneralSettings() {
+             />
+             <div className="-mt-1 flex items-center justify-between gap-3 text-xs text-[var(--color-text-tertiary)]">
+               <span>{t('settings.general.webSearchTavilyFreeHint')}</span>
+-              <a
+-                href="https://app.tavily.com/home"
+-                target="_blank"
+-                rel="noreferrer"
+-                aria-label={t('settings.general.webSearchTavilyApiKeyLink')}
+-                className="font-medium text-[var(--color-brand)] hover:underline whitespace-nowrap"
+-              >
+-                {t('settings.general.webSearchGetApiKey')}
+-              </a>
++              {!intranetMode && (
++                <a
++                  href="https://app.tavily.com/home"
++                  target="_blank"
++                  rel="noreferrer"
++                  aria-label={t('settings.general.webSearchTavilyApiKeyLink')}
++                  className="font-medium text-[var(--color-brand)] hover:underline whitespace-nowrap"
++                >
++                  {t('settings.general.webSearchGetApiKey')}
++                </a>
++              )}
+             </div>
+             <Input
+               id="web-search-brave-key"
+@@ -1213,15 +1218,17 @@ export function GeneralSettings() {
+             />
+             <div className="-mt-1 flex items-center justify-between gap-3 text-xs text-[var(--color-text-tertiary)]">
+               <span>{t('settings.general.webSearchBraveFreeHint')}</span>
+-              <a
+-                href="https://api-dashboard.search.brave.com/app/keys"
+-                target="_blank"
+-                rel="noreferrer"
+-                aria-label={t('settings.general.webSearchBraveApiKeyLink')}
+-                className="font-medium text-[var(--color-brand)] hover:underline whitespace-nowrap"
+-              >
+-                {t('settings.general.webSearchGetApiKey')}
+-              </a>
++              {!intranetMode && (
++                <a
++                  href="https://api-dashboard.search.brave.com/app/keys"
++                  target="_blank"
++                  rel="noreferrer"
++                  aria-label={t('settings.general.webSearchBraveApiKeyLink')}
++                  className="font-medium text-[var(--color-brand)] hover:underline whitespace-nowrap"
++                >
++                  {t('settings.general.webSearchGetApiKey')}
++                </a>
++              )}
+             </div>
+           </div>
+           <div className="mt-4 flex flex-col gap-3">
+
 diff --git a/desktop/src/pages/Settings.tsx b/desktop/src/pages/Settings.tsx
 --- a/desktop/src/pages/Settings.tsx
 +++ b/desktop/src/pages/Settings.tsx
@@ -649,6 +954,50 @@ index 0000000..de72841
 +    </div>
 +  )
 +}
+
+diff --git a/desktop/src/pages/settings/ProviderSettings.tsx b/desktop/src/pages/settings/ProviderSettings.tsx
+index f86e03e..2823768 100644
+--- a/desktop/src/pages/settings/ProviderSettings.tsx
++++ b/desktop/src/pages/settings/ProviderSettings.tsx
+@@ -200,10 +200,14 @@ export function ProviderSettings() {
+     await fetchSettings()
+   }
+ 
+-  const providerItems = useMemo(
+-    () => buildProviderListItems(providers, providerOrder),
+-    [providerOrder, providers],
+-  )
++  const intranetMode = useSettingsStore((s) => s.intranetMode)
++
++  const providerItems = useMemo(() => {
++    const items = buildProviderListItems(providers, providerOrder)
++    // 内网模式：三大官方服务商（Claude/ChatGPT/Grok）依赖外网 OAuth 登录，
++    // 内网环境下不可用，隐藏其卡片（服务器端状态不动，与「IM 接入」隐藏策略一致）
++    return intranetMode ? items.filter((item) => item.kind === 'saved') : items
++  }, [intranetMode, providerOrder, providers])
+ 
+   const handleProviderDragEnd = (event: DragEndEvent) => {
+     const { active, over } = event
+@@ -962,6 +966,9 @@ function openExternalUrl(url: string) {
+ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderFormProps) {
+   const { createProvider, updateProvider, testConfig, fetchModels } = useProviderStore()
+   const fetchSettings = useSettingsStore((s) => s.fetchAll)
++  // 内网模式：「获取 API Key」与预设推广条都是纯在线入口（外链到 SaaS 控制台），
++  // 内网环境不可达，直接隐藏；弹窗本身保留——添加内网自建服务商是核心用例。
++  const intranetMode = useSettingsStore((s) => s.intranetMode)
+   const addToast = useUIStore((s) => s.addToast)
+   const t = useTranslation()
+   const baseUrlInputId = useId()
+@@ -1712,7 +1719,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
+           </div>
+         </div>
+ 
+-        {(apiKeyUrl || promoText) && (
++        {!intranetMode && (apiKeyUrl || promoText) && (
+           <div className="-mt-2 flex flex-col gap-1.5">
+             {apiKeyUrl && (
+               <button
+
 diff --git a/desktop/src/stores/chatStore.ts b/desktop/src/stores/chatStore.ts
 index e267bc5..3b05fbf 100644
 --- a/desktop/src/stores/chatStore.ts
@@ -677,11 +1026,60 @@ index e267bc5..3b05fbf 100644
        case 'content_start': {
          const session = get().sessions[sessionId]
          if (!session) break
+
 diff --git a/desktop/src/stores/settingsStore.ts b/desktop/src/stores/settingsStore.ts
-index 385b02b..cf457b8 100644
+index 385b02b..e6bfd62 100644
 --- a/desktop/src/stores/settingsStore.ts
 +++ b/desktop/src/stores/settingsStore.ts
-@@ -73,6 +73,7 @@ type SettingsStore = {
+@@ -1,6 +1,6 @@
+ import { create } from 'zustand'
+ import { ApiError } from '../api/client'
+-import { settingsApi } from '../api/settings'
++import { msSinceLastUserSettingsPut, settingsApi } from '../api/settings'
+ import { modelsApi } from '../api/models'
+ import { h5AccessApi } from '../api/h5Access'
+ import { tracesApi } from '../api/traces'
+@@ -21,6 +21,7 @@ import {
+   type ThemeMode,
+   type UpdateProxyMode,
+   type UpdateProxySettings,
++  type UserSettings,
+   type WebSearchSettings,
+ } from '../types/settings'
+ import type { TraceCaptureSettings } from '../types/trace'
+@@ -49,6 +50,31 @@ export const UI_ZOOM_STEP = APP_ZOOM_CONTROL_STEP
+ export const UI_ZOOM_DEFAULT = DEFAULT_APP_ZOOM
+ let desktopNotificationsSaveQueue: Promise<void> = Promise.resolve()
+ 
++/**
++ * 把 /api/settings/user 的响应归一化为 store 里由用户设置派生的那部分状态。
++ * fetchAll 全量加载与焦点水合（见文件底部）共用，保证两条路径写入一致。
++ */
++function userSettingsPatch(userSettings: UserSettings) {
++  const desktopTerminal = normalizeDesktopTerminalSettings(userSettings.desktopTerminal)
++  lastPersistedDesktopTerminal = desktopTerminal
++  return {
++    thinkingEnabled: userSettings.alwaysThinkingEnabled !== false,
++    workflowKeywordTriggerEnabled: userSettings.workflowKeywordTriggerEnabled !== false,
++    autoDreamEnabled: userSettings.autoDreamEnabled === true,
++    autoModeOptInAccepted: userSettings.skipAutoPermissionPrompt === true,
++    chatSendBehavior: normalizeChatSendBehavior(userSettings.chatSendBehavior),
++    outputStyle: normalizeOutputStyle(userSettings.outputStyle),
++    skipWebFetchPreflight: userSettings.skipWebFetchPreflight !== false,
++    desktopNotificationsEnabled: userSettings.desktopNotificationsEnabled === true,
++    intranetMode: userSettings.intranetMode === true,
++    desktopTerminal,
++    webSearch: normalizeWebSearchSettings(userSettings.webSearch),
++    updateProxy: normalizeUpdateProxySettings(userSettings.updateProxy),
++    network: normalizeNetworkSettings(userSettings.network),
++    responseLanguage: typeof userSettings.language === 'string' ? userSettings.language : '',
++  }
++}
++
+ type SettingsStore = {
+   permissionMode: PermissionMode
+   currentModel: ModelInfo | null
+@@ -73,6 +99,7 @@ type SettingsStore = {
    outputStyleError: string | null
    skipWebFetchPreflight: boolean
    desktopNotificationsEnabled: boolean
@@ -689,7 +1087,7 @@ index 385b02b..cf457b8 100644
    desktopTerminal: DesktopTerminalSettings
    webSearch: WebSearchSettings
    updateProxy: UpdateProxySettings
-@@ -104,6 +105,7 @@ type SettingsStore = {
+@@ -104,6 +131,7 @@ type SettingsStore = {
    fetchOutputStyles: (workDir?: string | null) => Promise<void>
    setOutputStyle: (outputStyle: string, workDir?: string | null) => Promise<void>
    setSkipWebFetchPreflight: (enabled: boolean) => Promise<void>
@@ -697,7 +1095,7 @@ index 385b02b..cf457b8 100644
    setDesktopNotificationsEnabled: (enabled: boolean) => Promise<void>
    setDesktopTerminal: (settings: DesktopTerminalSettings) => Promise<void>
    setWebSearch: (settings: WebSearchSettings) => Promise<void>
-@@ -198,6 +200,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -198,6 +226,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
    outputStyleError: null,
    skipWebFetchPreflight: true,
    desktopNotificationsEnabled: false,
@@ -705,15 +1103,41 @@ index 385b02b..cf457b8 100644
    desktopTerminal: DEFAULT_DESKTOP_TERMINAL_SETTINGS,
    webSearch: { mode: 'auto', tavilyApiKey: '', braveApiKey: '' },
    updateProxy: DEFAULT_UPDATE_PROXY_SETTINGS,
-@@ -265,6 +268,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
-         outputStyle: normalizeOutputStyle(userSettings.outputStyle),
-         skipWebFetchPreflight: userSettings.skipWebFetchPreflight !== false,
-         desktopNotificationsEnabled: userSettings.desktopNotificationsEnabled === true,
-+        intranetMode: userSettings.intranetMode === true,
-         desktopTerminal,
-         webSearch: normalizeWebSearchSettings(userSettings.webSearch),
-         updateProxy: normalizeUpdateProxySettings(userSettings.updateProxy),
-@@ -450,6 +454,21 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -245,8 +274,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+         loadH5AccessSettings(previousH5Access),
+         loadTraceCaptureSettings(),
+       ])
+-      const desktopTerminal = normalizeDesktopTerminalSettings(userSettings.desktopTerminal)
+-      lastPersistedDesktopTerminal = desktopTerminal
+       // Nothing to do for the theme here: uiStore already applied it at
+       // startup, and re-applying would re-persist and re-report it on every
+       // provider switch.
+@@ -257,23 +284,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+         activeProviderName: modelsRes.provider?.name ?? null,
+         currentModel: model,
+         effortLevel: level,
+-        thinkingEnabled: userSettings.alwaysThinkingEnabled !== false,
+-        workflowKeywordTriggerEnabled: userSettings.workflowKeywordTriggerEnabled !== false,
+-        autoDreamEnabled: userSettings.autoDreamEnabled === true,
+-        autoModeOptInAccepted: userSettings.skipAutoPermissionPrompt === true,
+-        chatSendBehavior: normalizeChatSendBehavior(userSettings.chatSendBehavior),
+-        outputStyle: normalizeOutputStyle(userSettings.outputStyle),
+-        skipWebFetchPreflight: userSettings.skipWebFetchPreflight !== false,
+-        desktopNotificationsEnabled: userSettings.desktopNotificationsEnabled === true,
+-        desktopTerminal,
+-        webSearch: normalizeWebSearchSettings(userSettings.webSearch),
+-        updateProxy: normalizeUpdateProxySettings(userSettings.updateProxy),
+-        network: normalizeNetworkSettings(userSettings.network),
++        ...userSettingsPatch(userSettings),
+         traceCapture,
+         h5Access: h5AccessResult.settings,
+         h5AccessDiagnostics: h5AccessResult.diagnostics,
+         h5AccessError: h5AccessResult.error,
+-        responseLanguage: typeof userSettings.language === 'string' ? userSettings.language : '',
+         isLoading: false,
+         error: null,
+       })
+@@ -450,6 +465,21 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
      }
    },
  
@@ -735,6 +1159,38 @@ index 385b02b..cf457b8 100644
    setDesktopNotificationsEnabled: async (enabled) => {
      const prev = get().desktopNotificationsEnabled
      set({ desktopNotificationsEnabled: enabled })
+@@ -835,3 +865,30 @@ function isDesktopTerminalStartupShell(value: unknown): value is DesktopTerminal
+     || value === 'cmd'
+     || value === 'custom'
+ }
++
++// 焦点水合：窗口获得焦点时静默重拉用户设置。
++// 背景：内网模式广播（network_policy_changed）走每会话 WebSocket，应用刚重启、
++// 尚无打开会话时收不到实时推送，只能在下次交互时被旧状态误导。窗口聚焦
++// （从远程管理窗口切回、取消最小化）是用户"即将开始交互"的可靠信号，此时
++// 重拉一次 /api/settings/user 即可对齐状态，无需改动服务端广播架构。
++// 延迟 500ms：避开窗口切换时的快速焦点抖动，也给在途的 PUT 留出完成时间。
++function setupFocusHydration() {
++  const handleFocus = async () => {
++    // 本窗口的保存仍在途（乐观值已上屏）时，重拉会把旧值写回 UI
++    if (msSinceLastUserSettingsPut() < 1000) return
++    try {
++      const userSettings = await settingsApi.getUser()
++      useSettingsStore.setState(userSettingsPatch(userSettings))
++    } catch (e) {
++      // 静默失败：焦点水合是兜底机制，不阻塞用户操作，也不展示错误
++      console.debug('Focus hydration failed:', e)
++    }
++  }
++  window.addEventListener('focus', () => setTimeout(handleFocus, 500))
++  document.addEventListener('visibilitychange', () => {
++    if (document.visibilityState === 'visible') {
++      setTimeout(handleFocus, 500)
++    }
++  })
++}
++setupFocusHydration()
+
 diff --git a/desktop/src/stores/updateStore.ts b/desktop/src/stores/updateStore.ts
 index 58e767f..2b48f6b 100644
 --- a/desktop/src/stores/updateStore.ts
@@ -750,6 +1206,28 @@ index 58e767f..2b48f6b 100644
      if (downloadPromise && get().status === 'downloading' && pendingUpdate) return pendingUpdate
      clearRelaunchWatchdog()
  
+
+diff --git a/desktop/src/stores/uiStore.ts b/desktop/src/stores/uiStore.ts
+index 3ea100c..8dbebeb 100644
+--- a/desktop/src/stores/uiStore.ts
++++ b/desktop/src/stores/uiStore.ts
+@@ -44,6 +44,7 @@ function getStoredSidebarWidth(): number {
+ }
+ 
+ const SETTINGS_TABS = [
++  'intranetMode',
+   'providers',
+   'activity',
+   'general',
+@@ -231,6 +232,7 @@ export type Toast = {
+ }
+ 
+ export type SettingsTab =
++  | 'intranetMode'
+   | 'providers'
+   | 'activity'
+   | 'general'
+
 diff --git a/desktop/src/types/chat.ts b/desktop/src/types/chat.ts
 index 4520b25..05339f0 100644
 --- a/desktop/src/types/chat.ts
@@ -764,6 +1242,7 @@ index 4520b25..05339f0 100644
    | {
        type: 'api_retry'
        attempt: number
+
 diff --git a/desktop/src/types/settings.ts b/desktop/src/types/settings.ts
 index 2f6e4b2..eb2c32e 100644
 --- a/desktop/src/types/settings.ts
