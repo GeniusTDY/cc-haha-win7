@@ -50,6 +50,9 @@ updaterCacheDirName: claude-code-desktop-updater
 EOF
 echo "  update feed -> https://github.com/$UPDATE_OWNER/$UPDATE_REPO/releases/download/<tag>/latest.yml"
 
+echo "== 2c/9 stamp main exe icon + version info (match upstream) =="
+node "$HERE/patch-exe-icon.mjs" "$APP/Claude Code Haha.exe" "$HERE/assets/app-icon.ico" "$HERE/assets/exe-version.bin"
+
 DIST="$APP/resources/app.asar.unpacked/dist"
 BIN="$APP/resources/app.asar.unpacked/src-tauri/binaries"
 RT="$APP/resources/runtime"

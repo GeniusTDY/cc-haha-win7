@@ -21,9 +21,6 @@ const ANCHOR =
 const INSERTION =
   '      };\n' +
   '      if (isLegacyWindows(this.platform)) {\n' +
-  '        // ConPTY is a Win10 1809+ OS feature: force the winpty backend that\n' +
-  '        // node-pty 1.1.0 still ships (prebuilds/win32-x64 winpty-agent.exe +\n' +
-  '        // N-API pty.node) for full TTY emulation on Win7/8.\n' +
   '        ptySpawnOptions.useConpty = false;\n' +
   '      }\n' +
   '      try {\n' +
