@@ -8,6 +8,8 @@ repack/app-icon.ico
 repack/modern-wizard.bmp
 repack/latest.yml
 
+repack/intranet-layer/app.asar
+
 # runtime payloads committed in git: node-v22.17.0/ python-3.8.10/
 # vxkex-1.2.1.2229/ git-2.45.2/ kb-patches/
 # (~545MB total, see runtime/README.md)

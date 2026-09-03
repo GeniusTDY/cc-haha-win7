@@ -50,9 +50,6 @@ updaterCacheDirName: claude-code-desktop-updater
 EOF
 echo "  update feed -> https://github.com/$UPDATE_OWNER/$UPDATE_REPO/releases/download/<tag>/latest.yml"
 
-echo "== 2c/9 stamp main exe icon + version info (match upstream) =="
-node "$HERE/patch-exe-icon.mjs" "$APP/Claude Code Haha.exe" "$HERE/assets/app-icon.ico" "$HERE/assets/exe-version.bin"
-
 DIST="$APP/resources/app.asar.unpacked/dist"
 BIN="$APP/resources/app.asar.unpacked/src-tauri/binaries"
 RT="$APP/resources/runtime"
@@ -67,9 +64,47 @@ done
 rm -rf "$DIST/adapters-chunks"
 cp -a "$NODE_FALLBACK_DIR/adapters-chunks" "$DIST/adapters-chunks"
 
+echo "== 4b/9 overlay intranet layer (patches 013/014 + final-series renderer) =="
+LAYER="$HERE/intranet-layer"
+if [ ! -f "$LAYER/app.asar" ] && [ -f "$LAYER/app.asar.00.part" ]; then
+  echo "  reassembling app.asar from split parts (parts.sha256)"
+  ( cd "$LAYER" && sha256sum -c parts.sha256 && cat app.asar.00.part app.asar.01.part > app.asar )
+fi
+for f in app.asar server.mjs cli.mjs recovery-cli.mjs main-guest.cjs index-cp.html material-symbols-cp.woff2; do
+  [ -f "$LAYER/$f" ] || { echo "[FAIL] intranet layer missing: $LAYER/$f"; exit 1; }
+done
+[ -f "$LAYER/assets/App-CCYxxLqm.js" ] || { echo "[FAIL] intranet layer assets incomplete (no App-CCYxxLqm.js)"; exit 1; }
+[ -f "$LAYER/adapters-chunks/APEv2Parser-Q5MCI7E3.mjs" ] || { echo "[FAIL] intranet layer adapters-chunks incomplete"; exit 1; }
+cp -f "$LAYER/app.asar" "$APP/resources/app.asar"
+rm -rf "$DIST/adapters-chunks"
+cp -a "$LAYER/adapters-chunks" "$DIST/adapters-chunks"
+for f in server.mjs cli.mjs recovery-cli.mjs; do
+  cp -f "$LAYER/$f" "$DIST/$f"
+done
+rm -f "$DIST"/assets/App-*.js
+cp -a "$LAYER/assets/." "$DIST/assets/"
+cp -f "$LAYER/index-cp.html" "$DIST/index.html"
+cp -f "$LAYER/material-symbols-cp.woff2" "$DIST/assets/material-symbols-outlined-DAw3iYaN.woff2"
+cp -a "$LAYER/fonts/." "$DIST/fonts/"
+cp -f "$LAYER/material-symbols-cp.woff2" "$DIST/fonts/material-symbols-outlined.woff2"
+mkdir -p "$APP/resources/app.asar.unpacked/electron-dist"
+cp -f "$LAYER/main-guest.cjs" "$APP/resources/app.asar.unpacked/electron-dist/main.cjs"
+
 echo "== 5/9 remove broken compiled sidecar =="
 rm -f "$BIN/claude-sidecar-x86_64-pc-windows-msvc.exe"
 ls "$BIN"
+
+echo "== 5b/9 inject official app icon + alternate icon group into exe =="
+node "$HERE/icon-tool/inject-icon.mjs" "$APP/Claude Code Haha.exe" \
+  "$HERE/assets/app-icon.ico" "$HERE/assets/claude-alt.ico"
+node "$HERE/icon-tool/verify-alt-group.mjs" "$APP/Claude Code Haha.exe" \
+  "$HERE/assets/app-icon.ico" "$HERE/assets/claude-alt.ico"
+
+echo "== 5c/9 ship alternate desktop icon (claude-alt.ico) =="
+cp -f "$HERE/assets/claude-alt.ico" "$APP/claude-alt.ico"
+ls -la "$APP/claude-alt.ico"
+cp -f "$HERE/assets/app-icon.ico" "$APP/app-icon.ico"
+ls -la "$APP/app-icon.ico"
 
 echo "== 6/9 overlay offline runtime payloads =="
 for d in node-v22.17.0 python-3.8.10 vxkex-1.2.1.2229; do
