@@ -6236,9 +6236,6 @@ var isQuitting = false;
 var trayController = null;
 installStdioWriteFailureGuards();
 installMacOsChromiumKeychainPromptGuard(import_electron.app);
-if (process.platform === "win32" && Number(import_node_os6.default.release().split(".")[0]) < 10) {
-  import_electron.app.disableHardwareAcceleration();
-}
 var lazyAutoUpdater;
 function createAutoUpdaterStub() {
   const stub = {

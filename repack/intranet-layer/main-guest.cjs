@@ -6330,9 +6330,6 @@ try {
 } catch (e) {
   try { import_node_fs3.writeFileSync("C:\\cc-haha\\guard-marker.txt", "guard-error=" + e + "\n"); } catch {}
 }
-if (process.platform === "win32" && Number(import_node_os6.default.release().split(".")[0]) < 10) {
-  import_electron.app.disableHardwareAcceleration();
-}
 var lazyAutoUpdater;
 function createAutoUpdaterStub() {
   const stub = {

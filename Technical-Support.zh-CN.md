@@ -210,7 +210,7 @@ NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作�
 | 预览面板 | `WebContentsView` / `contentView`（Electron 28+）运行时探测构造器，22 上回退 `BrowserView` / `addBrowserView` |
 | 文件拖入 | `webUtils.getPathForFile`（29+）双代兼容：29+ 走 webUtils，≤31 走 `File.path` |
 | 自动更新 | `electron-updater` 懒加载（手动检查/下载，`autoDownload:false`），feed 指向**本仓库** Releases——Stage B 步骤 2b 重写 `resources/app-update.yml`（owner/repo 可经 `UPDATE_OWNER`/`UPDATE_REPO` 覆盖）；元数据缺失或离线时静默回退为“无更新”，不崩溃 |
-| GPU 合成 | win32 且 `os.release()` 主版本 <10 自动 `app.disableHardwareAcceleration()`（防老驱动 GPU 进程崩溃循环） |
+| GPU 合成 | 各平台一律保持硬件加速开启，以保证透明窗口（桌面宠物）能正确合成 alpha。原 Win7 专属的 `app.disableHardwareAcceleration()` 已移除：软件合成会把透明 HTML 层的 alpha 渲染成不透明的黑色（`#00000000` 背景 → 宠物背后一整块纯黑实心方格）。旧的淘汰驱动保护改由 Chromium 自带的 GPU 进程崩溃回退承担——只有连续崩溃后才降级为软件，而非永久禁用。透明窗口同时要求 DWM/Aero（Windows 7）开启 |
 | 桌面终端 | Win7/8 强制 node-pty 的 winpty 后端（`useConpty:false`，补丁 003）——winpty 原生支持 Win7，完整 TTY 仿真（vim / htop 可用）；repack 步骤 7/9 保证 winpty 载荷不被裁剪；仅载荷损坏时才降级管道式回退（有提示） |
 | TUI 按键 | VT 模式判定加 `parseFloat(os.release()) >= 10` 门控（Win7 conhost 无 VT 输入；cli.mjs defaultBindings，经 `patch-computer-use.py` P10 恢复） |
 | 通知 | `isSupported()` 门控，无 toast 时优雅拒绝 |
