@@ -27,7 +27,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// electron/preview-preload.ts
+// desktop/electron/preview-preload.ts
 var preview_preload_exports = {};
 __export(preview_preload_exports, {
   installPreviewPostBridge: () => installPreviewPostBridge
@@ -35,12 +35,12 @@ __export(preview_preload_exports, {
 module.exports = __toCommonJS(preview_preload_exports);
 var electron = __toESM(require("electron"), 1);
 
-// electron/ipc/channels.ts
+// desktop/electron/ipc/channels.ts
 var ELECTRON_INTERNAL_CHANNELS = {
   previewMessageFromView: "desktop:preview:message-from-view"
 };
 
-// electron/ipc/previewMessage.ts
+// desktop/electron/ipc/previewMessage.ts
 var MAX_PREVIEW_EVENT_BYTES = 8 * 1024 * 1024;
 function byteLength(input) {
   return new TextEncoder().encode(input).byteLength;
@@ -57,7 +57,7 @@ function shouldForwardPreviewMessage(input) {
   }
 }
 
-// electron/preview-preload.ts
+// desktop/electron/preview-preload.ts
 var { contextBridge, ipcRenderer } = electron;
 function isTopFrame() {
   try {
@@ -67,7 +67,7 @@ function isTopFrame() {
   }
 }
 function installPreviewPostBridge() {
-  if (!(contextBridge == null ? void 0 : contextBridge.exposeInMainWorld) || !(ipcRenderer == null ? void 0 : ipcRenderer.send)) return;
+  if (!contextBridge?.exposeInMainWorld || !ipcRenderer?.send) return;
   contextBridge.exposeInMainWorld("__DESKTOP_PREVIEW_POST__", (raw) => {
     if (!shouldForwardPreviewMessage({
       raw,

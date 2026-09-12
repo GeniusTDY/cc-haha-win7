@@ -1,9 +1,9 @@
 "use strict";
 
-// electron/pet-preload.ts
+// desktop/electron/pet-preload.ts
 var import_electron = require("electron");
 
-// electron/ipc/channels.ts
+// desktop/electron/ipc/channels.ts
 var ELECTRON_IPC_CHANNELS = {
   appGetVersion: "desktop:app:get-version",
   appGetLocalePreference: "desktop:app:get-locale-preference",
@@ -88,7 +88,7 @@ var ELECTRON_EVENT_CHANNELS = {
   petPanelPlacementChanged: "desktop:pets:panel-placement-changed"
 };
 
-// electron/ipc/capabilities.ts
+// desktop/electron/ipc/capabilities.ts
 var isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var noPayload = (value) => value === void 0;
 var optionalRecord = (value) => value === void 0 || isRecord(value);
@@ -254,7 +254,7 @@ function isElectronIpcChannelAllowedForPetWindow(channel) {
   return petWindowChannels.has(channel);
 }
 
-// electron/pet-preload.ts
+// desktop/electron/pet-preload.ts
 function invoke(channel, payload) {
   if (!isElectronIpcChannelAllowedForPetWindow(channel)) {
     return Promise.reject(new Error(`Electron IPC channel ${channel} is not available to the pet window`));

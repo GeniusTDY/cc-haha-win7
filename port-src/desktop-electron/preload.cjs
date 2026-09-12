@@ -1,9 +1,9 @@
 "use strict";
 
-// electron/preload.ts
+// desktop/electron/preload.ts
 var import_electron = require("electron");
 
-// electron/ipc/channels.ts
+// desktop/electron/ipc/channels.ts
 var ELECTRON_IPC_CHANNELS = {
   appGetVersion: "desktop:app:get-version",
   appGetLocalePreference: "desktop:app:get-locale-preference",
@@ -88,7 +88,7 @@ var ELECTRON_EVENT_CHANNELS = {
   petPanelPlacementChanged: "desktop:pets:panel-placement-changed"
 };
 
-// electron/ipc/capabilities.ts
+// desktop/electron/ipc/capabilities.ts
 var isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var noPayload = (value) => value === void 0;
 var optionalRecord = (value) => value === void 0 || isRecord(value);
@@ -251,7 +251,7 @@ function validateElectronIpcPayload(channel, payload) {
   return ELECTRON_IPC_VALIDATORS[channel](payload);
 }
 
-// src/lib/desktopHost/electronHost.ts
+// desktop/src/lib/desktopHost/electronHost.ts
 function safeInvoke(bridge, channel, payload) {
   if (!validateElectronIpcPayload(channel, payload)) {
     return Promise.reject(new Error(`Invalid Electron IPC payload for ${channel}`));
@@ -269,7 +269,7 @@ function createElectronHost(bridge) {
       try {
         await invoke(ELECTRON_IPC_CHANNELS.updateDownload);
       } finally {
-        unlisten == null ? void 0 : unlisten();
+        unlisten?.();
       }
     },
     install: () => invoke(ELECTRON_IPC_CHANNELS.updateInstall),
@@ -310,8 +310,7 @@ function createElectronHost(bridge) {
     },
     files: {
       getPathForFile(file) {
-        var _a;
-        const nativePath = (_a = bridge.getPathForFile) == null ? void 0 : _a.call(bridge, file);
+        const nativePath = bridge.getPathForFile?.(file);
         if (nativePath) return nativePath;
         const legacyPath = file.path;
         return typeof legacyPath === "string" ? legacyPath : "";
@@ -421,14 +420,10 @@ function createElectronHost(bridge) {
   };
 }
 
-// electron/preload.ts
+// desktop/electron/preload.ts
 var electronHost = createElectronHost({
   getPathForFile(file) {
-    var _a;
-    if (typeof ((_a = import_electron.webUtils) == null ? void 0 : _a.getPathForFile) === "function") {
-      return import_electron.webUtils.getPathForFile(file);
-    }
-    return file.path ?? "";
+    return import_electron.webUtils.getPathForFile(file);
   },
   invoke(channel, payload) {
     return import_electron.ipcRenderer.invoke(channel, payload);

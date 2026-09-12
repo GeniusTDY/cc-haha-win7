@@ -2,7 +2,7 @@ From: Win7 port restore
 Subject: [PATCH] desktop: point GUI brand references at the fork and add upstream attribution rows
 
 The Win7 edition ships as GeniusTDY/cc-haha-win7, a fork of
-NanmiCoder/cc-haha. Upstream v0.5.4 still carried the upstream
+NanmiCoder/cc-haha. Upstream still carried the upstream
 repo/author identity in every user-visible surface, so the port
 repointed them at the fork while keeping proper attribution:
 
@@ -32,19 +32,19 @@ About page.
 ---
 
 diff --git a/desktop/package.json b/desktop/package.json
-index 05943a3..840894b 100644
+index e2735feaf..709af1285 100644
 --- a/desktop/package.json
 +++ b/desktop/package.json
 @@ -3,7 +3,7 @@
    "private": true,
-   "version": "0.5.4",
+   "version": "0.6.2",
    "description": "Desktop coding agent workbench for Claude Code Haha.",
 -  "homepage": "https://github.com/NanmiCoder/cc-haha",
 +  "homepage": "https://github.com/GeniusTDY/cc-haha-win7",
    "author": {
      "name": "NanmiCoder",
      "email": "relakkes@gmail.com"
-@@ -71,8 +71,8 @@
+@@ -77,8 +77,8 @@
      "publish": [
        {
          "provider": "github",
@@ -56,7 +56,7 @@ index 05943a3..840894b 100644
      ]
    },
 diff --git a/desktop/src-tauri/tauri.conf.json b/desktop/src-tauri/tauri.conf.json
-index 7fde82d..48b5efd 100644
+index 7fde82d17..48b5efd3d 100644
 --- a/desktop/src-tauri/tauri.conf.json
 +++ b/desktop/src-tauri/tauri.conf.json
 @@ -31,7 +31,7 @@
@@ -69,7 +69,7 @@ index 7fde82d..48b5efd 100644
        "windows": {
          "installMode": "passive"
 diff --git a/desktop/src/api/desktopUiPreferences.test.ts b/desktop/src/api/desktopUiPreferences.test.ts
-index 7815c4a..9a2ed77 100644
+index 7815c4a76..9a2ed7790 100644
 --- a/desktop/src/api/desktopUiPreferences.test.ts
 +++ b/desktop/src/api/desktopUiPreferences.test.ts
 @@ -7,7 +7,7 @@ const preferences = {
@@ -82,10 +82,10 @@ index 7815c4a..9a2ed77 100644
      avatarUpdatedAt: null,
    },
 diff --git a/desktop/src/components/layout/Sidebar.test.tsx b/desktop/src/components/layout/Sidebar.test.tsx
-index 32448a8..5c14df0 100644
+index d41a63a41..106dad1f2 100644
 --- a/desktop/src/components/layout/Sidebar.test.tsx
 +++ b/desktop/src/components/layout/Sidebar.test.tsx
-@@ -297,7 +297,7 @@ function makeDesktopUiPreferencesResponse({
+@@ -330,7 +330,7 @@ function makeDesktopUiPreferencesResponse({
        projectDisplayNames,
        profile: {
          displayName: 'cc-haha',
@@ -95,12 +95,12 @@ index 32448a8..5c14df0 100644
          avatarUpdatedAt: null,
        },
 diff --git a/desktop/src/components/layout/Sidebar.tsx b/desktop/src/components/layout/Sidebar.tsx
-index 0925649..5ae151e 100644
+index 30584d77c..22d278351 100644
 --- a/desktop/src/components/layout/Sidebar.tsx
 +++ b/desktop/src/components/layout/Sidebar.tsx
-@@ -872,7 +872,7 @@ export function Sidebar({
-           </div>
-           <div className={`flex items-center ${expanded ? 'gap-1.5' : 'flex-col gap-2'}`}>
+@@ -982,7 +982,7 @@ export function Sidebar({
+               />
+             </span>
              <a
 -              href="https://github.com/NanmiCoder/cc-haha"
 +              href="https://github.com/GeniusTDY/cc-haha-win7"
@@ -108,10 +108,10 @@ index 0925649..5ae151e 100644
                rel="noopener noreferrer"
                className={`sidebar-copy ${expanded ? 'sidebar-copy--visible' : 'sidebar-copy--hidden'} inline-flex items-center justify-center rounded-[var(--radius-sm)] p-1 text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]`}
 diff --git a/desktop/src/i18n/locales/en.ts b/desktop/src/i18n/locales/en.ts
-index 24b2af1..6eeffdd 100644
+index e6cbbc97a..10648bd7d 100644
 --- a/desktop/src/i18n/locales/en.ts
 +++ b/desktop/src/i18n/locales/en.ts
-@@ -426,7 +426,7 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+@@ -465,7 +465,7 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
    'settings.activity.title': 'Token usage',
    'settings.activity.profileTitle': 'Profile',
    'settings.activity.profilePrivacy': 'Local only',
@@ -120,7 +120,7 @@ index 24b2af1..6eeffdd 100644
    'settings.activity.editProfile': 'Edit profile',
    'settings.activity.displayName': 'Display name',
    'settings.activity.subtitle': 'Second line',
-@@ -1354,9 +1354,12 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+@@ -1470,9 +1470,12 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
    'settings.about.changelog': 'Release Notes',
    'settings.about.repo': 'GitHub Repository',
    'settings.about.starHint': 'If this project helps you, consider giving it a Star',
@@ -134,10 +134,10 @@ index 24b2af1..6eeffdd 100644
    'settings.about.updates': 'App Updates',
    'settings.about.updatesDesc': 'Check GitHub Releases, download the installer, and relaunch after install.',
 diff --git a/desktop/src/i18n/locales/jp.ts b/desktop/src/i18n/locales/jp.ts
-index a05a3fa..76307cd 100644
+index 081ceacd5..0f0bb3f60 100644
 --- a/desktop/src/i18n/locales/jp.ts
 +++ b/desktop/src/i18n/locales/jp.ts
-@@ -428,7 +428,7 @@ export const jp: Record<TranslationKey, string> = {
+@@ -467,7 +467,7 @@ export const jp: Record<TranslationKey, string> = {
    'settings.activity.title': 'トークン使用量',
    'settings.activity.profileTitle': 'プロフィール',
    'settings.activity.profilePrivacy': 'ローカルのみ',
@@ -146,7 +146,7 @@ index a05a3fa..76307cd 100644
    'settings.activity.editProfile': 'プロフィールを編集',
    'settings.activity.displayName': '表示名',
    'settings.activity.subtitle': '2 行目',
-@@ -1356,9 +1356,12 @@ export const jp: Record<TranslationKey, string> = {
+@@ -1472,9 +1472,12 @@ export const jp: Record<TranslationKey, string> = {
    'settings.about.changelog': 'リリースノート',
    'settings.about.repo': 'GitHub リポジトリ',
    'settings.about.starHint': 'このプロジェクトが役立った場合は、Star を付けることをご検討ください',
@@ -160,10 +160,10 @@ index a05a3fa..76307cd 100644
    'settings.about.updates': 'アプリの更新',
    'settings.about.updatesDesc': 'GitHub Releases を確認し、インストーラーをダウンロードして、インストール後に再起動します。',
 diff --git a/desktop/src/i18n/locales/kr.ts b/desktop/src/i18n/locales/kr.ts
-index 69244d7..e051b55 100644
+index 30c322ea0..9dff6bd88 100644
 --- a/desktop/src/i18n/locales/kr.ts
 +++ b/desktop/src/i18n/locales/kr.ts
-@@ -428,7 +428,7 @@ export const kr: Record<TranslationKey, string> = {
+@@ -467,7 +467,7 @@ export const kr: Record<TranslationKey, string> = {
    'settings.activity.title': '토큰 사용량',
    'settings.activity.profileTitle': '프로필',
    'settings.activity.profilePrivacy': '로컬 전용',
@@ -172,7 +172,7 @@ index 69244d7..e051b55 100644
    'settings.activity.editProfile': '프로필 편집',
    'settings.activity.displayName': '표시 이름',
    'settings.activity.subtitle': '둘째 줄',
-@@ -1356,9 +1356,12 @@ export const kr: Record<TranslationKey, string> = {
+@@ -1472,9 +1472,12 @@ export const kr: Record<TranslationKey, string> = {
    'settings.about.changelog': '릴리스 노트',
    'settings.about.repo': 'GitHub 저장소',
    'settings.about.starHint': '이 프로젝트가 도움이 되었다면 Star를 눌러 주세요',
@@ -186,10 +186,10 @@ index 69244d7..e051b55 100644
    'settings.about.updates': '앱 업데이트',
    'settings.about.updatesDesc': 'GitHub Releases를 확인하고 설치 관리자를 다운로드한 후 설치 후 다시 시작합니다.',
 diff --git a/desktop/src/i18n/locales/zh-TW.ts b/desktop/src/i18n/locales/zh-TW.ts
-index 034d138..277db35 100644
+index 4abe68866..856274fd8 100644
 --- a/desktop/src/i18n/locales/zh-TW.ts
 +++ b/desktop/src/i18n/locales/zh-TW.ts
-@@ -427,7 +427,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -466,7 +466,7 @@ export const zh: Record<TranslationKey, string> = {
    'settings.activity.title': 'Token 用量',
    'settings.activity.profileTitle': '個人資料',
    'settings.activity.profilePrivacy': '僅本地',
@@ -198,7 +198,7 @@ index 034d138..277db35 100644
    'settings.activity.editProfile': '編輯個人資料',
    'settings.activity.displayName': '顯示名稱',
    'settings.activity.subtitle': '第二行',
-@@ -1355,9 +1355,12 @@ export const zh: Record<TranslationKey, string> = {
+@@ -1471,9 +1471,12 @@ export const zh: Record<TranslationKey, string> = {
    'settings.about.changelog': '更新日誌',
    'settings.about.repo': 'GitHub 倉庫',
    'settings.about.starHint': '如果這個專案對你有幫助，歡迎給個 Star',
@@ -212,10 +212,10 @@ index 034d138..277db35 100644
    'settings.about.updates': '應用更新',
    'settings.about.updatesDesc': '檢查 GitHub Releases，下載安裝包，並在安裝後自動重啟。',
 diff --git a/desktop/src/i18n/locales/zh.ts b/desktop/src/i18n/locales/zh.ts
-index 08bfd28..7c92dc8 100644
+index 46bd65d9f..cdccf1506 100644
 --- a/desktop/src/i18n/locales/zh.ts
 +++ b/desktop/src/i18n/locales/zh.ts
-@@ -427,7 +427,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -466,7 +466,7 @@ export const zh: Record<TranslationKey, string> = {
    'settings.activity.title': 'Token 用量',
    'settings.activity.profileTitle': '个人资料',
    'settings.activity.profilePrivacy': '仅本地',
@@ -224,7 +224,7 @@ index 08bfd28..7c92dc8 100644
    'settings.activity.editProfile': '编辑个人资料',
    'settings.activity.displayName': '显示名称',
    'settings.activity.subtitle': '第二行',
-@@ -1355,9 +1355,12 @@ export const zh: Record<TranslationKey, string> = {
+@@ -1471,9 +1471,12 @@ export const zh: Record<TranslationKey, string> = {
    'settings.about.changelog': '更新日志',
    'settings.about.repo': 'GitHub 仓库',
    'settings.about.starHint': '如果这个项目对你有帮助，欢迎给个 Star',
@@ -238,7 +238,7 @@ index 08bfd28..7c92dc8 100644
    'settings.about.updates': '应用更新',
    'settings.about.updatesDesc': '检查 GitHub Releases，下载安装包，并在安装后自动重启。',
 diff --git a/desktop/src/pages/ActivitySettings.test.tsx b/desktop/src/pages/ActivitySettings.test.tsx
-index 6996242..22c187c 100644
+index 699624246..22c187c84 100644
 --- a/desktop/src/pages/ActivitySettings.test.tsx
 +++ b/desktop/src/pages/ActivitySettings.test.tsx
 @@ -114,7 +114,7 @@ describe('ActivitySettings', () => {
@@ -280,7 +280,7 @@ index 6996242..22c187c 100644
        'href',
        'https://github.com/NanmiCoder/cc-haha',
 diff --git a/desktop/src/pages/ActivitySettings.tsx b/desktop/src/pages/ActivitySettings.tsx
-index 460530f..1688c5b 100644
+index 460530fc8..1688c5b05 100644
 --- a/desktop/src/pages/ActivitySettings.tsx
 +++ b/desktop/src/pages/ActivitySettings.tsx
 @@ -72,10 +72,12 @@ const DATE_LOCALES: Record<Locale, string> = {
@@ -326,7 +326,7 @@ index 460530f..1688c5b 100644
              href={profileSubtitleHref}
              target="_blank"
 diff --git a/desktop/src/pages/settings/AboutSettings.tsx b/desktop/src/pages/settings/AboutSettings.tsx
-index fad068f..319d7bd 100644
+index fad068ff0..319d7bde1 100644
 --- a/desktop/src/pages/settings/AboutSettings.tsx
 +++ b/desktop/src/pages/settings/AboutSettings.tsx
 @@ -21,10 +21,12 @@ import { isValidHttpProxyUrl } from '../settings/shared'
@@ -412,7 +412,7 @@ index fad068f..319d7bd 100644
  
        {/* Social Media */}
 diff --git a/src/server/services/desktopUiPreferencesService.ts b/src/server/services/desktopUiPreferencesService.ts
-index 22c2e49..d6f319a 100644
+index 22c2e496b..d6f319a73 100644
 --- a/src/server/services/desktopUiPreferencesService.ts
 +++ b/src/server/services/desktopUiPreferencesService.ts
 @@ -19,7 +19,7 @@ const MIN_PET_SIZE = 96

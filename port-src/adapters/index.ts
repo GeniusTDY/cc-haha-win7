@@ -5,12 +5,15 @@ const flag = process.argv.find(
     arg === '--telegram' ||
     arg === '--wechat' ||
     arg === '--dingtalk' ||
-    arg === '--whatsapp',
+    arg === '--whatsapp' ||
+    arg === '--wecom' ||
+    arg === '--qq' ||
+    arg === '--slack',
 )
 
 if (!flag) {
   console.error(
-    '[adapters] missing adapter flag: pass --feishu, --telegram, --wechat, --dingtalk or --whatsapp',
+    '[adapters] missing adapter flag: pass --feishu, --telegram, --wechat, --dingtalk, --whatsapp, --wecom, --qq or --slack',
   )
   process.exit(2)
 }
@@ -21,6 +24,9 @@ const entrypoints = {
   '--wechat': () => import('./wechat/index.ts'),
   '--dingtalk': () => import('./dingtalk/index.ts'),
   '--whatsapp': () => import('./whatsapp/index.ts'),
+  '--wecom': () => import('./wecom/index.ts'),
+  '--qq': () => import('./qq/index.ts'),
+  '--slack': () => import('./slack/index.ts'),
 }
 
 try {

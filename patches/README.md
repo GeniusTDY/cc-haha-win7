@@ -1,10 +1,12 @@
-# patches/ — Win7 port deltas vs upstream NanmiCoder/cc-haha v0.5.4
+# patches/ — Win7 port deltas vs upstream NanmiCoder/cc-haha v0.6.2
 
 **English** | [简体中文](README.zh-CN.md)
 
-Base: upstream tag/commit `d52bbec7` ("chore(release): prepare v0.5.4").
-Apply order = patch number. All paths are relative to the upstream repo
-root (`desktop/` is the Electron app subproject).
+Base: upstream tag/commit `85e7f3a20` ("release: v0.6.2"; pristine tree
+`757d004471e01255b13bec5a67d8f909e21d689b`). The series previously targeted
+`d52bbec7` (v0.5.4) — see the regeneration notes below. Apply order =
+patch number. All paths are relative to the upstream repo root (`desktop/`
+is the Electron app subproject).
 
 | # | file | applies to | summary |
 |---|---|---|---|
@@ -16,7 +18,7 @@ root (`desktop/` is the Electron app subproject).
 | 6 | `electron-builder/006-nsis-target-nowine.patch` | `node_modules/app-builder-lib/.../NsisTarget.js` | wine-free uninstaller extraction on Linux (UninstallerReader for all non-Windows hosts) |
 | 7 | `desktop/007-session-title-locale.patch` | `desktop/src/**` (10 title display sites + 5 locale files) | display-layer mapping `displaySessionTitle()` for placeholder session titles ('New Session'/'Untitled Session' store sentinels stay untouched in the data layer; UI renders `t('session.untitled')` per locale); retires the obsolete `tabs.untitled` key |
 | 8 | `desktop/008-brand-fork-etiquette.patch` | `desktop/package.json`, `desktop/src-tauri/tauri.conf.json`, `desktop/src/{components/layout/Sidebar,pages/ActivitySettings,pages/settings/AboutSettings}.tsx` + tests + 5 locale files, `src/server/services/desktopUiPreferencesService.ts` | repository identity points at GeniusTDY/cc-haha-win7 (package.json homepage + electron-updater publish target, tauri updater endpoint, sidebar link, backend DEFAULT_PROFILE_SUBTITLE) while upstream is credited first, fork etiquette: the About "GitHub Repo"/"Author" cards list upstream then the fork/maintainer in two-row entries with hint lines, and the Activity profile shows both subtitle links while the subtitle is still the default (`upstreamHint`/`upstreamAuthorHint`/`forkMaintainerHint` keys in all five locales) |
-| 9 | `desktop/009-changelog-modal.patch` | `desktop/src/pages/settings/AboutSettings.tsx`, `desktop/src/lib/changelogContent{,Data}.ts` + 5 locale files | in-app changelog modal replacing the browser jump to upstream GitHub releases: pre-baked bilingual corpus (all 40 upstream releases, zh/en split + Installation-section removal baked in at generation time), language mapping with fallback, bare `#issue` ref linkification to the upstream tracker, in-modal version switcher with a "current version" indicator (`settings.about.currentVersion` in all five locales); retires the now-unused GITHUB_RELEASES const |
+| 9 | `desktop/009-changelog-modal.patch` | `desktop/src/pages/settings/AboutSettings.tsx`, `desktop/src/lib/changelogContent{,Data}.ts` + 5 locale files | in-app changelog modal replacing the browser jump to upstream GitHub releases: pre-baked bilingual corpus (all 44 upstream releases, v0.1.0 - v0.6.2; zh/en split + Installation-section removal baked in at generation time), language mapping with fallback, bare `#issue` ref linkification to the upstream tracker, in-modal version switcher with a "current version" indicator (`settings.about.currentVersion` in all five locales); retires the now-unused GITHUB_RELEASES const |
 | 10 | `desktop/010-providers-changed-refresh.patch` | `desktop/src/types/chat.ts`, `desktop/src/stores/{chatStore,providerStore,providerStore.test}.ts` | the desktop listens to the server's `providers_changed` event (emitted per provider created/updated/deleted/activated/reordered/imported): `chatStore` exposes `registerProvidersChangedHandler()` and dispatches the event's reason, `providerStore` registers a 500 ms-debounced `fetchProviders()` flush — importing or updating a provider in one window refreshes every other open window without a manual reload |
 | 11 | `desktop/011-h5-input-width-fix.patch` | `desktop/index.html` | H5 access "Host/IP" row: the viewport-based `sm:grid-cols-[minmax(0,1fr)_9rem_9rem]` breakpoint responds to the window, not the grid's own box, so inside the nested settings cards the 1fr column collapses and the input only reaches full width when maximized; a container query on the row's parent wrapper (`container-type:inline-size` + `@container (max-width: 28rem)` → single `minmax(0,1fr)` column) responds to the real container width (container queries and `:has()` are both Chromium 105+, fine on Electron 22's 108) |
 | 12 | `desktop/012-button-nowrap-fix.patch` | `desktop/index.html` | `button.inline-flex{white-space:nowrap}`: fixed-height buttons (h-6 = 24px and friends) never disabled wrapping, so tight flex rows folded CJK labels (the zh-CN "Refresh"/"Rebuild local index" buttons in Settings → Diagnostics) onto two lines whose ~27px of line boxes painted outside the button border; nowrap keeps every label on one line and restores min-content width so flex can no longer shrink a button below its label |
@@ -70,16 +72,81 @@ changes that this repo does not carry as patches:
   still authenticate — and cronScheduler's
   `buildCronCliArgs`/`resolveCronProjectRoot` fall back from the
   Bun-only `import.meta.dir` to `fileURLToPath(import.meta.url)`;
-- the upstream root dependencies (67 entries: axios, lodash-es, react, …)
+- the upstream root dependencies (68 entries: axios, lodash-es, react, …)
   must be installed (`bun install` / `npm install`) — only esbuild and the
   desktop dependency tree are vendored in this repo.
 
-Empirically, running build.mjs on a fresh `d52bbec7` clone + patches
+Empirically, running build.mjs on a fresh `85e7f3a20` clone + patches
 001–004 + `cp -r port-src ./` fails with ~2000 unresolved-module errors.
 The fully offline, reproducible path this repo supports is **Stage B
 only**: `runtime/node-fallback/` ships the prebuilt dist bundles and
 build-repack.sh step 4/9 deploys them into the installer, independent of
 any Stage A build.
+
+## Regenerating the series for v0.6.2 (2026-09-12)
+
+The series originally targeted v0.5.4. Re-targeting it at `85e7f3a20`
+("release: v0.6.2") kept 001/002/003/007/011/012 and cli/004, cli/014
+byte-identical and regenerated the four patches whose hunks upstream had
+moved underneath: **008, 009, 010, 013**. Verified by applying the 12
+numbered patches in the order below to a pristine `85e7f3a20` checkout
+and comparing the resulting tree to the canonical replay (zero conflict
+markers):
+
+```
+series tree: 9d06be08fa401dbc7665b7cc1e22653bd06c61d4
+expected   : 9d06be08fa401dbc7665b7cc1e22653bd06c61d4
+```
+
+(under v0.5.4 this was `861e9c96e15ce7ebd3f31b69adafee17f1f3c984`). The
+regenerated diffs are produced with git plumbing (`hash-object` /
+`read-tree` / `update-index --cacheinfo` / `write-tree` / `commit-tree`)
+and emitted as `git diff <parent> <new-commit>`, so every patch remains a
+plain two-way `git diff` that `git apply` takes without 3-way fallback.
+
+- **008 (brand/fork etiquette)** — only context lines shifted.
+- **009 (changelog modal)** — corpus extended from 40 to **44** entries
+  (v0.1.0 - v0.6.2) by re-running the generator over upstream
+  `release-notes/*.md`. Language assignment is content-based, not
+  positional: the English body is the block holding `## Installation` and
+  the Chinese body the one holding `## 安装`, because v0.6.1 and v0.6.2
+  put the Chinese block first while v0.5.2–v0.6.0 put English first. 37
+  of the 44 bodies are monolingual (Chinese only) and reach the UI through
+  `changelogContent.ts`'s fallback. The parser reproduces the three
+  shipped bilingual entries (v0.5.2/0.5.3/0.5.4) byte-for-byte. Patch
+  size 233,997 → 265,256 B.
+- **010 (`providers_changed` refresh)** and **013 (intranet-mode UI
+  gates)** — upstream refactored `chatStore`/`settingsStore`, so both were
+  rebased onto the new sources. 013's resolved `settingsStore.ts`
+  (`userSettingsPatch()`, `intranetMode: userSettings.intranetMode === true`,
+  `proxyManagedSettingsWarning`) is rebuilt from the final replay commit,
+  not the intermediate conflict-marked one.
+
+A 3-way replay (`git apply --3way`) on a fresh clone additionally needs
+the intermediate blobs the patches expect to be reachable; they were
+seeded by replaying the v0.5.4 series with `git apply --3way` +
+`git add -A` + commit. Plain `git apply` (used below) does not need this.
+
+Root dependencies grew 67 → 68 between v0.5.4 and v0.6.2 (devDependencies
+unchanged at 1). The Bun call-site census is unchanged in shape:
+`Bun.serve`, `Bun.spawn`, `Bun.file`, `bun:sqlite`
+(`src/server/services/ccSwitchImport.ts`), `bun:bundle` (`src/bridge/*`,
+`src/cli`, `src/commands/*`) and `import.meta.dir`
+(`src/server/services/conversationService.ts`, `cronScheduler.ts`); no
+`Bun.write`/`Bun.env`.
+
+### Patch 015 is artefact-level, not part of the upstream series
+
+`desktop/015-renderer-recovery-hardening.patch` does **not** apply to the
+upstream checkout: it records a change to this repo's own committed
+compiled artifact `port-src/desktop-electron/main.cjs` (renderer crash
+recovery — a single reload attempt becomes up to three escalating
+attempts, clearing `localstorage` then
+`localstorage`+`shadercache`+`cachestorage` before the second and third
+reloads). That change is already folded into the regenerated v0.6.2
+artifact, so — like patch 005 — the patch no longer applies to the current
+`main.cjs` and is kept as the record of the edit. It must never be handed
+to a fresh upstream clone.
 
 ## Apply
 
@@ -88,7 +155,7 @@ any Stage A build.
 # and this repo (cc-haha-win7) sit side by side, so from inside the clone
 # everything this repo ships is reachable as ../cc-haha-win7/.
 git clone https://github.com/NanmiCoder/cc-haha && cd cc-haha
-git checkout d52bbec7
+git checkout 85e7f3a20
 git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
 git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
 git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch

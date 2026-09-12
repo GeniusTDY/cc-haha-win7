@@ -75,7 +75,7 @@ Main-process gates (authoritative, uncached settings read per call):
 Locales: en / zh / zh-TW / jp / kr.
 
 diff --git a/desktop/electron/main.ts b/desktop/electron/main.ts
-index 8d551ad..4255edf 100644
+index b2de8ce1a..77c06289c 100644
 --- a/desktop/electron/main.ts
 +++ b/desktop/electron/main.ts
 @@ -36,6 +36,7 @@ import {
@@ -86,7 +86,7 @@ index 8d551ad..4255edf 100644
  import { installStdioWriteFailureGuards } from './services/stdioGuards'
  import { applyWindowsAppUserModelId } from './services/appIdentity'
  import { installMainWindowNavigationGuards, installPreviewNavigationGuards } from './services/navigationGuards'
-@@ -101,6 +102,7 @@ let trayController: TrayController | null = null
+@@ -103,6 +104,7 @@ let trayController: TrayController | null = null
  // stdio, and an unguarded write failure there surfaces as a crash dialog.
  installStdioWriteFailureGuards()
  installMacOsChromiumKeychainPromptGuard(app)
@@ -96,7 +96,7 @@ index 8d551ad..4255edf 100644
    return app.isPackaged ? app.getAppPath() : process.cwd()
 diff --git a/desktop/electron/services/intranetMode.ts b/desktop/electron/services/intranetMode.ts
 new file mode 100644
-index 0000000..f11dd43
+index 000000000..f11dd4339
 --- /dev/null
 +++ b/desktop/electron/services/intranetMode.ts
 @@ -0,0 +1,29 @@
@@ -131,7 +131,7 @@ index 0000000..f11dd43
 +}
 diff --git a/desktop/electron/services/intranetNetworkGuard.ts b/desktop/electron/services/intranetNetworkGuard.ts
 new file mode 100644
-index 0000000..506a2d1
+index 000000000..506a2d155
 --- /dev/null
 +++ b/desktop/electron/services/intranetNetworkGuard.ts
 @@ -0,0 +1,35 @@
@@ -171,7 +171,7 @@ index 0000000..506a2d1
 +  return true
 +}
 diff --git a/desktop/electron/services/shell.ts b/desktop/electron/services/shell.ts
-index 74c70ea..8c847c6 100644
+index 74c70eaef..8c847c6d5 100644
 --- a/desktop/electron/services/shell.ts
 +++ b/desktop/electron/services/shell.ts
 @@ -2,6 +2,7 @@ import { realpathSync, statSync } from 'node:fs'
@@ -197,7 +197,7 @@ index 74c70ea..8c847c6 100644
  
  export function normalizeSystemSettingsUrl(target: string): string {
 diff --git a/desktop/electron/services/systemProxyBridge.ts b/desktop/electron/services/systemProxyBridge.ts
-index 6f47b20..332e70d 100644
+index 6f47b20e1..332e70d3b 100644
 --- a/desktop/electron/services/systemProxyBridge.ts
 +++ b/desktop/electron/services/systemProxyBridge.ts
 @@ -6,6 +6,8 @@ import { lookup } from 'node:dns/promises'
@@ -270,7 +270,7 @@ index 6f47b20..332e70d 100644
    const rawUrl = request.url ?? ''
    if (/^https?:\/\//i.test(rawUrl)) return new URL(rawUrl)
 diff --git a/desktop/electron/services/updater.ts b/desktop/electron/services/updater.ts
-index d430d85..a323f45 100644
+index d430d85a2..a323f4512 100644
 --- a/desktop/electron/services/updater.ts
 +++ b/desktop/electron/services/updater.ts
 @@ -1,6 +1,7 @@
@@ -295,10 +295,10 @@ index d430d85..a323f45 100644
      try {
        await this.applyProxy(options)
 diff --git a/desktop/src/api/settings.ts b/desktop/src/api/settings.ts
-index 907bfbd..f24aff8 100644
+index 22f496a4d..625d9f464 100644
 --- a/desktop/src/api/settings.ts
 +++ b/desktop/src/api/settings.ts
-@@ -15,12 +15,19 @@ export type CliLauncherStatus = {
+@@ -20,12 +20,19 @@ export type CliLauncherStatus = {
    lastError: string | null
  }
  
@@ -319,18 +319,18 @@ index 907bfbd..f24aff8 100644
    },
  
 diff --git a/desktop/src/components/layout/Sidebar.tsx b/desktop/src/components/layout/Sidebar.tsx
-index 5ae151e..8b6cdc1 100644
+index 22d278351..d5fd2c10d 100644
 --- a/desktop/src/components/layout/Sidebar.tsx
 +++ b/desktop/src/components/layout/Sidebar.tsx
 @@ -2,6 +2,7 @@ import { forwardRef, useEffect, useLayoutEffect, useState, useCallback, useMemo,
- import { Check, ChevronDown, Clock, Folder, FolderOpen, FolderPlus, GitBranch, MoreHorizontal, Pin, PinOff, RefreshCw, RotateCcw, SquarePen, X } from 'lucide-react'
+ import { Bell, Check, ChevronDown, Clock, Folder, FolderOpen, FolderPlus, GitBranch, MoreHorizontal, Pin, PinOff, RefreshCw, RotateCcw, SquarePen, X } from 'lucide-react'
  import { useSessionStore } from '../../stores/sessionStore'
  import { useUIStore } from '../../stores/uiStore'
 +import { useSettingsStore } from '../../stores/settingsStore'
  import { useTranslation, type TranslationKey } from '../../i18n'
  import { BrandSeal } from '@/components/composite/BrandSeal'
  import { Button } from '@/components/ui/Button'
-@@ -113,6 +114,7 @@ export function Sidebar({
+@@ -136,6 +137,7 @@ export function Sidebar({
    const openModal = useUIStore((s) => s.openModal)
    const closeModal = useUIStore((s) => s.closeModal)
    const activeTabId = useTabStore((s) => s.activeTabId)
@@ -338,7 +338,7 @@ index 5ae151e..8b6cdc1 100644
    const tabs = useTabStore((s) => s.tabs)
    const chatSessions = useChatStore((s) => s.sessions)
    const closeTab = useTabStore((s) => s.closeTab)
-@@ -940,7 +942,7 @@ export function Sidebar({
+@@ -1050,7 +1052,7 @@ export function Sidebar({
              {t('sidebar.scheduled')}
            </NavItem>
          )}
@@ -348,10 +348,10 @@ index 5ae151e..8b6cdc1 100644
              active={activeTabId === MARKET_TAB_ID}
              collapsed={!expanded}
 diff --git a/desktop/src/i18n/locales/en.ts b/desktop/src/i18n/locales/en.ts
-index a8c2b2e..671c8f1 100644
+index 7342b5975..25f7f9370 100644
 --- a/desktop/src/i18n/locales/en.ts
 +++ b/desktop/src/i18n/locales/en.ts
-@@ -272,6 +272,7 @@ export const en = {
+@@ -311,6 +311,7 @@ export const en = {
  
    // ─── Settings ──────────────────────────────────────
    'settings.title': 'Settings',
@@ -359,7 +359,7 @@ index a8c2b2e..671c8f1 100644
    'settings.tab.providers': 'Providers',
    'settings.tab.permissions': 'Permissions',
    'settings.tab.activity': 'Token usage',
-@@ -1622,6 +1623,11 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+@@ -1804,6 +1805,11 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
    'settings.general.webFetchPreflightDescription': 'Desktop sessions skip Claude\'s domain preflight by default to avoid false failures on third-party providers and restricted networks.',
    'settings.general.webFetchPreflightEnabled': 'Skip WebFetch domain preflight',
    'settings.general.webFetchPreflightHint': 'Turn this off only if you explicitly want to restore the upstream safety preflight before each WebFetch request.',
@@ -371,7 +371,7 @@ index a8c2b2e..671c8f1 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': 'Choose how agent web search is resolved across official Claude, third-party providers, and local fallback keys.',
    'settings.general.webSearch.mode.auto': 'Auto',
-@@ -2896,6 +2902,7 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
+@@ -3075,6 +3081,7 @@ Row 9, all 8 cells: continuing from straight down, turning left through lower-le
    'market.installError.disk': 'Install failed: could not write to disk. Check permissions and free space.',
    'market.installError.notInstallable': 'Install failed: this skill cannot be installed.',
    'market.installError.generic': 'Install failed: {message}',
@@ -380,10 +380,10 @@ index a8c2b2e..671c8f1 100644
    // ─── Window controls / diagram + code viewers ──────────────────────────────────────
    'windowControls.minimize': 'Minimize window',
 diff --git a/desktop/src/i18n/locales/jp.ts b/desktop/src/i18n/locales/jp.ts
-index 0d8ad4c..07f002a 100644
+index 6f7213ac8..284ac716c 100644
 --- a/desktop/src/i18n/locales/jp.ts
 +++ b/desktop/src/i18n/locales/jp.ts
-@@ -274,6 +274,7 @@ export const jp: Record<TranslationKey, string> = {
+@@ -313,6 +313,7 @@ export const jp: Record<TranslationKey, string> = {
  
    // ─── Settings ──────────────────────────────────────
    'settings.title': '設定',
@@ -391,7 +391,7 @@ index 0d8ad4c..07f002a 100644
    'settings.tab.providers': 'プロバイダー',
    'settings.tab.permissions': '権限',
    'settings.tab.activity': 'トークン使用量',
-@@ -1624,6 +1625,11 @@ export const jp: Record<TranslationKey, string> = {
+@@ -1806,6 +1807,11 @@ export const jp: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': 'デスクトップセッションは、サードパーティプロバイダーや制限されたネットワークでの誤った失敗を避けるため、デフォルトで Claude のドメインプリフライトをスキップします。',
    'settings.general.webFetchPreflightEnabled': 'WebFetch のドメインプリフライトをスキップ',
    'settings.general.webFetchPreflightHint': '各 WebFetch リクエスト前の上流の安全プリフライトを明示的に復元したい場合のみ、これをオフにしてください。',
@@ -403,7 +403,7 @@ index 0d8ad4c..07f002a 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': 'エージェントのウェブ検索を、公式 Claude、サードパーティプロバイダー、ローカルのフォールバックキーのどれで解決するかを選択します。',
    'settings.general.webSearch.mode.auto': '自動',
-@@ -2898,6 +2904,7 @@ export const jp: Record<TranslationKey, string> = {
+@@ -3077,6 +3083,7 @@ export const jp: Record<TranslationKey, string> = {
    'market.installError.disk': 'インストール失敗：ディスクへの書き込みに失敗しました。権限と空き容量を確認してください。',
    'market.installError.notInstallable': 'インストール失敗：このスキルはインストールできません。',
    'market.installError.generic': 'インストール失敗：{message}',
@@ -412,10 +412,10 @@ index 0d8ad4c..07f002a 100644
    // ─── Window controls / diagram + code viewers ──────────────────────────────────────
    'windowControls.minimize': 'ウィンドウを最小化',
 diff --git a/desktop/src/i18n/locales/kr.ts b/desktop/src/i18n/locales/kr.ts
-index 9629ded..68989b2 100644
+index 1ffaffc0e..adecd9750 100644
 --- a/desktop/src/i18n/locales/kr.ts
 +++ b/desktop/src/i18n/locales/kr.ts
-@@ -274,6 +274,7 @@ export const kr: Record<TranslationKey, string> = {
+@@ -313,6 +313,7 @@ export const kr: Record<TranslationKey, string> = {
  
    // ─── Settings ──────────────────────────────────────
    'settings.title': '설정',
@@ -423,7 +423,7 @@ index 9629ded..68989b2 100644
    'settings.tab.providers': '공급자',
    'settings.tab.permissions': '권한',
    'settings.tab.activity': '토큰 사용량',
-@@ -1624,6 +1625,11 @@ export const kr: Record<TranslationKey, string> = {
+@@ -1806,6 +1807,11 @@ export const kr: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': '데스크톱 세션은 타사 공급자와 제한된 네트워크에서의 잘못된 실패를 피하기 위해 기본적으로 Claude의 도메인 사전 확인을 건너뜁니다.',
    'settings.general.webFetchPreflightEnabled': 'WebFetch 도메인 사전 확인 건너뛰기',
    'settings.general.webFetchPreflightHint': '각 WebFetch 요청 전에 업스트림 안전 사전 확인을 명시적으로 복원하려는 경우에만 이를 끄세요.',
@@ -435,7 +435,7 @@ index 9629ded..68989b2 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': '에이전트 웹 검색을 공식 Claude, 타사 공급자, 로컬 폴백 키 중 어디에서 해결할지 선택합니다.',
    'settings.general.webSearch.mode.auto': '자동',
-@@ -2898,6 +2904,7 @@ export const kr: Record<TranslationKey, string> = {
+@@ -3077,6 +3083,7 @@ export const kr: Record<TranslationKey, string> = {
    'market.installError.disk': '설치 실패: 디스크에 쓸 수 없습니다. 권한과 여유 공간을 확인하세요.',
    'market.installError.notInstallable': '설치 실패: 이 스킬은 설치할 수 없습니다.',
    'market.installError.generic': '설치 실패: {message}',
@@ -444,10 +444,10 @@ index 9629ded..68989b2 100644
    // ─── Window controls / diagram + code viewers ──────────────────────────────────────
    'windowControls.minimize': '창 최소화',
 diff --git a/desktop/src/i18n/locales/zh-TW.ts b/desktop/src/i18n/locales/zh-TW.ts
-index 81ecbd1..983622e 100644
+index 271b96659..195ed71a1 100644
 --- a/desktop/src/i18n/locales/zh-TW.ts
 +++ b/desktop/src/i18n/locales/zh-TW.ts
-@@ -274,6 +274,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -313,6 +313,7 @@ export const zh: Record<TranslationKey, string> = {
  
    // ─── Settings ──────────────────────────────────────
    'settings.title': '設定',
@@ -455,7 +455,7 @@ index 81ecbd1..983622e 100644
    'settings.tab.providers': '服務商',
    'settings.tab.permissions': '許可權',
    'settings.tab.activity': 'Token 用量',
-@@ -1623,6 +1624,11 @@ export const zh: Record<TranslationKey, string> = {
+@@ -1805,6 +1806,11 @@ export const zh: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': '桌面端預設跳過 Claude 的域名預檢，避免第三方服務商或受限網路下出現誤報失敗。',
    'settings.general.webFetchPreflightEnabled': '跳過 WebFetch 域名預檢',
    'settings.general.webFetchPreflightHint': '只有在你明確需要恢復上游預設安全預檢時，才建議關閉這個選項。',
@@ -467,7 +467,7 @@ index 81ecbd1..983622e 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': '配置 Agent 聯網搜尋在 Claude 原生、第三方供應商和本地 fallback key 之間如何選擇。',
    'settings.general.webSearch.mode.auto': '自動',
-@@ -2890,6 +2896,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -3069,6 +3075,7 @@ export const zh: Record<TranslationKey, string> = {
    'market.installError.disk': '安裝失敗：寫入磁碟失敗，請檢查權限與剩餘空間。',
    'market.installError.notInstallable': '安裝失敗：該技能不可安裝。',
    'market.installError.generic': '安裝失敗：{message}',
@@ -476,10 +476,10 @@ index 81ecbd1..983622e 100644
    // ─── Window controls / diagram + code viewers ──────────────────────────────────────
    'windowControls.minimize': '最小化視窗',
 diff --git a/desktop/src/i18n/locales/zh.ts b/desktop/src/i18n/locales/zh.ts
-index 4049156..fe07e73 100644
+index ceb7c98f7..a180861e2 100644
 --- a/desktop/src/i18n/locales/zh.ts
 +++ b/desktop/src/i18n/locales/zh.ts
-@@ -274,6 +274,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -313,6 +313,7 @@ export const zh: Record<TranslationKey, string> = {
  
    // ─── Settings ──────────────────────────────────────
    'settings.title': '设置',
@@ -487,7 +487,7 @@ index 4049156..fe07e73 100644
    'settings.tab.providers': '服务商',
    'settings.tab.permissions': '权限',
    'settings.tab.activity': 'Token 用量',
-@@ -1623,6 +1624,11 @@ export const zh: Record<TranslationKey, string> = {
+@@ -1805,6 +1806,11 @@ export const zh: Record<TranslationKey, string> = {
    'settings.general.webFetchPreflightDescription': '桌面端默认跳过 Claude 的域名预检，避免第三方服务商或受限网络下出现误报失败。',
    'settings.general.webFetchPreflightEnabled': '跳过 WebFetch 域名预检',
    'settings.general.webFetchPreflightHint': '只有在你明确需要恢复上游默认安全预检时，才建议关闭这个选项。',
@@ -499,7 +499,7 @@ index 4049156..fe07e73 100644
    'settings.general.webSearchTitle': 'WebSearch',
    'settings.general.webSearchDescription': '配置 Agent 联网搜索在 Claude 原生、第三方供应商和本地 fallback key 之间如何选择。',
    'settings.general.webSearch.mode.auto': '自动',
-@@ -2890,6 +2896,7 @@ export const zh: Record<TranslationKey, string> = {
+@@ -3069,6 +3075,7 @@ export const zh: Record<TranslationKey, string> = {
    'market.installError.disk': '安装失败：写入磁盘失败，请检查权限与剩余空间。',
    'market.installError.notInstallable': '安装失败：该技能不可安装。',
    'market.installError.generic': '安装失败：{message}',
@@ -508,26 +508,26 @@ index 4049156..fe07e73 100644
    // ─── Window controls / diagram + code viewers ──────────────────────────────────────
    'windowControls.minimize': '最小化窗口',
 diff --git a/desktop/src/pages/ComputerUseSettings.tsx b/desktop/src/pages/ComputerUseSettings.tsx
-index d5f7793..b496166 100644
+index de02c9d06..037ee4422 100644
 --- a/desktop/src/pages/ComputerUseSettings.tsx
 +++ b/desktop/src/pages/ComputerUseSettings.tsx
-@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
- import { ErrorState } from '@/components/ui/ErrorState'
+@@ -7,6 +7,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
  import { LoadingState } from '@/components/ui/LoadingState'
+ import { Switch } from '@/components/ui/Switch'
  import { getDesktopHost } from '../lib/desktopHost'
 +import { useSettingsStore } from '../stores/settingsStore'
  
  type CheckState = 'loading' | 'ready' | 'error'
  const PYTHON_DOWNLOAD_URLS: Record<string, string> = {
-@@ -50,6 +51,7 @@ async function openExternalUrl(url: string) {
+@@ -52,6 +53,7 @@ async function openExternalUrl(url: string) {
  
  export function ComputerUseSettings() {
    const t = useTranslation()
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    const [status, setStatus] = useState<ComputerUseStatus | null>(null)
    const [checkState, setCheckState] = useState<CheckState>('loading')
-   const [setupRunning, setSetupRunning] = useState(false)
-@@ -469,7 +471,7 @@ export function ComputerUseSettings() {
+   const [configState, setConfigState] = useState<CheckState>('loading')
+@@ -585,7 +587,7 @@ export function ComputerUseSettings() {
  
            {/* Action buttons */}
            <div className="flex gap-3">
@@ -537,7 +537,7 @@ index d5f7793..b496166 100644
                  variant="primary"
                  size="lg"
 diff --git a/desktop/src/pages/Market.tsx b/desktop/src/pages/Market.tsx
-index d1fcdb8..cc1598e 100644
+index d1fcdb855..cc1598e7a 100644
 --- a/desktop/src/pages/Market.tsx
 +++ b/desktop/src/pages/Market.tsx
 @@ -3,6 +3,7 @@ import { useTranslation } from '../i18n'
@@ -573,7 +573,7 @@ index d1fcdb8..cc1598e 100644
      <div className="flex min-h-0 flex-1 flex-col bg-[var(--color-surface)]">
        {selectedId ? (
 diff --git a/desktop/src/pages/Settings.tsx b/desktop/src/pages/Settings.tsx
-index aebc121..1a123ee 100644
+index aebc1211c..1a123ee17 100644
 --- a/desktop/src/pages/Settings.tsx
 +++ b/desktop/src/pages/Settings.tsx
 @@ -17,9 +17,11 @@ import { ActivitySettings } from './ActivitySettings'
@@ -635,7 +635,7 @@ index aebc121..1a123ee 100644
            {activeTab === 'mcp' && <McpSettings />}
            {activeTab === 'agents' && <AgentManager />}
 diff --git a/desktop/src/pages/settings/AboutSettings.tsx b/desktop/src/pages/settings/AboutSettings.tsx
-index cc67565..af14b5d 100644
+index cc6756536..af14b5dff 100644
 --- a/desktop/src/pages/settings/AboutSettings.tsx
 +++ b/desktop/src/pages/settings/AboutSettings.tsx
 @@ -38,6 +38,7 @@ const SOCIAL_LINKS = [
@@ -720,18 +720,18 @@ index cc67565..af14b5d 100644
        {showChangelog && modalEntry && modalBody && (
          <Modal
 diff --git a/desktop/src/pages/settings/GeneralSettings.tsx b/desktop/src/pages/settings/GeneralSettings.tsx
-index 9bbb91f..6f8dd3e 100644
+index 3ccb4f329..3ea543b3d 100644
 --- a/desktop/src/pages/settings/GeneralSettings.tsx
 +++ b/desktop/src/pages/settings/GeneralSettings.tsx
-@@ -89,6 +89,7 @@ export function GeneralSettings() {
-     uiZoom,
+@@ -108,6 +108,7 @@ export function GeneralSettings() {
      setUiZoom,
+     proxyManagedSettingsWarning,
    } = useSettingsStore()
 +  const intranetMode = useSettingsStore((s) => s.intranetMode)
    // Read the theme from the store that owns it. settingsStore keeps a copy for
    // its own consumers, but that copy is only refreshed on an explicit setTheme
    // — an OS flip updates uiStore alone and would leave this picker highlighting
-@@ -1187,15 +1188,17 @@ export function GeneralSettings() {
+@@ -1446,15 +1447,17 @@ export function GeneralSettings() {
              />
              <div className="-mt-1 flex items-center justify-between gap-3 text-xs text-[var(--color-text-tertiary)]">
                <span>{t('settings.general.webSearchTavilyFreeHint')}</span>
@@ -758,7 +758,7 @@ index 9bbb91f..6f8dd3e 100644
              </div>
              <Input
                id="web-search-brave-key"
-@@ -1213,15 +1216,17 @@ export function GeneralSettings() {
+@@ -1472,15 +1475,17 @@ export function GeneralSettings() {
              />
              <div className="-mt-1 flex items-center justify-between gap-3 text-xs text-[var(--color-text-tertiary)]">
                <span>{t('settings.general.webSearchBraveFreeHint')}</span>
@@ -787,7 +787,7 @@ index 9bbb91f..6f8dd3e 100644
            <div className="mt-4 flex flex-col gap-3">
 diff --git a/desktop/src/pages/settings/IntranetModeSettings.tsx b/desktop/src/pages/settings/IntranetModeSettings.tsx
 new file mode 100644
-index 0000000..3db8c50
+index 000000000..3db8c503b
 --- /dev/null
 +++ b/desktop/src/pages/settings/IntranetModeSettings.tsx
 @@ -0,0 +1,55 @@
@@ -847,10 +847,10 @@ index 0000000..3db8c50
 +  )
 +}
 diff --git a/desktop/src/pages/settings/ProviderSettings.tsx b/desktop/src/pages/settings/ProviderSettings.tsx
-index f86e03e..0fdbd34 100644
+index ee7787955..99d5dcd75 100644
 --- a/desktop/src/pages/settings/ProviderSettings.tsx
 +++ b/desktop/src/pages/settings/ProviderSettings.tsx
-@@ -200,10 +200,12 @@ export function ProviderSettings() {
+@@ -202,10 +202,12 @@ export function ProviderSettings() {
      await fetchSettings()
    }
  
@@ -867,7 +867,7 @@ index f86e03e..0fdbd34 100644
  
    const handleProviderDragEnd = (event: DragEndEvent) => {
      const { active, over } = event
-@@ -962,6 +964,7 @@ function openExternalUrl(url: string) {
+@@ -977,6 +979,7 @@ function openExternalUrl(url: string) {
  function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderFormProps) {
    const { createProvider, updateProvider, testConfig, fetchModels } = useProviderStore()
    const fetchSettings = useSettingsStore((s) => s.fetchAll)
@@ -875,7 +875,7 @@ index f86e03e..0fdbd34 100644
    const addToast = useUIStore((s) => s.addToast)
    const t = useTranslation()
    const baseUrlInputId = useId()
-@@ -1712,7 +1715,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
+@@ -1830,7 +1833,7 @@ function ProviderFormModal({ open, onClose, mode, provider, presets }: ProviderF
            </div>
          </div>
  
@@ -885,18 +885,18 @@ index f86e03e..0fdbd34 100644
              {apiKeyUrl && (
                <button
 diff --git a/desktop/src/stores/chatStore.ts b/desktop/src/stores/chatStore.ts
-index e267bc5..6586995 100644
+index d6fb9da06..0e3bc8589 100644
 --- a/desktop/src/stores/chatStore.ts
 +++ b/desktop/src/stores/chatStore.ts
-@@ -8,6 +8,7 @@ import { useCLITaskStore } from './cliTaskStore'
- import { useWorkflowStore } from './workflowStore'
- import { useSessionRuntimeStore } from './sessionRuntimeStore'
+@@ -10,6 +10,7 @@ import { useSessionRuntimeStore } from './sessionRuntimeStore'
+ import { useProviderStore } from './providerStore'
+ import { resolveActiveProviderRuntimeSelection, resolveProviderRuntimeModelId } from '../lib/runtimeSelection'
  import { useTabStore } from './tabStore'
 +import { useSettingsStore } from './settingsStore'
  import { randomSpinnerVerb } from '../config/spinnerVerbs'
  import { notifyDesktop } from '../lib/desktopNotifications'
  import { deriveSessionTitle, isPlaceholderSessionTitle } from '../lib/sessionTitle'
-@@ -2965,6 +2966,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
+@@ -4407,6 +4408,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
          break
        }
  
@@ -909,7 +909,7 @@ index e267bc5..6586995 100644
          const session = get().sessions[sessionId]
          if (!session) break
 diff --git a/desktop/src/stores/settingsStore.ts b/desktop/src/stores/settingsStore.ts
-index 385b02b..4a19867 100644
+index 697ac103c..13dc746c1 100644
 --- a/desktop/src/stores/settingsStore.ts
 +++ b/desktop/src/stores/settingsStore.ts
 @@ -1,6 +1,6 @@
@@ -920,17 +920,9 @@ index 385b02b..4a19867 100644
  import { modelsApi } from '../api/models'
  import { h5AccessApi } from '../api/h5Access'
  import { tracesApi } from '../api/traces'
-@@ -21,6 +21,7 @@ import {
-   type ThemeMode,
-   type UpdateProxyMode,
-   type UpdateProxySettings,
-+  type UserSettings,
-   type WebSearchSettings,
- } from '../types/settings'
- import type { TraceCaptureSettings } from '../types/trace'
-@@ -49,6 +50,27 @@ export const UI_ZOOM_STEP = APP_ZOOM_CONTROL_STEP
- export const UI_ZOOM_DEFAULT = DEFAULT_APP_ZOOM
- let desktopNotificationsSaveQueue: Promise<void> = Promise.resolve()
+@@ -55,6 +55,27 @@ export const DEFAULT_CLEANUP_PERIOD_DAYS = 365
+ /** Mirrors MAX_SESSION_RETENTION_DAYS in src/server/api/settings.ts. */
+ export const MAX_CLEANUP_PERIOD_DAYS = 3650
  
 +function userSettingsPatch(userSettings: UserSettings) {
 +  const desktopTerminal = normalizeDesktopTerminalSettings(userSettings.desktopTerminal)
@@ -956,7 +948,7 @@ index 385b02b..4a19867 100644
  type SettingsStore = {
    permissionMode: PermissionMode
    currentModel: ModelInfo | null
-@@ -73,6 +95,7 @@ type SettingsStore = {
+@@ -79,6 +100,7 @@ type SettingsStore = {
    outputStyleError: string | null
    skipWebFetchPreflight: boolean
    desktopNotificationsEnabled: boolean
@@ -964,7 +956,7 @@ index 385b02b..4a19867 100644
    desktopTerminal: DesktopTerminalSettings
    webSearch: WebSearchSettings
    updateProxy: UpdateProxySettings
-@@ -104,6 +127,7 @@ type SettingsStore = {
+@@ -113,6 +135,7 @@ type SettingsStore = {
    fetchOutputStyles: (workDir?: string | null) => Promise<void>
    setOutputStyle: (outputStyle: string, workDir?: string | null) => Promise<void>
    setSkipWebFetchPreflight: (enabled: boolean) => Promise<void>
@@ -972,7 +964,7 @@ index 385b02b..4a19867 100644
    setDesktopNotificationsEnabled: (enabled: boolean) => Promise<void>
    setDesktopTerminal: (settings: DesktopTerminalSettings) => Promise<void>
    setWebSearch: (settings: WebSearchSettings) => Promise<void>
-@@ -198,6 +222,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -208,6 +231,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
    outputStyleError: null,
    skipWebFetchPreflight: true,
    desktopNotificationsEnabled: false,
@@ -980,7 +972,7 @@ index 385b02b..4a19867 100644
    desktopTerminal: DEFAULT_DESKTOP_TERMINAL_SETTINGS,
    webSearch: { mode: 'auto', tavilyApiKey: '', braveApiKey: '' },
    updateProxy: DEFAULT_UPDATE_PROXY_SETTINGS,
-@@ -245,8 +270,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -257,8 +281,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
          loadH5AccessSettings(previousH5Access),
          loadTraceCaptureSettings(),
        ])
@@ -989,7 +981,7 @@ index 385b02b..4a19867 100644
        // Nothing to do for the theme here: uiStore already applied it at
        // startup, and re-applying would re-persist and re-report it on every
        // provider switch.
-@@ -257,23 +280,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -269,24 +291,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
          activeProviderName: modelsRes.provider?.name ?? null,
          currentModel: model,
          effortLevel: level,
@@ -1006,15 +998,16 @@ index 385b02b..4a19867 100644
 -        updateProxy: normalizeUpdateProxySettings(userSettings.updateProxy),
 -        network: normalizeNetworkSettings(userSettings.network),
 +        ...userSettingsPatch(userSettings),
+         cleanupPeriodDays: normalizeCleanupPeriodDays(userSettings.cleanupPeriodDays),
          traceCapture,
          h5Access: h5AccessResult.settings,
          h5AccessDiagnostics: h5AccessResult.diagnostics,
          h5AccessError: h5AccessResult.error,
 -        responseLanguage: typeof userSettings.language === 'string' ? userSettings.language : '',
+         proxyManagedSettingsWarning: hasProxyManagedOnlyUserSettings(userSettings),
          isLoading: false,
          error: null,
-       })
-@@ -450,6 +461,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
+@@ -464,6 +474,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
      }
    },
  
@@ -1033,7 +1026,7 @@ index 385b02b..4a19867 100644
    setDesktopNotificationsEnabled: async (enabled) => {
      const prev = get().desktopNotificationsEnabled
      set({ desktopNotificationsEnabled: enabled })
-@@ -835,3 +858,22 @@ function isDesktopTerminalStartupShell(value: unknown): value is DesktopTerminal
+@@ -893,3 +915,22 @@ function isDesktopTerminalStartupShell(value: unknown): value is DesktopTerminal
      || value === 'cmd'
      || value === 'custom'
  }
@@ -1057,7 +1050,7 @@ index 385b02b..4a19867 100644
 +}
 +setupFocusHydration()
 diff --git a/desktop/src/stores/uiStore.ts b/desktop/src/stores/uiStore.ts
-index 3ea100c..8dbebeb 100644
+index 3ea100c43..8dbebeb4d 100644
 --- a/desktop/src/stores/uiStore.ts
 +++ b/desktop/src/stores/uiStore.ts
 @@ -44,6 +44,7 @@ function getStoredSidebarWidth(): number {
@@ -1077,7 +1070,7 @@ index 3ea100c..8dbebeb 100644
    | 'activity'
    | 'general'
 diff --git a/desktop/src/stores/updateStore.ts b/desktop/src/stores/updateStore.ts
-index 58e767f..d2a1934 100644
+index 58e767fdf..d2a19346e 100644
 --- a/desktop/src/stores/updateStore.ts
 +++ b/desktop/src/stores/updateStore.ts
 @@ -210,6 +210,7 @@ export const useUpdateStore = create<UpdateStore>((set, get) => ({
@@ -1089,10 +1082,10 @@ index 58e767f..d2a1934 100644
      clearRelaunchWatchdog()
  
 diff --git a/desktop/src/types/chat.ts b/desktop/src/types/chat.ts
-index 4520b25..3f79e86 100644
+index 72dd513d8..3483c232d 100644
 --- a/desktop/src/types/chat.ts
 +++ b/desktop/src/types/chat.ts
-@@ -136,6 +136,7 @@ export type ServerMessage =
+@@ -140,6 +140,7 @@ export type ServerMessage =
    // 桌面端据此把选择器校正回 CLI 的真实权限，避免本地影子值漂移。
    | { type: 'permission_mode_changed'; mode: PermissionMode }
    | { type: 'providers_changed'; reason: 'created' | 'updated' | 'deleted' | 'activated' | 'reordered' | 'imported' }
@@ -1101,7 +1094,7 @@ index 4520b25..3f79e86 100644
        type: 'api_retry'
        attempt: number
 diff --git a/desktop/src/types/settings.ts b/desktop/src/types/settings.ts
-index 2f6e4b2..10ef4e7 100644
+index 59df36b39..2e2259090 100644
 --- a/desktop/src/types/settings.ts
 +++ b/desktop/src/types/settings.ts
 @@ -161,6 +161,7 @@ export type UserSettings = {

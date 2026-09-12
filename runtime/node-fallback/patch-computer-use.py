@@ -58,7 +58,7 @@ detect_fail = []
 def module_prologue(marker):
     """Return the import block that follows a module comment marker."""
     m = re.search(
-        re.escape(marker) + r"\n(?:init_define_MACRO\(\);\n)?((?:import [^\n]+\n)+)",
+        re.escape(marker) + r"\n(?:init_\w+\(\);\n)*((?:import [^\n]+\n)+)",
         src,
     )
     return m.group(1) if m else ""
@@ -472,8 +472,8 @@ rep("""  const pythonBin = isWindows3 ? join187(venvRoot2, "Scripts", "python.ex
     return [];
   }""", "P6 listInstalledApps fallback")
 
-rep("""var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise;""",
-    """var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, requirementsPath, helperFileName, helperPath, bootstrapPromise, basePythonOverride;""", "P7a basePythonOverride var")
+rep("""var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2,""",
+    """var __dirname2, projectRoot, runtimeStateRoot, venvRoot, installStampPath, isWindows2, basePythonOverride,""", "P7a basePythonOverride var")
 
 rep("""function pythonBinPath() {
   return isWindows2 ? path17.join(venvRoot, "Scripts", "python.exe") : path17.join(venvRoot, "bin", "python3");
@@ -495,8 +495,7 @@ function getBundledPythonDirsWin() {
   }
 }""", "P7b pythonBinPath override + dirs helper (versioned python dir)")
 
-rep("""  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.txt";
-  const devRequirements = path17.join(projectRoot, "runtime", devReqFile);
+rep("""  const devRequirements = path17.join(projectRoot, "runtime", "requirements-win.txt");
   const devHelper = path17.join(projectRoot, "runtime", helperFileName);
   if (await pathExists2(devRequirements)) {
     await writeFile24(requirementsPath, await readFile28(devRequirements, "utf8"), "utf8");
@@ -504,12 +503,11 @@ rep("""  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.
   if (await pathExists2(devHelper)) {
     await writeFile24(helperPath, await readFile28(devHelper, "utf8"), "utf8");
   }""",
-    """  const devReqFile = isWindows2 ? "requirements-win.txt" : "requirements.txt";
-  const runtimeRoots = [
+    """  const runtimeRoots = [
     path17.join(projectRoot, "runtime"),
     path17.resolve(__dirname2, "..", "..", "runtime")
   ];
-  const devRequirements = runtimeRoots.map((root) => path17.join(root, devReqFile));
+  const devRequirements = runtimeRoots.map((root) => path17.join(root, "requirements-win.txt"));
   const devHelper = runtimeRoots.map((root) => path17.join(root, helperFileName));
   for (const reqCandidate of devRequirements) {
     if (await pathExists2(reqCandidate)) {

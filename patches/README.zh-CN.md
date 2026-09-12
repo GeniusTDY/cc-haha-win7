@@ -1,9 +1,11 @@
-# patches/ — 相对上游 NanmiCoder/cc-haha v0.5.4 的 Win7 移植增量
+# patches/ — 相对上游 NanmiCoder/cc-haha v0.6.2 的 Win7 移植增量
 
 [English](README.md) | **简体中文**
 
-基线：上游 tag/commit `d52bbec7`（"chore(release): prepare v0.5.4"）。
-按补丁编号顺序应用。所有路径相对上游仓库根目录（`desktop/` 是 Electron 应用子项目）。
+基线：上游 tag/commit `85e7f3a20`（"release: v0.6.2"；原始树
+`757d004471e01255b13bec5a67d8f909e21d689b`）。本系列此前基线为
+`d52bbec7`（v0.5.4）——见下方重新生成说明。按补丁编号顺序应用。
+所有路径相对上游仓库根目录（`desktop/` 是 Electron 应用子项目）。
 
 | # | 文件 | 应用对象 | 摘要 |
 |---|---|---|---|
@@ -15,7 +17,7 @@
 | 6 | `electron-builder/006-nsis-target-nowine.patch` | `node_modules/app-builder-lib/.../NsisTarget.js` | Linux 上免 wine 的卸载器提取（所有非 Windows 主机走 UninstallerReader） |
 | 7 | `desktop/007-session-title-locale.patch` | `desktop/src/**`（10 处标题显示点 + 5 个语言包） | 占位会话标题的显示层映射 `displaySessionTitle()`（'New Session'/'Untitled Session' 数据层哨兵原样保留，界面按语言渲染 `t('session.untitled')`）；同时退役废弃的 `tabs.untitled` 键 |
 | 8 | `desktop/008-brand-fork-etiquette.patch` | `desktop/package.json`、`desktop/src-tauri/tauri.conf.json`、`desktop/src/{components/layout/Sidebar,pages/ActivitySettings,pages/settings/AboutSettings}.tsx` + 测试 + 5 个语言包、`src/server/services/desktopUiPreferencesService.ts` | 仓库身份指向 GeniusTDY/cc-haha-win7（package.json homepage + electron-updater 发布目标、tauri 更新器端点、侧栏链接、后端 DEFAULT_PROFILE_SUBTITLE），同时按 fork 礼仪将上游放在首位致谢：About 的 "GitHub Repo"/"Author" 卡片以两行条目先列上游再列本 fork/维护者并附提示行，活动页 profile 在副标题仍为默认值时同时展示两条链接（五个语言包新增 `upstreamHint`/`upstreamAuthorHint`/`forkMaintainerHint` 键） |
-| 9 | `desktop/009-changelog-modal.patch` | `desktop/src/pages/settings/AboutSettings.tsx`、`desktop/src/lib/changelogContent{,Data}.ts` + 5 个语言包 | 应用内更新日志弹窗，取代跳转上游 GitHub releases 的浏览器跳转：预烘焙双语语料（上游全部 40 个 release，中英文拆分与 Installation 小节剔除在生成期固化）、带回退的语言映射、裸 `#issue` 引用链接化到上游 tracker、弹窗内版本切换器带"当前版本"指示（五个语言包新增 `settings.about.currentVersion` 键）；同时退役不再使用的 GITHUB_RELEASES 常量 |
+| 9 | `desktop/009-changelog-modal.patch` | `desktop/src/pages/settings/AboutSettings.tsx`、`desktop/src/lib/changelogContent{,Data}.ts` + 5 个语言包 | 应用内更新日志弹窗，取代跳转上游 GitHub releases 的浏览器跳转：预烘焙双语语料（上游全部 44 个 release，v0.1.0 - v0.6.2，中英文拆分与 Installation 小节剔除在生成期固化）、带回退的语言映射、裸 `#issue` 引用链接化到上游 tracker、弹窗内版本切换器带"当前版本"指示（五个语言包新增 `settings.about.currentVersion` 键）；同时退役不再使用的 GITHUB_RELEASES 常量 |
 | 10 | `desktop/010-providers-changed-refresh.patch` | `desktop/src/types/chat.ts`、`desktop/src/stores/{chatStore,providerStore,providerStore.test}.ts` | 桌面端监听服务端 `providers_changed` 事件（provider 创建/更新/删除/激活/重排/导入时发出）：`chatStore` 暴露 `registerProvidersChangedHandler()` 并分发事件原因，`providerStore` 注册 500 ms 防抖的 `fetchProviders()` 刷新——在一个窗口导入或更新 provider 后，其余所有打开的窗口自动刷新，无需手动重载 |
 | 11 | `desktop/011-h5-input-width-fix.patch` | `desktop/index.html` | H5 访问"访问主机/IP"行：视口断点 `sm:grid-cols-[minmax(0,1fr)_9rem_9rem]` 按窗口而非网格自身盒子宽度生效，设置页多层卡片嵌套下弹性列被压扁，输入框只有窗口最大化时才能完整显示；改为在该行父包装上设 `container-type:inline-size`，容器宽度不足 28rem 时退回单列 `minmax(0,1fr)`，按容器真实宽度响应（容器查询与 `:has()` 均为 Chromium 105+，Electron 22 的 108 原生支持） |
 | 12 | `desktop/012-button-nowrap-fix.patch` | `desktop/index.html` | `button.inline-flex{white-space:nowrap}`：固定高度按钮（h-6=24px 等）未禁用换行，flex 行空间紧张时 CJK 标签（设置→诊断的"刷新"/"重建本地索引"）折成两行，约 27px 的行盒画出按钮边框；nowrap 保持标签单行并恢复 min-content 宽度保护，flex 不再把按钮压到标签宽度以下 |
@@ -63,15 +65,73 @@ node-runtime 回退另一半只存在于编译产物中。）
   纯环境变量配置仍可完成认证；cronScheduler 的
   `buildCronCliArgs`/`resolveCronProjectRoot` 从 Bun 专属的
   `import.meta.dir` 回退到 `fileURLToPath(import.meta.url)`；
-- 上游根目录依赖（67 项：axios、lodash-es、react 等）必须先安装
+- 上游根目录依赖（68 项：axios、lodash-es、react 等）必须先安装
   （`bun install` / `npm install`）——本仓库只内置 esbuild 与
   desktop 依赖树。
 
-实测：在全新 `d52bbec7` 克隆 + 补丁 001–004 + `cp -r port-src ./` 上
+实测：在全新 `85e7f3a20` 克隆 + 补丁 001–004 + `cp -r port-src ./` 上
 运行 build.mjs 会报约 2000 个 unresolved 模块错误。本仓库支持的
 全离线可重现路径是 **仅 Stage B**：`runtime/node-fallback/` 内置
 预构建 dist bundle，build-repack.sh 步骤 4/9 将其部署进安装器，
 与任何 Stage A 构建无关。
+
+## 为 v0.6.2 重新生成补丁系列（2026-09-12）
+
+本系列原基线为 v0.5.4。将基线迁到 `85e7f3a20`（"release: v0.6.2"）后，
+001/002/003/007/011/012 与 cli/004、cli/014 保持逐字节不变，只有上游
+在其下方改动了上下文的四个补丁被重新生成：**008、009、010、013**。
+验证方式：在原始 `85e7f3a20` 检出上按下方顺序应用全部 12 个编号补丁，
+所得树与规范重放一致（零冲突标记）：
+
+```
+series tree: 9d06be08fa401dbc7665b7cc1e22653bd06c61d4
+expected   : 9d06be08fa401dbc7665b7cc1e22653bd06c61d4
+```
+
+（v0.5.4 时为 `861e9c96e15ce7ebd3f31b69adafee17f1f3c984`）。重新生成的
+diff 用 git plumbing（`hash-object` / `read-tree` /
+`update-index --cacheinfo` / `write-tree` / `commit-tree`）产出，并以
+`git diff <parent> <new-commit>` 输出，因此每个补丁仍是普通双向
+`git diff`，`git apply` 无需 3-way 回退即可应用。
+
+- **008（品牌/fork 礼仪）**——仅上下文行位移。
+- **009（更新日志弹窗）**——语料由 40 条扩展到 **44** 条
+  （v0.1.0 - v0.6.2），做法是对上游 `release-notes/*.md` 重跑生成器。
+  语言归属按内容而非位置判定：英文块是含 `## Installation` 的那块，
+  中文块是含 `## 安装` 的那块——因为 v0.6.1、v0.6.2 把中文块放在前面，
+  而 v0.5.2–v0.6.0 是英文在前。44 条中有 37 条为单语（仅中文），
+  经 `changelogContent.ts` 的回退逻辑到达界面。解析器对已发布的三个
+  双语条目（v0.5.2/0.5.3/0.5.4）逐字节复现。补丁体积
+  233,997 → 265,256 B。
+- **010（`providers_changed` 刷新）** 与 **013（内网模式 UI 闸门）**
+  ——上游重构了 `chatStore`/`settingsStore`，两者均已 rebase 到新源码。
+  013 的最终 `settingsStore.ts`（`userSettingsPatch()`、
+  `intranetMode: userSettings.intranetMode === true`、
+  `proxyManagedSettingsWarning`）从重放链的最终提交重建，而非带冲突
+  标记的中间提交。
+
+在全新克隆上做 3-way 重放（`git apply --3way`）还需补丁所依赖的中间
+blob 在对象库中可达；这些 blob 通过用 `git apply --3way` +
+`git add -A` + commit 重放 v0.5.4 系列完成播种。下方所用的普通
+`git apply` 不需要该前置步骤。
+
+v0.5.4 → v0.6.2 之间根依赖由 67 项增至 68 项（devDependencies 仍为
+1 项）。Bun 调用点普查形态不变：`Bun.serve`、`Bun.spawn`、`Bun.file`、
+`bun:sqlite`（`src/server/services/ccSwitchImport.ts`）、`bun:bundle`
+（`src/bridge/*`、`src/cli`、`src/commands/*`）与 `import.meta.dir`
+（`src/server/services/conversationService.ts`、`cronScheduler.ts`）；
+无 `Bun.write`/`Bun.env`。
+
+### 补丁 015 属产物级，不在上游系列内
+
+`desktop/015-renderer-recovery-hardening.patch` **不**应用到上游检出：
+它记录的是对本仓库自身入仓编译产物
+`port-src/desktop-electron/main.cjs` 的改动（渲染进程崩溃恢复——
+单次重载尝试改为最多三次递进尝试，第二次、第三次重载前分别清理
+`localstorage` 与 `localstorage`+`shadercache`+`cachestorage`）。
+该改动已并入重新生成的 v0.6.2 产物，因此与补丁 005 一样，本补丁对
+当前 `main.cjs` 已无法应用，仅作为该次编辑的记录保留；绝不能交给
+全新上游克隆应用。
 
 ## 应用
 
@@ -79,7 +139,7 @@ node-runtime 回退另一半只存在于编译产物中。）
 # 布局同根 README 的 Stage A 演练：上游克隆与本仓库（cc-haha-win7）
 # 并列放置，因此在克隆内部以 ../cc-haha-win7/ 访问本仓库的一切。
 git clone https://github.com/NanmiCoder/cc-haha && cd cc-haha
-git checkout d52bbec7
+git checkout 85e7f3a20
 git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
 git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
 git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch
@@ -90,8 +150,8 @@ git apply ../cc-haha-win7/patches/desktop/010-providers-changed-refresh.patch
 git apply ../cc-haha-win7/patches/desktop/011-h5-input-width-fix.patch
 git apply ../cc-haha-win7/patches/desktop/012-button-nowrap-fix.patch
 git apply ../cc-haha-win7/patches/desktop/013-intranet-mode-ui-gates.patch
-git apply ../cc-haha-win7/patches/cli/014-intranet-mode-network-policy.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
+git apply ../cc-haha-win7/patches/cli/014-intranet-mode-network-policy.patch
 # 构建出 node-port bundle（dist/server.mjs）之后：
 python3 ../cc-haha-win7/runtime/node-fallback/patch-computer-use.py dist/server.mjs
 #   （补丁 005 是 2026-08-18 的历史 diff——见其 STATUS NOTE；

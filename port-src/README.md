@@ -26,7 +26,15 @@ port-src/
 ├── adapters/
 │   └── index.ts              IM-adapter dispatcher overlay (code-splitting
 │                              entry; copied to <root>/adapters/index.ts by
-│                              build.mjs when adapters deps are installed)
+│                              build.mjs when adapters deps are installed).
+│                              Covers the eight v0.6.2 flags: feishu,
+│                              telegram, wechat, dingtalk, whatsapp, wecom,
+│                              qq, slack
+├── stubs/
+│   └── baileys.ts            @whiskeysockets/baileys stand-in for the Node
+│                              build (upstream ships the real SDK, so this
+│                              file does not exist upstream); copy to
+│                              <root>/stubs/baileys.ts before building
 ├── desktop/
 │   └── offline-win.cjs       electron-builder offline config (Stage A)
 └── desktop-electron/         canonical compiled main-process artifacts
