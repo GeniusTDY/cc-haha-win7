@@ -3343,20 +3343,59 @@ async function installTray({
   const { Menu: Menu2, Tray, nativeImage: nativeImage2 } = electronRuntime ?? await import("electron");
   const icon = nativeImage2.createFromPath(resolveTrayIconPath(desktopRoot));
   const tray = new Tray(icon);
-  tray.setToolTip(app2.name || "Claude Code Haha");
-  tray.setContextMenu(Menu2.buildFromTemplate([
-    { label: "Show Claude Code Haha", click: show },
-    { type: "separator" },
-    { label: "Quit Claude Code Haha", click: quit }
-  ]));
+  const applyLocale = (locale) => {
+    const labels = trayLabels(locale);
+    tray.setToolTip(labels.app);
+    tray.setContextMenu(Menu2.buildFromTemplate([
+      { label: labels.show, click: show },
+      { type: "separator" },
+      { label: labels.quit, click: quit }
+    ]));
+  };
+  applyLocale(resolveTrayLocale(app2));
   tray.on("click", show);
   return {
     tray,
+    setLocale(locale) {
+      applyLocale(locale);
+    },
     dispose() {
       tray.destroy();
     }
   };
 }
+function resolveTrayLocale(app2) {
+  const preferred = readLocalePreference(app2);
+  if (preferred) return preferred;
+  let candidates = [];
+  try {
+    const systemLanguages = typeof app2.getPreferredSystemLanguages === "function" ? app2.getPreferredSystemLanguages() : [];
+    candidates = [app2.getLocale(), ...systemLanguages];
+  } catch {
+    candidates = [];
+  }
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || candidate.length === 0) continue;
+    const normalized = candidate.toLowerCase();
+    if (normalized.startsWith("zh")) return /(hant|tw|hk|mo)/.test(normalized) ? "zh-TW" : "zh";
+    if (normalized.startsWith("ja")) return "jp";
+    if (normalized.startsWith("ko")) return "kr";
+    if (normalized.startsWith("en")) return "en";
+  }
+  return "en";
+}
+function trayLabels(locale) {
+  const labels = TRAY_LABELS[locale] || TRAY_LABELS.en;
+  return { app: TRAY_APP_NAME, show: labels.show, quit: labels.quit };
+}
+var TRAY_APP_NAME = "Claude Code Haha";
+var TRAY_LABELS = {
+  en: { show: "Show Claude Code Haha", quit: "Quit Claude Code Haha" },
+  zh: { show: "显示 Claude Code Haha", quit: "退出 Claude Code Haha" },
+  "zh-TW": { show: "顯示 Claude Code Haha", quit: "結束 Claude Code Haha" },
+  jp: { show: "Claude Code Haha を表示", quit: "Claude Code Haha を終了" },
+  kr: { show: "Claude Code Haha 표시", quit: "Claude Code Haha 종료" }
+};
 
 // electron/services/updater.ts
 var import_node_fs7 = require("node:fs");
@@ -6706,6 +6745,7 @@ function registerIpcHandlers() {
     const locale = payload;
     writeLocalePreference(import_electron.app, locale);
     broadcastLocaleChanged(locale);
+    if (trayController) trayController.setLocale(locale);
   });
   registerHandler(
     ELECTRON_IPC_CHANNELS.appGetPreferredSystemLanguages,

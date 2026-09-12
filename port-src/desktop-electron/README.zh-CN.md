@@ -7,7 +7,7 @@
 
 | 文件 | sha256（前 16 位） | 角色 |
 |---|---|---|
-| `main.cjs` | `b42ba76eed1eb658` | 主进程（node 回退层 + winpty 强制，见下） |
+| `main.cjs` | `798bbf72eccc8957` | 主进程（node 回退层 + winpty 强制，见下） |
 | `preload.cjs` | `17710337ae27feb7` | 渲染层 preload |
 | `pet-preload.cjs` | `7d73778fe069d0d8` | 宠物窗口 preload |
 | `preview-preload.cjs` | `819aae02d816873d` | 预览窗口 preload |

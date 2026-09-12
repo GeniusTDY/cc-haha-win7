@@ -8,7 +8,7 @@ offline installer's `resources/app.asar`:
 
 | file | sha256 (first 16) | role |
 |---|---|---|
-| `main.cjs` | `b42ba76eed1eb658` | main process (node-fallback layer + winpty forcing, see below) |
+| `main.cjs` | `798bbf72eccc8957` | main process (node-fallback layer + winpty forcing, see below) |
 | `preload.cjs` | `17710337ae27feb7` | renderer preload |
 | `pet-preload.cjs` | `7d73778fe069d0d8` | pet window preload |
 | `preview-preload.cjs` | `819aae02d816873d` | preview window preload |
