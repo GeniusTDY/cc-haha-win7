@@ -86,7 +86,7 @@ Registry mechanics (KexCfg writes `HKLM\...\Image File Execution Options\<image 
 
 Constraint: registration is path-scoped — copying node.exe elsewhere and running it exits with `0xC0000139` (no injection); moving it to a new path requires re-registration.
 
-Full script: `runtime\setup-vxkex.bat` (install detection + three registrations + double self-check); the installer performs the three registrations automatically during setup.
+Full script: `runtime\setup-vxkex.bat` (self-healing: installs the bundled VxKex and waits for it when missing, then three registrations + double self-check; safe to re-run); during setup the installer goes locate/install VxKex -> poll for `KexCfg.exe` (up to 30 s) -> three registrations -> prove `node.exe` actually runs. A failed proof re-runs that script once, and if it still fails the installer reports the error and skips the finish-page "Run cc-haha" so it never ships an app whose backend cannot start.
 
 ## 4. Bun-to-Node full port
 

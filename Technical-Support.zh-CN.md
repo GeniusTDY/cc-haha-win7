@@ -86,7 +86,7 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 约束：注册按路径生效，把 node.exe 拷贝到其他路径运行会以 `0xC0000139` 退出（无注入），换路径必须重新注册。
 
-完整脚本：`runtime\setup-vxkex.bat`（安装检测 + 三注册 + 双自检）；安装器在安装期自动完成三注册。
+完整脚本：`runtime\setup-vxkex.bat`（自愈式：VxKex 缺失则静默安装并等待其落地 → 三注册 → 双自检，可重复运行）；安装器在安装期按「定位/安装 VxKex → 轮询校验 KexCfg.exe（最多 30 s）→ 三注册 → 实测 node.exe」执行，实测失败会自动重跑该脚本再测一次，仍未通过则报错并跳过完成页的“运行 cc-haha”，避免装出一个后端必然起不来的应用。
 
 ## 4. Bun→Node 全量移植
 

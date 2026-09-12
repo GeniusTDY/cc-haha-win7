@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 rem ============================================================
 rem cc-haha Win7 VxKex registration (VxKex 1.2.x, KexCfg based)
 rem
@@ -19,14 +19,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set "KEXCFG=C:\Program Files\VxKex\KexCfg.exe"
-if not exist "%KEXCFG%" set "KEXCFG=C:\Program Files (x86)\VxKex\KexCfg.exe"
-if not exist "%KEXCFG%" (
-    echo [FAIL] KexCfg.exe not found. Install VxKex first:
-    echo        %~dp0vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe
-    exit /b 1
-)
-
 rem derive install root from this script location (...resources\runtime\)
 rem NOTE: pushd/popd normalizes the path. A literal "%~dp0..\..\..." used
 rem to produce a wrong FilterFullPath (resources\resources\...) because
@@ -38,6 +30,33 @@ popd
 set "NODE=%RES%\runtime\node-v22.17.0\node.exe"
 set "PYEXE=%RES%\runtime\python-3.8.10\python.exe"
 set "RGEXE=%RES%\app.asar.unpacked\src-tauri\binaries\rg.exe"
+set "SETUP=%~dp0vxkex-1.2.1.2229\KexSetup_Release_1_2_1_2229.exe"
+
+set "KEXCFG="
+call :findkexcfg
+if defined KEXCFG goto :havekex
+
+echo [..] VxKex not found - installing the bundled copy silently...
+if not exist "%SETUP%" (
+    echo [FAIL] bundled VxKex setup missing: "%SETUP%"
+    exit /b 1
+)
+cmd /c "echo. | ""%SETUP%"" /SILENTUNATTEND"
+echo [..] waiting for VxKex to land (up to 30 s)...
+set /a KEXTRIES=0
+:waitkex
+set /a KEXTRIES+=1
+ping -n 2 127.0.0.1 >nul
+call :findkexcfg
+if defined KEXCFG goto :havekex
+if %KEXTRIES% LSS 30 goto :waitkex
+echo [FAIL] VxKex still not installed (KexCfg.exe never appeared).
+echo        Install it manually, then re-run this script:
+echo          "%SETUP%" /SILENTUNATTEND
+exit /b 1
+
+:havekex
+echo [OK] KexCfg: %KEXCFG%
 
 echo [1/5] Registering node.exe...
 "%KEXCFG%" /EXE:"%NODE%" /ENABLE:YES /WINVERSPOOF:NONE /DISABLEFORCHILD:NO
@@ -64,3 +83,10 @@ echo [5/5] Verifying python runs...
 
 echo Registration complete. Restart cc-haha.
 exit /b 0
+
+:findkexcfg
+set "KEXCFG="
+if exist "C:\Program Files\VxKex\KexCfg.exe" set "KEXCFG=C:\Program Files\VxKex\KexCfg.exe"
+if defined KEXCFG goto :eof
+if exist "C:\Program Files (x86)\VxKex\KexCfg.exe" set "KEXCFG=C:\Program Files (x86)\VxKex\KexCfg.exe"
+goto :eof
