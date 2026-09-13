@@ -26,7 +26,7 @@ index 5ef01ff..2305a4d 100644
    ptyFactory?: TerminalPtyFactory | (() => Promise<TerminalPtyFactory>)
    nodePtySourceDir?: string
    nodePtyCacheDir?: string
-@@ -546,22 +548,112 @@ export function prepareNodePtyRuntime(sourceDir: string, cacheDir: string): stri
+@@ -546,22 +548,117 @@ export function prepareNodePtyRuntime(sourceDir: string, cacheDir: string): stri
    return cacheDir
  }
  
@@ -127,7 +127,12 @@ index 5ef01ff..2305a4d 100644
 +    }
  
 -  return import('node-pty') as Promise<TerminalPtyFactory>
-+    return import('node-pty') as Promise<TerminalPtyFactory>
++    if (sourceDir) {
++      const requireFromSource = createRequire(path.join(sourceDir, 'package.json'))
++      return requireFromSource(sourceDir) as TerminalPtyFactory
++    }
++
++    return (await import('node-pty')) as Promise<TerminalPtyFactory>
 +  } catch (error) {
 +    if (isLegacyWindows(platform, release)) return createPipePtyFactory()
 +    throw error
