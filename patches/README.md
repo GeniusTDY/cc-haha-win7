@@ -74,8 +74,10 @@ changes that this repo does not carry as patches:
   `buildCronCliArgs`/`resolveCronProjectRoot` fall back from the
   Bun-only `import.meta.dir` to `fileURLToPath(import.meta.url)`;
 - the upstream root dependencies (68 entries: axios, lodash-es, react, …)
-  must be installed (`bun install` / `npm install`) — only esbuild and the
-  desktop dependency tree are vendored in this repo.
+  must be installed (`bun install` / `npm install`) — only esbuild, the
+  desktop dependency tree, and the two repack tool trees
+  (`repack/asar-tool/node_modules`, `repack/icon-tool/node_modules`) are
+  vendored in this repo.
 
 Empirically, running build.mjs on a fresh `85e7f3a20` clone + patches
 001–004 + `cp -r port-src ./` fails with ~2000 unresolved-module errors.

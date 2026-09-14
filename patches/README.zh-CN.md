@@ -67,8 +67,9 @@ node-runtime 回退另一半只存在于编译产物中。）
   `buildCronCliArgs`/`resolveCronProjectRoot` 从 Bun 专属的
   `import.meta.dir` 回退到 `fileURLToPath(import.meta.url)`；
 - 上游根目录依赖（68 项：axios、lodash-es、react 等）必须先安装
-  （`bun install` / `npm install`）——本仓库只内置 esbuild 与
-  desktop 依赖树。
+  （`bun install` / `npm install`）——本仓库只内置 esbuild、desktop
+  依赖树，以及两棵 repack 工具树（`repack/asar-tool/node_modules`、
+  `repack/icon-tool/node_modules`）。
 
 实测：在全新 `85e7f3a20` 克隆 + 补丁 001–004 + `cp -r port-src ./` 上
 运行 build.mjs 会报约 2000 个 unresolved 模块错误。本仓库支持的

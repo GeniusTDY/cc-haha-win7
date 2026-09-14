@@ -168,11 +168,11 @@ cd desktop
 mkdir -p electron-dist
 cp ../port-src/desktop-electron/*.cjs electron-dist/
 
+# Restores the vendored desktop dependency tree (electron 22.3.27 +
+# electron-builder 26.8.1) as a plain copy — no npm install, no network.
+# The snapshot ships patch 006 (wine-free NSIS) PRE-APPLIED and restore.sh
+# verifies it, so do NOT git-apply 006 afterwards.
 bash ../../cc-haha-win7/vendor/desktop-node-modules-0.5.4/restore.sh
-
-# Wine-free NSIS patch (must be re-applied after restore.sh reinstalls
-# node_modules; required on Linux build machines):
-git apply ../../cc-haha-win7/patches/electron-builder/006-nsis-target-nowine.patch
 
 export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-cache-26.8.1"
 
@@ -209,4 +209,4 @@ Attach the generated `latest.yml` together with the new setup.exe to this repo's
 
 ---
 
-Stage B needs zero network access: esbuild, the desktop dependency tree (replacing `npm install` in desktop/), the Electron distribution, the NSIS toolchain cache and all runtime payloads are committed as plain files — after cloning, `build-repack.sh` runs directly. Stage A's only network access point when rebuilding from source is the upstream root's own 68 dependencies (see patches/README "Source-level overlay gap").
+Stage B needs no package-manager network access: esbuild, the desktop dependency tree (replacing `npm install` in desktop/), both repack tool trees (`repack/asar-tool/`, `repack/icon-tool/`), the Electron distribution, the NSIS toolchain cache and all runtime payloads are committed as plain files — after cloning, `build-repack.sh` runs directly. The two large build inputs (the Stage A installer and the intranet-layer `app.asar`) are not committed; `build-repack.sh` fetches them from this repo's Release when no local copy is present. Stage A's only network access point when rebuilding from source is the upstream root's own 68 dependencies (see patches/README "Source-level overlay gap").

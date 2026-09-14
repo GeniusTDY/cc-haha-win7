@@ -162,10 +162,11 @@ cd desktop
 mkdir -p electron-dist
 cp ../port-src/desktop-electron/*.cjs electron-dist/
 
+# 以普通拷贝还原内置的 desktop 依赖树（electron 22.3.27 +
+# electron-builder 26.8.1）——无需 npm install，无需联网。
+# 快照已预置补丁 006（NSIS 免 wine），restore.sh 会自检，
+# 因此不要再 git apply 006。
 bash ../../cc-haha-win7/vendor/desktop-node-modules-0.5.4/restore.sh
-
-# NSIS 免 wine 补丁（restore.sh 重装 node_modules 后必须重打，Linux 构建机必需）：
-git apply ../../cc-haha-win7/patches/electron-builder/006-nsis-target-nowine.patch
 
 export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-cache-26.8.1"
 
@@ -202,4 +203,4 @@ node make-latest-yml.mjs Claude-Code-Haha-0.6.2-win7-x64-setup.exe 0.6.2
 
 ---
 
-Stage B 全程零联网：esbuild、desktop 依赖树（替代 desktop/ 的 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓，克隆后可直接运行 `build-repack.sh`。Stage A 从源码重建时的唯一联网点是上游根目录自身的 68 个 dependencies（见 patches/README「源码叠加缺口」）。
+Stage B 无需任何包管理器联网：esbuild、desktop 依赖树（替代 desktop/ 的 `npm install`）、两个 repack 工具树（`repack/asar-tool/`、`repack/icon-tool/`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓，克隆后可直接运行 `build-repack.sh`。两个大体积构建输入（Stage A 安装器与内网层 `app.asar`）未入仓，`build-repack.sh` 在本地无副本时从本仓库 Release 拉取。Stage A 从源码重建时的唯一联网点是上游根目录自身的 68 个 dependencies（见 patches/README「源码叠加缺口」）。
