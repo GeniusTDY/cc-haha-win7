@@ -9,6 +9,8 @@ repack/modern-wizard.bmp
 repack/latest.yml
 
 repack/intranet-layer/app.asar
+repack/intranet-layer/app.asar.*.part
+repack/setup-exe/Claude-Code-Haha-*-Win7-x64-Setup.exe.*.part
 
 # runtime payloads committed in git: node-v22.17.0/ python-3.8.10/
 # vxkex-1.2.1.2229/ git-2.45.2/ kb-patches/
@@ -21,3 +23,5 @@ runtime/node-fallback/server.mjs.pre-wsfix.bak
 # reassembled on demand by port-src/desktop/offline-win.cjs from the
 # committed electron.exe.00/01.part split parts (GitHub 100MB file cap)
 vendor/electron-v22.3.27-win32-x64/electron.exe
+
+node_modules/

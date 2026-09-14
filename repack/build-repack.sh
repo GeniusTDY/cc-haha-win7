@@ -21,6 +21,12 @@ if [ ! -f "$SETUP" ] && [ -z "${1:-}" ]; then
     cat "$PARTS_DIR"/Claude-Code-Haha-0.6.2-Win7-x64-Setup.exe.*.part > "$SETUP"
     echo "2e2e38bd0c37918115988cdecf47ba2e459de0a755ba197c4dfe6ba13e654212  $SETUP" \
       | sha256sum -c -
+  else
+    echo "== 0/9 fetch Stage A installer from the GitHub Release (large build input) =="
+    curl -fL --retry 3 -o "$SETUP" \
+      "https://github.com/${UPDATE_OWNER:-GeniusTDY}/${UPDATE_REPO:-cc-haha-win7}/releases/download/v0.6.2/build-input-StageA-Setup.exe"
+    echo "2e2e38bd0c37918115988cdecf47ba2e459de0a755ba197c4dfe6ba13e654212  $SETUP" \
+      | sha256sum -c -
   fi
 fi
 [ -f "$SETUP" ] || { echo "[FAIL] Stage A installer not found: $SETUP"; exit 1; }
@@ -73,6 +79,12 @@ LAYER="$HERE/intranet-layer"
 if [ ! -f "$LAYER/app.asar" ] && [ -f "$LAYER/app.asar.00.part" ]; then
   echo "  reassembling app.asar from split parts (parts.sha256)"
   ( cd "$LAYER" && sha256sum -c parts.sha256 && cat app.asar.00.part app.asar.01.part > app.asar )
+elif [ ! -f "$LAYER/app.asar" ]; then
+  echo "  fetching app.asar from the GitHub Release (large build input)"
+  curl -fL --retry 3 -o "$LAYER/app.asar" \
+    "https://github.com/${UPDATE_OWNER:-GeniusTDY}/${UPDATE_REPO:-cc-haha-win7}/releases/download/v0.6.2/build-input-intranet-layer-app.asar"
+  echo "1e7944aaaeaaab153b42cd81075f81b8f6a803eecfa0f1fe8613a49c66aae35e  $LAYER/app.asar" \
+    | sha256sum -c -
 fi
 for f in app.asar server.mjs cli.mjs recovery-cli.mjs main-guest.cjs index-cp.html material-symbols-cp.woff2; do
   [ -f "$LAYER/$f" ] || { echo "[FAIL] intranet layer missing: $LAYER/$f"; exit 1; }

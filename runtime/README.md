@@ -97,14 +97,18 @@ Notes:
   optional way to get the full upstream treatment (it is idempotent
   and deletes itself when done).
 
-## Remaining attachment (GitHub Release — installer only)
+## Remaining attachments (GitHub Release — installer + build inputs)
 
-All runtime payloads are committed in git; the Release carries a single
-ready-made installer — the newest build:
+All runtime payloads are committed in git; the Release carries the
+ready-made installer (the newest build), plus the two large build inputs
+(the Stage A setup and the intranet `app.asar`) that `build-repack.sh`
+fetches automatically when they are absent:
 
 | attachment | purpose | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.6.2-win7-x64-setup.exe` | **2026-09-13 v0.6.2 Win7 rebuild (265,758,324 bytes)** — the upstream v0.6.2 sources re-adapted to the Win7 port: patch series 008/009/010/013 + the compiled port overlay rebuilt for v0.6.2, the intranet layer (013/014 gates + final-series renderer) re-cut, the node-fallback bundle re-derived (server/CLI/recovery + the full 44-module `adapters-chunks/` import closure for the eight v0.6.2 adapter flags), the versioned `resources/runtime/` payload (node 22.17.0 / Python 3.8.10 / VxKex 1.2.1.2229 / PortableGit 2.45.2 + node-pty) overlaid, and the pinned ripgrep 15.1.0 `rg.exe` re-staged under `app.asar.unpacked/src-tauri/binaries/` (the broken compiled sidecar stays removed so `hasCompiledSidecar()` drives the node fallback). `app-update.yml` keeps pointing at this repo. Paired with `latest.yml` for electron-updater. Supersedes the 0.5.4 build (`c6727145…c8946c1`), whose node/python/vxkex trees are the version-independent payloads committed in this dir | `218d3899…291ee9` |
+| `Claude-Code-Haha-0.6.2-win7-x64-setup.exe` | **2026-09-14 v0.6.2 Win7 rebuild (265,776,976 bytes)** — the upstream v0.6.2 sources re-adapted to the Win7 port: patch series 008/009/010/013 + the compiled port overlay rebuilt for v0.6.2, the intranet layer (013/014 gates + final-series renderer) re-cut, the node-fallback bundle re-derived (server/CLI/recovery + the full 44-module `adapters-chunks/` import closure for the eight v0.6.2 adapter flags), the versioned `resources/runtime/` payload (node 22.17.0 / Python 3.8.10 / VxKex 1.2.1.2229 / PortableGit 2.45.2 + node-pty) overlaid, and the pinned ripgrep 15.1.0 `rg.exe` re-staged under `app.asar.unpacked/src-tauri/binaries/` (the broken compiled sidecar stays removed so `hasCompiledSidecar()` drives the node fallback). `app-update.yml` keeps pointing at this repo. Paired with `latest.yml` for electron-updater. Supersedes the 0.5.4 build (`c6727145…c8946c1`), whose node/python/vxkex trees are the version-independent payloads committed in this dir | `1355635a…2965deed` |
+| `build-input-StageA-Setup.exe` | Stage A input of `build-repack.sh` step 0/9 (132,451,540 bytes) — kept out of git to avoid repo bloat; fetched automatically when `repack/setup-exe/*.part` are absent | `2e2e38bd…e654212` |
+| `build-input-intranet-layer-app.asar` | intranet-layer `app.asar` overlay (189,305,159 bytes) — kept out of git to avoid repo bloat; fetched automatically when `repack/intranet-layer/app.asar*` are absent | `1e7944aa…66aae35e` |
 
 ## node-pty-1.1.0-win32-x64/ (in git, ~1 MB)
 
