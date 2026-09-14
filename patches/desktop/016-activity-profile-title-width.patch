@@ -1,0 +1,83 @@
+From: Win7 port restore
+Subject: [PATCH] desktop/ActivitySettings: stop the profile title from truncating before the column is full
+
+The Activity profile header renders the display name in a
+shrink-to-fit centred flex row (justify-center gap-2) and gives the
+<h1> a self-referential max-width:
+
+  max-w-[min(720px,calc(100%-2.25rem))]
+
+The 100% resolves against that same row, and 2.25rem is the 36px the
+sibling edit button (gap-2 8px + h-7/w-7 28px) occupies, so the
+heading's own width feeds back into its cap: h1 <= min(text, row - 36)
+<= row - 36. Whenever the row is narrower than roughly the text plus
+36px the heading is clamped and truncate adds the ellipsis, even
+though the surrounding column has room — the two subtitle lines on the
+same page carry only max-w-full, render fully, and are wider than the
+heading, which is what pinpoints the clamp as the cause rather than the
+column. In the shipped 800px window "cc-haha" came out as "cc-ha…";
+maximised the row crosses the threshold and it renders in full.
+
+Take the edit button out of the row's flow instead of reserving room
+for it: the button becomes absolute (inset-y-0 right-0 my-auto, so it
+centres against the title line without touching active:translate-y) and
+the row grows to w-full, which makes the heading's cap a plain fixed
+max-w-[720px]. The heading can now use the full content column and the
+ellipsis only appears once the text genuinely reaches 720px. The button
+keeps its group/activity-profile parent, opacity-0 default and
+group-hover/focus-visible reveal, so the existing assertions in
+ActivitySettings.test.tsx still hold unchanged.
+
+A regression test locks the fix in: the <h1> must carry the plain
+max-w-[720px] and no calc(100%-2.25rem), and the edit control must be
+absolute/inset-y-0/right-0 without the old shrink-0 in-flow sizing.
+
+diff --git a/desktop/src/pages/ActivitySettings.test.tsx b/desktop/src/pages/ActivitySettings.test.tsx
+index 22c187c84..ced3a4563 100644
+--- a/desktop/src/pages/ActivitySettings.test.tsx
++++ b/desktop/src/pages/ActivitySettings.test.tsx
+@@ -285,6 +285,23 @@ describe('ActivitySettings', () => {
+     expect(editButton.closest('div')).toHaveClass('group/activity-profile')
+   })
+ 
++  it('lets the profile title span the full column instead of reserving room for the edit control', async () => {
++    render(<ActivitySettings />)
++
++    await flushActivityLoad()
++
++    const title = screen.getByRole('heading', { level: 1 })
++    expect(title).toHaveClass('max-w-[720px]')
++    expect(title.className).not.toContain('calc(100%-2.25rem)')
++
++    const editButton = screen.getByRole('button', { name: 'Edit profile' })
++    expect(editButton).toHaveClass('absolute')
++    expect(editButton).toHaveClass('inset-y-0')
++    expect(editButton).toHaveClass('right-0')
++    expect(editButton).not.toHaveClass('shrink-0')
++    expect(editButton.closest('div')).toHaveClass('relative')
++  })
++
+   it('uses a compact summary strip instead of the loose card layout', async () => {
+     render(<ActivitySettings />)
+ 
+diff --git a/desktop/src/pages/ActivitySettings.tsx b/desktop/src/pages/ActivitySettings.tsx
+index 1688c5b05..88c19bc24 100644
+--- a/desktop/src/pages/ActivitySettings.tsx
++++ b/desktop/src/pages/ActivitySettings.tsx
+@@ -786,13 +786,13 @@ export function ActivitySettings() {
+             }}
+           />
+         </div>
+-        <div className="group/activity-profile mt-4 flex max-w-full items-center justify-center gap-2">
+-          <h1 className="max-w-[min(720px,calc(100%-2.25rem))] truncate text-[26px] font-semibold text-[var(--color-text-primary)] sm:text-[31px]" style={{ fontFamily: 'var(--font-headline)' }}>{profile.displayName}</h1>
++        <div className="group/activity-profile relative mt-4 flex w-full items-center justify-center">
++          <h1 className="max-w-[720px] truncate text-[26px] font-semibold text-[var(--color-text-primary)] sm:text-[31px]" style={{ fontFamily: 'var(--font-headline)' }}>{profile.displayName}</h1>
+           <button
+             type="button"
+             aria-label={t('settings.activity.editProfile')}
+             title={t('settings.activity.editProfile')}
+-            className="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-tertiary)] opacity-0 transition-[background-color,color,opacity,transform] group-hover/activity-profile:opacity-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface)] focus-visible:opacity-100 active:translate-y-[1px] disabled:pointer-events-none disabled:opacity-0"
++            className="absolute inset-y-0 right-0 my-auto inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-tertiary)] opacity-0 transition-[background-color,color,opacity,transform] group-hover/activity-profile:opacity-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:ring-offset-2 focus:ring-offset-[var(--color-surface)] focus-visible:opacity-100 active:translate-y-[1px] disabled:pointer-events-none disabled:opacity-0"
+             onClick={() => {
+               setIsEditingProfile(true)
+               setDraftDisplayName(profile.displayName)

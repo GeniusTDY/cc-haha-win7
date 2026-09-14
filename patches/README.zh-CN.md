@@ -23,6 +23,7 @@
 | 12 | `desktop/012-button-nowrap-fix.patch` | `desktop/index.html` | `button.inline-flex{white-space:nowrap}`：固定高度按钮（h-6=24px 等）未禁用换行，flex 行空间紧张时 CJK 标签（设置→诊断的"刷新"/"重建本地索引"）折成两行，约 27px 的行盒画出按钮边框；nowrap 保持标签单行并恢复 min-content 宽度保护，flex 不再把按钮压到标签宽度以下 |
 | 13 | `desktop/013-intranet-mode-ui-gates.patch` | `desktop/electron/main.ts`、`desktop/electron/services/{intranetMode,intranetNetworkGuard,shell,systemProxyBridge,updater}.ts`、`desktop/src/api/settings.ts`、`desktop/src/components/layout/Sidebar.tsx`、`desktop/src/pages/Settings.tsx`、`desktop/src/pages/{settings/{AboutSettings,GeneralSettings,IntranetModeSettings,ProviderSettings},ComputerUseSettings,Market}.tsx`、`desktop/src/stores/{settingsStore,chatStore,updateStore,uiStore}.ts`、`desktop/src/types/{settings,chat}.ts`、5 个语言包 | 内网模式·桌面端：独立设置页承载总开关（侧边栏首项）；服务端 `network_policy_changed` 广播把权威值镜像进每个已打开窗口即时生效，焦点水合（窗口 focus/visibilitychange 重拉 `/api/settings/user`，PUT 时间戳防在途保存竞态）兜底刚重启、无打开会话收不到广播的场景；在线专属 UI 隐藏（关于页更新卡片 + 社媒/作者/反馈区块、服务商弹窗「获取 API Key」按钮 + 预设推广条——弹窗本身保留，添加内网自建服务商正是内网核心用例、WebSearch Tavily/Brave「获取 API Key」外链、侧边栏技能市场入口 + 已打开市场标签页的"不可用"提示、IM 接入侧边栏项、Computer Use 的"下载 Python 3"按钮）；关于页两张 GitHub 仓库卡片（上游 + 本项目）**保留展示**——属署名信息而非功能入口，点击经 openUrl 短路为无反应；主进程权威闸门每次调用无缓存读 `<CLAUDE_CONFIG_DIR>/settings.json`——`openExternalUrl()` 在加载 electron 模块前拒绝 http(s)，`checkForUpdates()` 不触碰 electron-updater 直接返回空，新增 Chromium 网络防护（main.ts 安装）禁用拼写词典下载与组件更新器（NetworkService 后台流量），内网模式下系统代理桥只转发到环回/RFC1918/ULA/链路本地目标，经桥隧道的 CLI 子进程无法触达公网 |
 | 14 | `cli/014-intranet-mode-network-policy.patch` | `src/utils/{networkPolicy,apiPreconnect,releaseNotes}.ts`、`src/tools/WebSearchTool/{WebSearchTool,backend}.ts`、`src/tools/WebFetchTool/utils.ts`、`src/tools/{RemoteTriggerTool/RemoteTriggerTool,BriefTool/upload}.ts`、`src/utils/telemetry/instrumentation.ts`、`src/services/{api/{usage,referral},mcp/officialRegistry,remoteManagedSettings/syncCache,settingsSync/index,teamMemorySync/index,voiceStreamSTT}.ts`、`src/server/{index,services/{conversationService,market/providerFetch},middleware/errorHandler,ws/{events,handler},api/{settings,haha-oauth,haha-grok-oauth,haha-openai-oauth}}.ts` | 内网模式·服务端/CLI：`src/utils/networkPolicy.ts` 每次调用无缓存读 `~/.claude/settings.json` 的 `intranetMode`，翻转开关对已运行会话的下一次工具调用即时生效；遥测全关（OTLP + BigQuery + 初始化，覆盖 shell 继承来的 `CLAUDE_CODE_ENABLE_TELEMETRY=1`）；OAuth start/callback 返回 403 `INTRANET_MODE_DISABLED`，status 不做出站刷新直接报未登录（裸 `/callback*` 路由同样 403）；WebSearch 禁用一切后端并向模型说明（"内网模式已禁用 WebSearch——请勿重试，改用会话内容与本地文件作答"）；WebFetch 保留对内网纯 HTTP 服务的访问（跳过 http→https 升级与出站域名黑名单预检）；CLI 子进程注入 `CC_HAHA_INTRANET_MODE=1` + `CLAUDE_CODE_ENABLE_TELEMETRY=0`；`PUT /api/settings/user` 把开关广播给所有已连接客户端。审计补全（应用主动发起的一切外联全部挂闸）：API 预热连接跳过；MCP 官方注册表预取跳过（api.anthropic.com，`isOfficialMcpUrl()` 本就失败关闭）；更新日志拉取跳过（raw.githubusercontent.com，保留本地缓存）；技能市场在 `providerFetch()` 服务端拒绝任何代理外联（不止隐藏 UI，H5/直连 API 同样被拒）；设置同步上传/下载、远程托管设置资格（先查缓存前判断，翻转立即生效）、团队记忆同步全部硬关（claude.ai）；用量查询降级为 null、邀请返利降级为不可参与/空列表；语音流 STT 永不可用；RemoteTriggerTool 快速失败并提示勿重试；Brief 附件上传静默跳过（纯本地 brief 不受影响） |
+| 16 | `desktop/016-activity-profile-title-width.patch` | `desktop/src/pages/ActivitySettings.tsx` + `ActivitySettings.test.tsx` | 活动页标题不再在内容列尚未占满时提前省略：`<h1>` 的宽度上限 `max-w-[min(720px,calc(100%-2.25rem))]` 属自引用（`100%` 相对其所处的 shrink-to-fit flex 行解析，`2.25rem` 恰为同级编辑按钮占用的空间），导致发布版 800px 窗口把 `cc-haha` 渲染成 `cc-ha…`，而内容列其实仍有空间——下方两行副标题只带 `max-w-full`、能完整渲染且更宽，正是它把"截断"定位到标题自身而非容器；现将编辑控件改为 `absolute inset-y-0 right-0 my-auto` 脱离文档流（显示行为不变，仍为 `opacity-0` + `group-hover/focus-visible` 显现，去掉 `shrink-0`），行改为 `relative w-full`，标题上限变成干净的定值 `max-w-[720px]`；并补一条回归测试断言标题不再含 `calc(100%-2.25rem)`、控件为绝对定位 |
 
 Electron 主进程的 node-runtime 回退层不是编号补丁：它以编译产物
 `port-src/desktop-electron/*.cjs` 交付（与 shipped 的 `app.asar`
@@ -122,6 +123,13 @@ v0.5.4 → v0.6.2 之间根依赖由 67 项增至 68 项（devDependencies 仍�
 （`src/server/services/conversationService.ts`、`cronScheduler.ts`）；
 无 `Bun.write`/`Bun.env`。
 
+**016** 于该次重新生成之后加入（2026-09-14）。它只触及
+`ActivitySettings.tsx` 及其测试，这两个文件未被四个重新生成的补丁
+改动（008 只动了其副标题 hunk），且其 `index` blob 直接承接 008 的
+产物（`1688c5b05..88c19bc24`），因此叠加在重新生成的系列之上、不改动
+其中任何 hunk。编号取 16 是因为编号跟随系列位置；015 未进入下方应用
+列表，因为它属产物级（见下）。
+
 ### 补丁 015 属产物级，不在上游系列内
 
 `desktop/015-renderer-recovery-hardening.patch` **不**应用到上游检出：
@@ -150,6 +158,7 @@ git apply ../cc-haha-win7/patches/desktop/010-providers-changed-refresh.patch
 git apply ../cc-haha-win7/patches/desktop/011-h5-input-width-fix.patch
 git apply ../cc-haha-win7/patches/desktop/012-button-nowrap-fix.patch
 git apply ../cc-haha-win7/patches/desktop/013-intranet-mode-ui-gates.patch
+git apply ../cc-haha-win7/patches/desktop/016-activity-profile-title-width.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
 git apply ../cc-haha-win7/patches/cli/014-intranet-mode-network-policy.patch
 # 构建出 node-port bundle（dist/server.mjs）之后：
