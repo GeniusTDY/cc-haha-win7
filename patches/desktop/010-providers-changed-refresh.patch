@@ -5,86 +5,50 @@ Importing or updating a provider in one window left every other open
 window (and the settings page) showing a stale provider list until a
 manual reload. The server already emits a providers_changed event per
 mutation (created / updated / deleted / activated / reordered /
-imported) — the desktop just never listened.
+imported) - the desktop just never listened.
 
-chatStore now exposes registerProvidersChangedHandler() and dispatches
-the event's reason; providerStore registers a 500 ms-debounced
-fetchProviders() flush on it, so bursty multi-event imports collapse
-into a single refetch. Provider tests mock the new export.
+chatStore now handles providers_changed by scheduling a 500 ms-debounced
+useProviderStore.fetchProviders(), so bursty multi-event imports collapse
+into a single refetch. The flush is scheduled directly from chatStore
+(which already imports useProviderStore) rather than through a handler
+registered at providerStore's module top level: that top-level register
+call evaluated while chatStore's handler binding was still in its
+temporal dead zone across the chatStore <-> providerStore import cycle,
+throwing "Cannot access 'providersChangedHandler' before initialization"
+and tearing down the store graph under the test runner.
 
 diff --git a/desktop/src/stores/chatStore.ts b/desktop/src/stores/chatStore.ts
-index 98f5610e1..d6fb9da06 100644
+index 98f5610e1..a22b31617 100644
 --- a/desktop/src/stores/chatStore.ts
 +++ b/desktop/src/stores/chatStore.ts
-@@ -50,6 +50,18 @@ import type {
+@@ -50,6 +50,15 @@ import type {
    SlashCommandSource,
  } from '../types/slashCommand'
  
-+type ProvidersChangedHandler = (reason: 'created' | 'updated' | 'deleted' | 'activated' | 'reordered' | 'imported') => void
-+let providersChangedHandler: ProvidersChangedHandler | null = null
-+export function registerProvidersChangedHandler(handler: ProvidersChangedHandler | null): void {
-+  providersChangedHandler = handler
-+}
-+function notifyProvidersChangedListeners(reason: Parameters<ProvidersChangedHandler>[0]): void {
-+  try {
-+    providersChangedHandler?.(reason)
-+  } catch {
-+  }
++let providersChangedFlushTimer: ReturnType<typeof setTimeout> | null = null
++function scheduleProvidersRefresh(): void {
++  if (providersChangedFlushTimer !== null) return
++  providersChangedFlushTimer = setTimeout(() => {
++    providersChangedFlushTimer = null
++    void useProviderStore.getState().fetchProviders()
++  }, 500)
 +}
 +
  type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
  
  function reconcileProviderRuntimeSelection(selection: RuntimeSelection): RuntimeSelection {
-@@ -4390,6 +4402,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
+@@ -4390,6 +4399,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
          break
        }
  
 +      case 'providers_changed': {
-+        notifyProvidersChangedListeners(msg.reason)
++        scheduleProvidersRefresh()
 +        break
 +      }
 +
        case 'content_start': {
          const session = get().sessions[sessionId]
          if (!session) break
-diff --git a/desktop/src/stores/providerStore.test.ts b/desktop/src/stores/providerStore.test.ts
-index 2e4ace1c1..a4c33709d 100644
---- a/desktop/src/stores/providerStore.test.ts
-+++ b/desktop/src/stores/providerStore.test.ts
-@@ -52,6 +52,7 @@ vi.mock('./chatStore', () => ({
-       setSessionRuntime: setSessionRuntimeMock,
-     }),
-   },
-+  registerProvidersChangedHandler: vi.fn(),
- }))
- 
- vi.mock('./sessionRuntimeStore', () => ({
-diff --git a/desktop/src/stores/providerStore.ts b/desktop/src/stores/providerStore.ts
-index 731c1ee01..e495bfe82 100644
---- a/desktop/src/stores/providerStore.ts
-+++ b/desktop/src/stores/providerStore.ts
-@@ -2,7 +2,7 @@
- 
- import { create } from 'zustand'
- import { providersApi } from '../api/providers'
--import { useChatStore } from './chatStore'
-+import { useChatStore, registerProvidersChangedHandler } from './chatStore'
- import { useSessionRuntimeStore } from './sessionRuntimeStore'
- import { useSettingsStore } from './settingsStore'
- import { OFFICIAL_DEFAULT_MODEL_ID } from '../constants/modelCatalog'
-@@ -329,3 +329,12 @@ export const useProviderStore = create<ProviderStore>((set, get) => ({
-     return providersApi.fetchModels(input)
-   },
- }))
-+
-+let providersChangedFlushTimer: ReturnType<typeof setTimeout> | null = null
-+registerProvidersChangedHandler(() => {
-+  if (providersChangedFlushTimer !== null) return
-+  providersChangedFlushTimer = setTimeout(() => {
-+    providersChangedFlushTimer = null
-+    void useProviderStore.getState().fetchProviders()
-+  }, 500)
-+})
 diff --git a/desktop/src/types/chat.ts b/desktop/src/types/chat.ts
 index 9d2c7383d..72dd513d8 100644
 --- a/desktop/src/types/chat.ts
