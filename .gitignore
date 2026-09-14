@@ -1,6 +1,6 @@
 # repack build artifacts (rebuilt locally by build-repack.sh; the Release
 # asset itself is uploaded to GitHub Releases, not committed)
-repack/.work/
+repack/.work*
 repack/app
 repack/Claude-Code-Haha-*-win7-x64-setup.exe
 repack/Claude-Code-Haha-*-Win7-x64-Setup.exe
@@ -17,8 +17,11 @@ repack/setup-exe/Claude-Code-Haha-*-Win7-x64-Setup.exe.*.part
 # (~545MB total, see runtime/README.md)
 # NOT in git (optional / machine-specific):
 runtime/node-fallback/wheels/
-runtime/node-fallback/server.mjs.pre-cu.bak
-runtime/node-fallback/server.mjs.pre-wsfix.bak
+
+# local scratch / editor backups — never part of a build
+*.bak
+*.bak[0-9]*
+repack/icon-port/
 
 # reassembled on demand by port-src/desktop/offline-win.cjs from the
 # committed electron.exe.00/01.part split parts (GitHub 100MB file cap)

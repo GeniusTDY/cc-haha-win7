@@ -79,6 +79,8 @@ LAYER="$HERE/intranet-layer"
 if [ ! -f "$LAYER/app.asar" ] && [ -f "$LAYER/app.asar.00.part" ]; then
   echo "  reassembling app.asar from split parts (parts.sha256)"
   ( cd "$LAYER" && sha256sum -c parts.sha256 && cat app.asar.00.part app.asar.01.part > app.asar )
+  echo "1e7944aaaeaaab153b42cd81075f81b8f6a803eecfa0f1fe8613a49c66aae35e  $LAYER/app.asar" \
+    | sha256sum -c -
 elif [ ! -f "$LAYER/app.asar" ]; then
   echo "  fetching app.asar from the GitHub Release (large build input)"
   curl -fL --retry 3 -o "$LAYER/app.asar" \
