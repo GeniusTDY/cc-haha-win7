@@ -21,11 +21,14 @@ function resolveBaseConfig() {
 const DEFAULT_DIST = path.join(__dirname, '..', '..', 'vendor', 'electron-v22.3.27-win32-x64')
 const crypto = require('crypto')
 
+const ELECTRON_SPLIT_PART_RE = /^electron\.exe\.\d+\.part$/
+const ELECTRON_PARTS_MANIFEST = 'electron.exe.parts.sha256'
+
 function ensureElectronExe(distDir) {
   const exe = path.join(distDir, 'electron.exe')
   if (fs.existsSync(exe)) return
   const parts = fs.readdirSync(distDir)
-    .filter(f => /^electron\.exe\.\d+\.part$/.test(f))
+    .filter(f => ELECTRON_SPLIT_PART_RE.test(f))
     .sort()
   if (parts.length === 0) return
   const manifest = fs.readFileSync(path.join(distDir, 'electron.exe.parts.sha256'), 'utf8')
@@ -72,11 +75,28 @@ function resolveElectronDist() {
   return DEFAULT_DIST
 }
 
+function stripElectronSplitParts(appOutDir) {
+  if (!appOutDir || !fs.existsSync(appOutDir)) return
+  let removed = 0
+  for (const name of fs.readdirSync(appOutDir)) {
+    if (ELECTRON_SPLIT_PART_RE.test(name) || name === ELECTRON_PARTS_MANIFEST) {
+      fs.rmSync(path.join(appOutDir, name), { force: true })
+      removed += 1
+    }
+  }
+  if (removed > 0) {
+    console.log(`[offline-win.cjs] removed ${removed} electron.exe split-part build input(s) from the packaged app`)
+  }
+}
+
 module.exports = {
   ...resolveBaseConfig(),
   electronDist: resolveElectronDist(),
   win: {
     ...resolveBaseConfig().win,
     signAndEditExecutable: false,
+  },
+  afterPack: async context => {
+    stripElectronSplitParts(context.appOutDir)
   },
 }

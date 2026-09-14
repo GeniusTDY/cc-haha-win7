@@ -31,6 +31,20 @@ const INSERTION =
 const NODE_DIR_OLD = '"runtime", "node", "node.exe"'
 const NODE_DIR_NEW = '"runtime", "node-v22.17.0", "node.exe"'
 
+// On Windows the node-pty cache dir is darwin-only (undefined), and the asar
+// virtual filesystem is invisible to the ESM loader, so `import("node-pty")`
+// throws ERR_MODULE_NOT_FOUND. The bare `return import(...)` also hides that
+// rejection from the `catch`, so the legacy-Windows pipe fallback never fires.
+// Resolve node-pty from the real app.asar.unpacked path via createRequire, and
+// await the dynamic import so the fallback stays reachable.
+const PTY_ANCHOR = '    return import("node-pty");'
+const PTY_INSERTION =
+  '    if (sourceDir) {\n' +
+  '      const requireFromSource = (0, import_node_module.createRequire)(import_node_path2.default.join(sourceDir, "package.json"));\n' +
+  '      return requireFromSource(sourceDir);\n' +
+  '    }\n' +
+  '    return await import("node-pty");'
+
 function patchMainCjs(src) {
   let didWinpty = false
   if (!src.includes('ptySpawnOptions.useConpty = false')) {
@@ -44,7 +58,17 @@ function patchMainCjs(src) {
   }
   const didPaths = src.includes(NODE_DIR_OLD)
   if (didPaths) src = src.split(NODE_DIR_OLD).join(NODE_DIR_NEW)
-  return { src, already: !didWinpty && !didPaths, didWinpty, didPaths }
+  let didPty = false
+  if (!src.includes('requireFromSource(sourceDir)')) {
+    const first = src.indexOf(PTY_ANCHOR)
+    if (first === -1) throw new Error('[FAIL] main.cjs node-pty import anchor not found')
+    if (src.indexOf(PTY_ANCHOR, first + 1) !== -1) {
+      throw new Error('[FAIL] main.cjs node-pty import anchor is not unique')
+    }
+    src = src.slice(0, first) + PTY_INSERTION + src.slice(first + PTY_ANCHOR.length)
+    didPty = true
+  }
+  return { src, already: !didWinpty && !didPaths && !didPty, didWinpty, didPaths, didPty }
 }
 
 function readArchive(archivePath) {
@@ -112,7 +136,7 @@ try {
     throw new Error('[FAIL] main.cjs content does not match its integrity hash — asar corrupt?')
   }
 
-  const { src: patched, already, didWinpty, didPaths } = patchMainCjs(mainBuf.toString('utf8'))
+  const { src: patched, already, didWinpty, didPaths, didPty } = patchMainCjs(mainBuf.toString('utf8'))
 
   let pkgPatch = null
   if (setVersion) {
@@ -144,7 +168,7 @@ try {
     console.log(already && !pkgPatch ? '[SKIP] main.cjs already patched (useConpty forcing + versioned node dir present)' : '[OK] patch would apply')
     process.exit(0)
   }
-  console.log(`[PATCH] main.cjs: winpty forcing ${didWinpty ? 'inserted' : 'already present'}, node runtime dir ${didPaths ? 'version-stamped (node -> node-v22.17.0)' : 'already version-stamped'}`)
+  console.log(`[PATCH] main.cjs: winpty forcing ${didWinpty ? 'inserted' : 'already present'}, node runtime dir ${didPaths ? 'version-stamped (node -> node-v22.17.0)' : 'already version-stamped'}, node-pty resolver ${didPty ? 'fixed' : 'already fixed'}`)
   const patchedBuf = Buffer.from(patched, 'utf8')
   new Function(patched)
 
@@ -189,6 +213,12 @@ try {
     if (checkHash !== checkEntry.integrity.hash) throw new Error('re-verify: integrity mismatch')
     if (!checkBuf.toString('utf8').includes('ptySpawnOptions.useConpty = false')) {
       throw new Error('re-verify: useConpty forcing missing')
+    }
+    if (!checkBuf.toString('utf8').includes('requireFromSource(sourceDir)')) {
+      throw new Error('re-verify: node-pty sourceDir resolver missing')
+    }
+    if (!checkBuf.toString('utf8').includes('return await import("node-pty")')) {
+      throw new Error('re-verify: awaited node-pty import missing')
     }
     if (checkBuf.toString('utf8').includes(NODE_DIR_OLD)) {
       throw new Error('re-verify: unversioned runtime/node probe path still present')

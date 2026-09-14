@@ -4859,6 +4859,19 @@ Anthropic.Beta = Beta;
 // src/localRecoveryCli.ts
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
+
+// src/services/api/anthropicBaseUrl.ts
+function normalizeAnthropicBaseUrl(baseUrl) {
+  try {
+    const url = new URL(baseUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:" || url.search || url.hash || !url.pathname.replace(/\/+$/, "").endsWith("/v1")) return baseUrl;
+    return baseUrl.replace(/\/v1\/*$/, "");
+  } catch {
+    return baseUrl;
+  }
+}
+
+// src/localRecoveryCli.ts
 function printHelp() {
   process.stdout.write(
     [
@@ -4954,10 +4967,10 @@ function parseArgs(argv) {
     prompt: positional.join(" ").trim()
   };
 }
-async function readPromptFromStdin() {
-  if (process.stdin.isTTY) return "";
+async function readPromptFromStdin(input) {
+  if (input.isTTY) return "";
   const chunks = [];
-  for await (const chunk of process.stdin) {
+  for await (const chunk of input) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
   }
   return Buffer.concat(chunks).toString("utf8").trim();
@@ -4970,8 +4983,8 @@ ${appendSystemPrompt}`;
   }
   return systemPrompt ?? appendSystemPrompt;
 }
-async function run() {
-  const parsed = parseArgs(process.argv.slice(2));
+async function run(argv = process.argv.slice(2), input = process.stdin) {
+  const parsed = parseArgs(argv);
   if (parsed.command === "help") {
     printHelp();
     return;
@@ -4981,10 +4994,10 @@ async function run() {
     return;
   }
   if (!parsed.print) {
-    await runInteractive(parsed);
+    await runInteractive(parsed, input);
     return;
   }
-  const prompt = parsed.prompt || await readPromptFromStdin();
+  const prompt = parsed.prompt || await readPromptFromStdin(input);
   if (!prompt) {
     process.stderr.write("Error: prompt is required\n");
     process.exitCode = 1;
@@ -5008,7 +5021,7 @@ async function run() {
   const client = new Anthropic({
     apiKey: apiKey ?? void 0,
     authToken: authToken ?? void 0,
-    baseURL: process.env.ANTHROPIC_BASE_URL || void 0,
+    baseURL: process.env.ANTHROPIC_BASE_URL ? normalizeAnthropicBaseUrl(process.env.ANTHROPIC_BASE_URL) : void 0,
     timeout: parseInt(process.env.API_TIMEOUT_MS || String(6e5), 10),
     maxRetries: 0
   });
@@ -5027,7 +5040,7 @@ async function run() {
   process.stdout.write(`${text}
 `);
 }
-async function runInteractive(parsed) {
+async function runInteractive(parsed, input) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const authToken = process.env.ANTHROPIC_AUTH_TOKEN;
   if (!apiKey && !authToken) {
@@ -5046,14 +5059,14 @@ async function runInteractive(parsed) {
   const client = new Anthropic({
     apiKey: apiKey ?? void 0,
     authToken: authToken ?? void 0,
-    baseURL: process.env.ANTHROPIC_BASE_URL || void 0,
+    baseURL: process.env.ANTHROPIC_BASE_URL ? normalizeAnthropicBaseUrl(process.env.ANTHROPIC_BASE_URL) : void 0,
     timeout: parseInt(process.env.API_TIMEOUT_MS || String(6e5), 10),
     maxRetries: 0
   });
   const system = getSystemPrompt(parsed.systemPrompt, parsed.appendSystemPrompt);
   const messages = [];
   const rl = createInterface({
-    input: process.stdin,
+    input,
     output: process.stdout,
     prompt: "you> "
   });
@@ -5066,22 +5079,22 @@ commands: /exit, /clear
   );
   rl.prompt();
   for await (const line of rl) {
-    const input = line.trim();
-    if (!input) {
+    const input2 = line.trim();
+    if (!input2) {
       rl.prompt();
       continue;
     }
-    if (input === "/exit" || input === "/quit") {
+    if (input2 === "/exit" || input2 === "/quit") {
       rl.close();
       break;
     }
-    if (input === "/clear") {
+    if (input2 === "/clear") {
       messages.length = 0;
       process.stdout.write("history cleared\n");
       rl.prompt();
       continue;
     }
-    messages.push({ role: "user", content: input });
+    messages.push({ role: "user", content: input2 });
     try {
       const response = await client.messages.create({
         model,
@@ -5108,4 +5121,7 @@ void run().catch((error) => {
 `);
   process.exitCode = 1;
 });
+export {
+  run
+};
 //# sourceMappingURL=recovery-cli.mjs.map

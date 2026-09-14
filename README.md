@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-The **Windows 7 SP1 x64 offline port** of [NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4.
+The **Windows 7 SP1 x64 offline port** of [NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.6.2.
 
 Upstream is built on Electron 42 and a Bun sidecar architecture — neither supports Win7. This project ports it to Electron 22.3.27 (the last release that supports Win7) plus a bundled Node runtime, switches the terminal to winpty (Win7 has no ConPTY), and combines the VxKex compatibility layer with bundled Python and PortableGit payloads, so **installation and daily use stay fully offline**.
 
@@ -20,7 +20,7 @@ Upstream is built on Electron 42 and a Bun sidecar architecture — neither supp
 
 | Directory | Responsibility |
 |---|---|
-| `patches/` | 14 patches against upstream v0.5.4 (Electron 22 pin / CSS shim / winpty / Bash chain / CU offline / wine-free NSIS / session-title locale / fork etiquette / changelog modal / providers_changed refresh / H5 input container query / CJK button nowrap / intranet-mode desktop UI + gates / intranet-mode server network policy) |
+| `patches/` | 16 patches against upstream v0.6.2 (Electron 22 pin / CSS shim / winpty / Bash chain / CU offline / wine-free NSIS / session-title locale / fork etiquette / changelog modal / providers_changed refresh / H5 input container query / CJK button nowrap / intranet-mode desktop UI + gates / intranet-mode server network policy / renderer-recovery hardening / activity-profile title width) |
 | `port-src/` | New sources added by the port: Bun API compat layer, esbuild build pipeline, compiled main.cjs artifacts |
 | `repack/` | Stage B fully-offline installer repack scripts |
 | `runtime/` | Machine payloads (~620MB): Node / Python / PortableGit / VxKex / KB patches / offline bundle |
@@ -111,9 +111,9 @@ cd cc-haha-win7
 cd ..
 git clone https://github.com/NanmiCoder/cc-haha.git
 cd cc-haha
-git checkout d52bbec7
+git checkout 85e7f3a20
 
-# The upstream root's own 67 dependencies (axios / lodash-es / react …) are
+# The upstream root's own 68 dependencies (axios / lodash-es / react …) are
 # not committed — this is Stage A's only network access point (esbuild and
 # the desktop dependency tree are both vendored):
 npm install
@@ -121,7 +121,16 @@ npm install
 git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
 git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
 git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch
+git apply ../cc-haha-win7/patches/desktop/007-session-title-locale.patch
+git apply ../cc-haha-win7/patches/desktop/008-brand-fork-etiquette.patch
+git apply ../cc-haha-win7/patches/desktop/009-changelog-modal.patch
+git apply ../cc-haha-win7/patches/desktop/010-providers-changed-refresh.patch
+git apply ../cc-haha-win7/patches/desktop/011-h5-input-width-fix.patch
+git apply ../cc-haha-win7/patches/desktop/012-button-nowrap-fix.patch
+git apply ../cc-haha-win7/patches/desktop/013-intranet-mode-ui-gates.patch
+git apply ../cc-haha-win7/patches/desktop/016-activity-profile-title-width.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
+git apply ../cc-haha-win7/patches/cli/014-intranet-mode-network-policy.patch
 
 cp -r ../cc-haha-win7/port-src ./
 
@@ -170,7 +179,7 @@ export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-c
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win --publish never
 ```
 
-Output: `build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe` (~122 MB)
+Output: `build-artifacts/electron/Claude-Code-Haha-0.6.2-win-x64.exe` (~127 MB)
 
 #### Stage B · Repack into the offline installer
 
@@ -182,22 +191,22 @@ RUNTIME_DIR=../runtime \
   ./build-repack.sh
 ```
 
-Output: `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` — burn it or copy it to a USB stick and install directly on an offline Win7 SP1 x64 machine.
+Output: `Claude-Code-Haha-0.6.2-win7-x64-setup.exe` — burn it or copy it to a USB stick and install directly on an offline Win7 SP1 x64 machine.
 
 To feed a Stage A artifact as input (note: Stage A output is named `win-x64.exe`, unlike Stage B's default seed `Win7-x64-Setup.exe`, so pass it explicitly):
 
 ```bash
-./build-repack.sh ../../cc-haha/desktop/build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe
+./build-repack.sh ../../cc-haha/desktop/build-artifacts/electron/Claude-Code-Haha-0.6.2-win-x64.exe
 ```
 
 #### Publishing a new version (auto-update distribution)
 
 ```bash
-node make-latest-yml.mjs Claude-Code-Haha-0.5.4-win7-x64-setup.exe 0.5.4
+node make-latest-yml.mjs Claude-Code-Haha-0.6.2-win7-x64-setup.exe 0.6.2
 ```
 
 Attach the generated `latest.yml` together with the new setup.exe to this repo's latest non-prerelease Release; when the version number exceeds the installed one, existing users get an update prompt.
 
 ---
 
-Stage B needs zero network access: esbuild, the desktop dependency tree (replacing `npm install` in desktop/), the Electron distribution, the NSIS toolchain cache and all runtime payloads are committed as plain files — after cloning, `build-repack.sh` runs directly. Stage A's only network access point when rebuilding from source is the upstream root's own 67 dependencies (see patches/README "Source-level overlay gap").
+Stage B needs zero network access: esbuild, the desktop dependency tree (replacing `npm install` in desktop/), the Electron distribution, the NSIS toolchain cache and all runtime payloads are committed as plain files — after cloning, `build-repack.sh` runs directly. Stage A's only network access point when rebuilding from source is the upstream root's own 68 dependencies (see patches/README "Source-level overlay gap").

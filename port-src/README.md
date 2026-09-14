@@ -44,8 +44,9 @@ port-src/
 ## Build the CLI bundle
 
 ```bash
-# upstream repo root, after applying patches 001-004
-# (prerequisites beyond the patches: `npm install` for the 67 upstream root
+# upstream repo root, after applying the full patch series (see
+# patches/README "Apply" for the exact order and filenames)
+# (prerequisites beyond the patches: `npm install` for the 68 upstream root
 #  dependencies + the eight Bun call-site rewrites — see patches/README
 #  "Source-level overlay gap"; five upstream call sites plus the services
 #  layer added by the 2026-08-21 session-spawn fix)

@@ -2,23 +2,24 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SETUP="${1:-$HERE/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe}"
+SETUP="${1:-$HERE/Claude-Code-Haha-0.6.2-Win7-x64-Setup.exe}"
 NODE_FALLBACK_DIR="${NODE_FALLBACK_DIR:-$HERE/../runtime/node-fallback}"
 RUNTIME_DIR="${RUNTIME_DIR:?set RUNTIME_DIR to the offline runtime payloads dir (node/ python/ vxkex/ ...)}"
+RIPGREP_DIR="${RIPGREP_DIR:-$RUNTIME_DIR/ripgrep-15.1.0-win32-x64}"
 
-OUT_EXE="$HERE/Claude-Code-Haha-0.5.4-win7-x64-setup.exe"
-APP_VERSION="0.5.4"
+OUT_EXE="$HERE/Claude-Code-Haha-0.6.2-win7-x64-setup.exe"
+APP_VERSION="0.6.2"
 WORK="$HERE/.work"
 ORIG="$WORK/orig"
 APP="$WORK/app"
 
 if [ ! -f "$SETUP" ] && [ -z "${1:-}" ]; then
   PARTS_DIR="$HERE/setup-exe"
-  if ls "$PARTS_DIR"/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe.*.part >/dev/null 2>&1; then
+  if ls "$PARTS_DIR"/Claude-Code-Haha-0.6.2-Win7-x64-Setup.exe.*.part >/dev/null 2>&1; then
     echo "== 0/9 reassemble Stage A installer from committed split parts =="
     (cd "$PARTS_DIR" && sha256sum -c parts.sha256)
-    cat "$PARTS_DIR"/Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe.*.part > "$SETUP"
-    echo "33f20bbf2bbc3b0c0dc9decf5f53ac70943614a78e9e6eb77a9ad1eb8aff1d9b  $SETUP" \
+    cat "$PARTS_DIR"/Claude-Code-Haha-0.6.2-Win7-x64-Setup.exe.*.part > "$SETUP"
+    echo "2e2e38bd0c37918115988cdecf47ba2e459de0a755ba197c4dfe6ba13e654212  $SETUP" \
       | sha256sum -c -
   fi
 fi
@@ -28,6 +29,9 @@ for f in server.mjs adapters.mjs cli.mjs recovery-cli.mjs adapters-chunks; do
 done
 for d in node-v22.17.0 python-3.8.10 vxkex-1.2.1.2229; do
   [ -d "$RUNTIME_DIR/$d" ] || { echo "[FAIL] runtime payload missing: $RUNTIME_DIR/$d"; exit 1; }
+done
+for f in rg.exe ripgrep-manifest.json; do
+  [ -f "$RIPGREP_DIR/$f" ] || { echo "[FAIL] ripgrep payload missing: $RIPGREP_DIR/$f"; exit 1; }
 done
 
 echo "== 1/9 unpack Stage A installer shell =="
@@ -73,8 +77,8 @@ fi
 for f in app.asar server.mjs cli.mjs recovery-cli.mjs main-guest.cjs index-cp.html material-symbols-cp.woff2; do
   [ -f "$LAYER/$f" ] || { echo "[FAIL] intranet layer missing: $LAYER/$f"; exit 1; }
 done
-[ -f "$LAYER/assets/App-CCYxxLqm.js" ] || { echo "[FAIL] intranet layer assets incomplete (no App-CCYxxLqm.js)"; exit 1; }
-[ -f "$LAYER/adapters-chunks/APEv2Parser-Q5MCI7E3.mjs" ] || { echo "[FAIL] intranet layer adapters-chunks incomplete"; exit 1; }
+[ -f "$LAYER/assets/App-BUNNj51i.js" ] || { echo "[FAIL] intranet layer assets incomplete (no App-BUNNj51i.js)"; exit 1; }
+[ -f "$LAYER/adapters-chunks/APEv2Parser-IPT6KYZ7.mjs" ] || { echo "[FAIL] intranet layer adapters-chunks incomplete"; exit 1; }
 cp -f "$LAYER/app.asar" "$APP/resources/app.asar"
 rm -rf "$DIST/adapters-chunks"
 cp -a "$LAYER/adapters-chunks" "$DIST/adapters-chunks"
@@ -90,9 +94,13 @@ cp -f "$LAYER/material-symbols-cp.woff2" "$DIST/fonts/material-symbols-outlined.
 mkdir -p "$APP/resources/app.asar.unpacked/electron-dist"
 cp -f "$LAYER/main-guest.cjs" "$APP/resources/app.asar.unpacked/electron-dist/main.cjs"
 
-echo "== 5/9 remove broken compiled sidecar =="
+echo "== 5/9 stage pinned ripgrep + drop broken compiled sidecar =="
+mkdir -p "$BIN"
 rm -f "$BIN/claude-sidecar-x86_64-pc-windows-msvc.exe"
-ls "$BIN"
+cp -a "$RIPGREP_DIR/." "$BIN/"
+ls "$BIN" 2>/dev/null || echo "  (empty)"
+[ -f "$BIN/rg.exe" ] || { echo "[FAIL] rg.exe not staged into $BIN"; exit 1; }
+echo "  rg.exe sha256: $(sha256sum "$BIN/rg.exe" | cut -d' ' -f1)"
 
 echo "== 5b/9 inject official app icon + alternate icon group into exe =="
 node "$HERE/icon-tool/inject-icon.mjs" "$APP/Claude Code Haha.exe" \
@@ -107,6 +115,7 @@ cp -f "$HERE/assets/app-icon.ico" "$APP/app-icon.ico"
 ls -la "$APP/app-icon.ico"
 
 echo "== 6/9 overlay offline runtime payloads =="
+mkdir -p "$RT"
 for d in node-v22.17.0 python-3.8.10 vxkex-1.2.1.2229; do
   rm -rf "$RT/$d"
   cp -a "$RUNTIME_DIR/$d" "$RT/$d"

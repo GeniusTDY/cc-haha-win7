@@ -59,9 +59,10 @@ resources/runtime/
 ## 入 git 载荷来源与校验和
 
 已提交的 node-v22.17.0 / python-3.8.10 / vxkex-1.2.1.2229 目录树
-提取自已发布的 `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`
-（sha256 `3221d5e9…a025b40`），因此修正过的
-`python38._pth` 与 16 个 wheel 均已应用——克隆后无需修补。
+提取自已发布的 Win7 离线安装器（v0.5.4 构建，sha256
+`3221d5e9…a025b40`）。它们是版本无关的运行时载荷，原样带入
+v0.6.2 安装器，因此修正过的 `python38._pth` 与 16 个 wheel
+均已应用——克隆后无需修补。
 
 | 载荷 | 关键文件 | sha256 |
 |---|---|---|
@@ -98,7 +99,7 @@ resources/runtime/
 
 | 附件 | 用途 | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-21 会话 spawn 修复重建（252,398,598 字节）**——携带 2026-08-20 完整特性集（winpty 全 TTY 终端 + 捆绑 PortableGit Bash shell + 全离线 Computer Use + node-pty 载荷保障 + `app-update.yml` 重指向本仓库）、恢复的 server.mjs win32 CLI spawn 链 + `node:sqlite` 旗标注入、cli.mjs VT 输入门控、版本戳运行时布局、恢复的 6 个共享适配器分块（中文注释已剥离），**外加**会话/cron 运行时修复：server.mjs 中最后 5 处可达的 `Bun.spawn` 调用点（会话派生、cron 调度器、`openLogDir` ×3）全部改写为 `nodeBunSpawn`；`shouldStripInheritedProviderEnv` 对 `providerId=null` 不再剥离 `ANTHROPIC_*`（纯环境变量配置保留继承的认证信息）；cron CLI 解析不再依赖 Bun 专属的 `import.meta.dir`。更早的资产均为回归构建，已移除；版本号保持 0.5.4，electron-updater 不会提示——装过早期版本的用户需手动重新下载。配套 `latest.yml` 供 electron-updater 使用 | `c6727145…c8946c1` |
+| `Claude-Code-Haha-0.6.2-win7-x64-setup.exe` | **2026-09-13 v0.6.2 Win7 重建（265,758,324 字节）**——上游 v0.6.2 源码重新适配到 Win7 移植：补丁系列 008/009/010/013 + 编译版移植覆盖层为 v0.6.2 重建，内网层（013/014 门控 + 末系列渲染层）重切，node-fallback bundle 重新推导（server/CLI/recovery + 覆盖 v0.6.2 八个适配器旗标的完整 44 模块 `adapters-chunks/` 导入闭包），版本戳 `resources/runtime/` 载荷（node 22.17.0 / Python 3.8.10 / VxKex 1.2.1.2229 / PortableGit 2.45.2 + node-pty）叠加，锁定的 ripgrep 15.1.0 `rg.exe` 重新部署到 `app.asar.unpacked/src-tauri/binaries/`（损坏的编译版 sidecar 保持删除，从而由 `hasCompiledSidecar()` 驱动 node 回退）。`app-update.yml` 仍指向本仓库。配套 `latest.yml` 供 electron-updater 使用。取代 0.5.4 构建（`c6727145…c8946c1`），其 node/python/vxkex 目录树即本目录中已提交的版本无关载荷 | `218d3899…291ee9` |
 
 ## node-pty-1.1.0-win32-x64/（入 git，约 1MB）
 
@@ -109,15 +110,41 @@ N-API `pty.node` + `winpty-agent.exe` + `winpty.dll`；省略 conpty
 `resources/app.asar.unpacked/node_modules/node-pty`，保证桌面终端
 保持完整 TTY 仿真（winpty 原生支持 Win7——agent 无需 VxKex 注册）。
 
+## ripgrep-15.1.0-win32-x64/（入 git，约 4MB）
+
+内置 ripgrep 15.1.0 win-x64 二进制（`rg.exe`）及其
+`ripgrep-licenses/`（COPYING / LICENSE-MIT / UNLICENSE）与
+`ripgrep-manifest.json`——正是上游
+`desktop/scripts/prepare-ripgrep.ts` 部署进 `src-tauri/binaries/`
+的那份载荷。v0.6.2 的 Stage A 载荷完全不携带 `src-tauri/` 目录树
+（`app.asar.unpacked/` 下只剩 `dist/`、`electron-dist/` 与
+`node_modules/`），因此 `repack/build-repack.sh` 步骤 5/9 会创建
+`resources/app.asar.unpacked/src-tauri/binaries/`、删除损坏的
+编译版 sidecar 并拷入本载荷。`rg.exe` 必须存在于此，原因有二：
+`installer.nsi` 要将其注册进 VxKex（`WaitOnAddress` shim——见上文
+矩阵），且 `main-guest.cjs` 经 `withBundledRipgrepPath()` 解析它。
+sidecar 特意保持缺失——这样 `hasCompiledSidecar()` 会走内置的
+node 回退。
+
+二进制来源：`rg.exe` 与 v0.5.4 发布版所附带的那份字节一致（离线从
+`Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe` 重新解出），sha256
+`decdd4992f3f1b9a5ef9898f1b40ab16886d579d6516b4efd3d5eaa19364e408`
+（4,266,496 字节）；上游锁定档案
+`ripgrep-15.1.0-x86_64-pc-windows-msvc.zip` 的 sha256 为
+`124510b94b6baa3380d051fdf4650eaa80a302c876d611e9dba0b2e18d87493a`。
+
 ## node-fallback/
 
 部署到 `resources/app.asar.unpacked/dist/` 的 Node 移植
 server/CLI bundle（server.mjs + adapters.mjs + cli.mjs +
 recovery-cli.mjs + adapters-chunks/）。此处提交的文件均已完整
 修补；重打包构建脚本按原样部署。`adapters-chunks/` 必须保持
-完整的 12 文件导入闭包——5 个适配器分块 + 7 个共享
-`chunk-*.mjs`——适配器分块静态导入共享分块，丢任何一个都会让
-`--feishu/--telegram/--wechat/--whatsapp/--dingtalk` 全部以
+完整的 44 模块导入闭包——8 个适配器分块（feishu / whatsapp /
+telegram / dingtalk / qq / wecom / wechat / slack）+ 22 个共享
+`chunk-*.mjs`（含 `adapters.mjs` 导入的宏初始化分块
+`chunk-57T55QIK.mjs`）+ 14 个 parser/lib 分块——适配器分块静态导入
+它们，丢任何一个都会让 `--feishu/--telegram/--wechat/--dingtalk/
+--whatsapp/--wecom/--qq/--slack` 全部以
 ERR_MODULE_NOT_FOUND 失败。feishu/dingtalk 适配器分块存档时
 已剥离第三方 SDK 的中文 JSDoc 注释（经
 `port-src/scripts/node-port/strip-cjk-comments.mjs` 处理，该步骤

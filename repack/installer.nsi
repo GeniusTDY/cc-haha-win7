@@ -7,12 +7,12 @@ SetCompressor /SOLID lzma
 !include "x64.nsh"
 
 !define PRODUCT_NAME "Claude Code Haha"
-!define PRODUCT_VERSION "0.5.4"
+!define PRODUCT_VERSION "0.6.2"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ClaudeCodeHaha"
 !define VXKEX_VERSION "1.2.1.2229"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "Claude-Code-Haha-0.5.4-win7-x64-setup.exe"
+OutFile "Claude-Code-Haha-0.6.2-win7-x64-setup.exe"
 InstallDir "C:\cc-haha"
 InstallDirRegKey HKLM "${UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel admin

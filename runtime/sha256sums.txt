@@ -10,15 +10,20 @@ ea70169decdb4787b7503b899495a1edfa27e9077f8bc5e0ef5980cb42fef3e8  git-2.45.2/bin
 ae323edd0835ee7b9e18cc96a7b2bb4b8173ff768317d178af2788406feb71ff  node-pty-1.1.0-win32-x64/prebuilds/win32-x64/pty.node
 e1cb26d868c954ba26817bedf3e4a5744e4ca2030adf51a7156e5ff2fadb881b  node-pty-1.1.0-win32-x64/prebuilds/win32-x64/winpty.dll
 c3a65716f53fed0135a8a633373d5f9c2ab092544d651f27ef0a67096dd3bcd9  node-pty-1.1.0-win32-x64/lib/windowsTerminal.js
-f401161510654aeef988ec7f0018cf33f261eb166cc483f39a2e1a0f50f01f91  node-fallback/cli.mjs
-260ebf036683ef90662fa79feb0f2ce481f7d7fbb1d465ae2f1c091a9f3014ba  node-fallback/server.mjs
-# 2026-08-20 feed-rewrite rebuild (v3 fix set + app-update.yml repointed
-# at GeniusTDY/cc-haha-win7; current Release asset, renamed from
-# Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe, paired with latest.yml):
-# b3665af60989fead7f4a2b36c555a1d0074859782cafb30f500340ee55371f4c  Claude-Code-Haha-0.5.4-win7-x64-setup.exe
+b19e39e8bc7bf939083ba0c2fa92b769e0bff32ad310b8c0c471090bb182d208  node-fallback/cli.mjs
+d53f850e74f287c6be0d5829b34477ae5177460c02079e40f407d903e9cdabd0  node-fallback/server.mjs
+decdd4992f3f1b9a5ef9898f1b40ab16886d579d6516b4efd3d5eaa19364e408  ripgrep-15.1.0-win32-x64/rg.exe
+# 2026-09-13 v0.6.2 Win7 rebuild — upstream v0.6.2 patch/port
+# adaptation: intranet layer, vendored ripgrep 15.1.0 (above),
+# node-fallback bundle and the versioned resources/runtime/ payload:
+# 218d38999897d44604f521dc91dea31b781ef7fcbb51b87c32943c26ce291ee9  Claude-Code-Haha-0.6.2-win7-x64-setup.exe
+# (265,758,324 bytes; app.asar
+# 45183bfcd843489df714080e495d50c00d1c6eb0836bd10bf34b32c1810e3f7c)
 # patched main.cjs inside its app.asar:
-# bcff1e9c10ff5767dc046b305a654ed09e6bf968a8c9886d1f82ee46a87e95e2  electron-dist/main.cjs
-# (that was the released v3 build; after the version-stamp path fix
-# the source artifact port-src/desktop-electron/main.cjs is
-# b42ba76eed1eb658e9d0812bdc3ac43c965c1298a87160c1d3f7aa96be49aeee,
-# and patch-app-asar.mjs re-stamps old seeds to match)
+# 0c566006d8454224bf4576a1ac989578ad7d8c2782ffe4d32444997d1b02970a  electron-dist/main.cjs
+# prior superseded release — its node/python/vxkex trees are the ones
+# committed in this dir:
+# b3665af60989fead7f4a2b36c555a1d0074859782cafb30f500340ee55371f4c  Claude-Code-Haha-0.5.4-win7-x64-setup.exe
+# main.cjs source artifact port-src/desktop-electron/main.cjs =
+# b42ba76eed1eb658e9d0812bdc3ac43c965c1298a87160c1d3f7aa96be49aeee;
+# patch-app-asar.mjs re-stamps old seeds to match

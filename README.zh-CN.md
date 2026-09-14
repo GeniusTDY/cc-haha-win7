@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-[NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4 的 **Windows 7 SP1 x64 离线移植版**。
+[NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.6.2 的 **Windows 7 SP1 x64 离线移植版**。
 
 上游基于 Electron 42 与 Bun sidecar 架构，均不支持 Win7。本项目将其移植为 Electron 22.3.27（最后一个支持 Win7 的版本）加捆绑 Node 运行时，终端改用 winpty（Win7 无 ConPTY），并配合 VxKex 兼容层与内置 Python、PortableGit 载荷，实现**安装与使用全程离线**。
 
@@ -20,7 +20,7 @@
 
 | 目录 | 职责 |
 |---|---|
-| `patches/` | 对上游 v0.5.4 的 14 个补丁（Electron 22 固定 / CSS 垫片 / winpty / Bash 链 / CU 离线 / 免 wine / 会话标题本地化 / fork 礼仪 / 更新日志弹窗 / providers_changed 刷新 / H5 输入框容器查询 / CJK 按钮不换行 / 内网模式桌面端 UI 与闸门 / 内网模式服务端网络策略） |
+| `patches/` | 对上游 v0.6.2 的 16 个补丁（Electron 22 固定 / CSS 垫片 / winpty / Bash 链 / CU 离线 / 免 wine / 会话标题本地化 / fork 礼仪 / 更新日志弹窗 / providers_changed 刷新 / H5 输入框容器查询 / CJK 按钮不换行 / 内网模式桌面端 UI 与闸门 / 内网模式服务端网络策略 / 渲染进程崩溃恢复加固 / 活动页资料标题宽度） |
 | `port-src/` | 移植新增源码：Bun API 兼容层、esbuild 构建链、main.cjs 编译产物 |
 | `repack/` | Stage B 全离线安装器打包脚本 |
 | `runtime/` | 装机载荷（~620MB）：Node / Python / PortableGit / VxKex / KB 补丁 / 离线 bundle |
@@ -110,16 +110,25 @@ cd cc-haha-win7
 cd ..
 git clone https://github.com/NanmiCoder/cc-haha.git
 cd cc-haha
-git checkout d52bbec7
+git checkout 85e7f3a20
 
-# 上游根目录自身的 67 个 dependencies（axios / lodash-es / react …）未入仓，
+# 上游根目录自身的 68 个 dependencies（axios / lodash-es / react …）未入仓，
 # 这是 Stage A 的唯一联网点（esbuild 与 desktop 依赖树均已内置）：
 npm install
 
 git apply ../cc-haha-win7/patches/desktop/001-package-json-electron22.patch
 git apply ../cc-haha-win7/patches/desktop/002-index-html-css-shim.patch
 git apply ../cc-haha-win7/patches/desktop/003-terminal-winpty-fallback.patch
+git apply ../cc-haha-win7/patches/desktop/007-session-title-locale.patch
+git apply ../cc-haha-win7/patches/desktop/008-brand-fork-etiquette.patch
+git apply ../cc-haha-win7/patches/desktop/009-changelog-modal.patch
+git apply ../cc-haha-win7/patches/desktop/010-providers-changed-refresh.patch
+git apply ../cc-haha-win7/patches/desktop/011-h5-input-width-fix.patch
+git apply ../cc-haha-win7/patches/desktop/012-button-nowrap-fix.patch
+git apply ../cc-haha-win7/patches/desktop/013-intranet-mode-ui-gates.patch
+git apply ../cc-haha-win7/patches/desktop/016-activity-profile-title-width.patch
 git apply ../cc-haha-win7/patches/cli/004-shell-win32-bash-resolution.patch
+git apply ../cc-haha-win7/patches/cli/014-intranet-mode-network-policy.patch
 
 cp -r ../cc-haha-win7/port-src ./
 
@@ -163,7 +172,7 @@ export ELECTRON_BUILDER_CACHE="$PWD/../../cc-haha-win7/vendor/electron-builder-c
 npx electron-builder --config ../port-src/desktop/offline-win.cjs --win --publish never
 ```
 
-产物：`build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe`（约 122 MB）
+产物：`build-artifacts/electron/Claude-Code-Haha-0.6.2-win-x64.exe`（约 127 MB）
 
 #### Stage B · 重打包为离线安装器
 
@@ -175,22 +184,22 @@ RUNTIME_DIR=../runtime \
   ./build-repack.sh
 ```
 
-产物：`Claude-Code-Haha-0.5.4-win7-x64-setup.exe`，刻录或拷贝至 U 盘后，可在 Win7 SP1 x64 离线机器上直接安装。
+产物：`Claude-Code-Haha-0.6.2-win7-x64-setup.exe`，刻录或拷贝至 U 盘后，可在 Win7 SP1 x64 离线机器上直接安装。
 
 若使用 Stage A 产物作为输入（注意：Stage A 产物名为 `win-x64.exe`，与 Stage B 默认种子 `Win7-x64-Setup.exe` 不同，需显式传参）：
 
 ```bash
-./build-repack.sh ../../cc-haha/desktop/build-artifacts/electron/Claude-Code-Haha-0.5.4-win-x64.exe
+./build-repack.sh ../../cc-haha/desktop/build-artifacts/electron/Claude-Code-Haha-0.6.2-win-x64.exe
 ```
 
 #### 发布新版本（自动更新分发）
 
 ```bash
-node make-latest-yml.mjs Claude-Code-Haha-0.5.4-win7-x64-setup.exe 0.5.4
+node make-latest-yml.mjs Claude-Code-Haha-0.6.2-win7-x64-setup.exe 0.6.2
 ```
 
 将生成的 `latest.yml` 与新 setup.exe 一并挂到本仓库最新的非预发布 Release，版本号大于已装版本时，存量用户会收到更新提示。
 
 ---
 
-Stage B 全程零联网：esbuild、desktop 依赖树（替代 desktop/ 的 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓，克隆后可直接运行 `build-repack.sh`。Stage A 从源码重建时的唯一联网点是上游根目录自身的 67 个 dependencies（见 patches/README「源码叠加缺口」）。
+Stage B 全程零联网：esbuild、desktop 依赖树（替代 desktop/ 的 `npm install`）、Electron 分发、NSIS 工具链缓存与全部运行时载荷均以普通文件内置入仓，克隆后可直接运行 `build-repack.sh`。Stage A 从源码重建时的唯一联网点是上游根目录自身的 68 个 dependencies（见 patches/README「源码叠加缺口」）。

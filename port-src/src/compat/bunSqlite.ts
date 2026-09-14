@@ -102,6 +102,25 @@ export class Database {
   clearQueryCache(): void {
   }
 
+  transaction<TArgs extends SqliteBinding[], TResult>(
+    fn: (...args: TArgs) => TResult,
+  ): (...args: TArgs) => TResult {
+    return (...args: TArgs): TResult => {
+      this.db.exec('BEGIN')
+      try {
+        const result = fn(...args)
+        this.db.exec('COMMIT')
+        return result
+      } catch (error) {
+        try {
+          this.db.exec('ROLLBACK')
+        } catch {
+        }
+        throw error
+      }
+    }
+  }
+
   close(_force?: boolean): void {
     this.db.close()
   }

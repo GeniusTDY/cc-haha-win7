@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["<define:MACRO>"],
+  "sourcesContent": ["{\"VERSION\":\"999.0.0-local\",\"PACKAGE_URL\":\"claude-code-local\",\"NATIVE_PACKAGE_URL\":\"claude-code-local\",\"BUILD_TIME\":\"2026-09-12T19:08:38.526Z\",\"VERSION_CHANGELOG\":\"\",\"ISSUES_EXPLAINER\":\"\",\"FEEDBACK_CHANNEL\":\"https://github.com/GeniusTDY/cc-haha-win7/issues\"}"],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAAA;AAAA;AAAA;AAAA;",
+  "names": []
+}

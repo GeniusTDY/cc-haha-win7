@@ -136,21 +136,6 @@
       html[data-window-kind="pet"] #root { background: transparent !important; }
       html, body, #root { min-height: 100%; margin: 0; }
     </style>
-    <!--
-      Chromium 108 CSS shim (Win7 / Electron 22). Tailwind v4 and the design
-      tokens rely on color-mix() (Chromium 111+), scrollbar-color (121+) and
-      the `overlay` transition token (114+); on 108 those declarations are
-      dropped outright, losing semi-transparent utilities, styled scrollbars
-      and sibling transition tokens. lightningcss lowers Tailwind's oklch()
-      palette to lab() inside custom properties (no fallback is possible
-      there), and lab()/oklch()/lch()/oklab() are likewise Chromium 111+, so
-      --tw-prose-* and --color-* values die at var() substitution time. This
-      shim evaluates color-mix() and the lab-family color functions against
-      the live theme custom properties, rewrites the declarations through the
-      CSSOM, and injects ::-webkit-scrollbar fallbacks. Newer engines bail out
-      at the first feature check and pay nothing. Re-runs on theme switches
-      (data-theme) and on late <style>/<link> inserts (lazy chunks).
-    -->
     <script>
       (function () {
         var needsColorMix, needsScrollbar, needsLabFn, uaVersion = 0
@@ -685,17 +670,6 @@
         }, bootDeadlineMs)
       })()
     </script>
-    <!--
-      Chromium 108 runtime polyfill (Win7 / Electron 22): the Set methods
-      union/intersection/difference/symmetricDifference/isSubsetOf/
-      isSupersetOf/isDisjointFrom only shipped in Chrome 122, but vendored
-      dependencies call them — cytoscape's collection algebra and mermaid's
-      architecture-diagram renderer alone account for ~20 call sites in the
-      production bundle, each raising "x.union is not a function" on 108.
-      Classic inline scripts run before the deferred module bundle, so the
-      patch is installed before any lazy chunk can execute. Engines that
-      already implement the methods bail out immediately.
-    -->
     <script>
       (function () {
         if (typeof Set === 'undefined' || typeof Set.prototype.union === 'function') return
@@ -748,14 +722,14 @@
     </script>
     <style id="h5-host-input-fix">div:has(> div > div > #h5-access-public-url){container-type:inline-size}@container (max-width: 28rem){div:has(> div > #h5-access-public-url){grid-template-columns:minmax(0,1fr)!important}}</style>
     <style id="cjk-btn-nowrap">button.inline-flex{white-space:nowrap}</style>
-    <script type="module" crossorigin src="./assets/index-IYRgV6Qg.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-hePW80VL.js">
-    <link rel="modulepreload" crossorigin href="./assets/desktopHost-Bc0o_q4K.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-Dzgz130i.css">
+    <script type="module" crossorigin src="./assets/index-DuhFaQZj.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/chunk-Dlc7tRH4.js">
+    <link rel="modulepreload" crossorigin href="./assets/desktopHost-Bid_wopj.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-CnWKR7Za.css">
   <script>
 /* Material Symbols: ligature crash workaround for Win7/Chromium 108.
    Font has NO GSUB; icons render via PUA codepoints. Map ligature names -> codepoints. */
-window.__iconCP={account_tree:"",ad:"",add:"",ads_click:"",anchor:"",animation:"",architecture:"",archive:"",arrow_back:"",arrow_forward:"",arrow_outward:"",arrow_upward:"",article:"",assignment:"",assistant:"",attach_file:"",audio_file:"",auto_awesome:"",autoplay:"",block:"",bolt:"",box:"",browse:"",bubble:"",build:"",cached:"",cadence:"",call:"",cancel:"",capture:"",cases:"",cast:"",category:"",chat:"",chat_bubble:"",check:"",check_circle:"",checklist:"",chevron_left:"",chevron_right:"",circle:"",class:"",clear:"",close:"",cloud:"",cloud_download:"",code:"",coffee:"",collections:"",colors:"",comment:"",commit:"",compress:"",construction:"",content_copy:"",conversation:"",create:"",create_new_folder:"",css:"",csv:"",cut:"",database:"",delete:"",delete_sweep:"",description:"",desktop_windows:"",details:"",detector:"",diamond:"",dictionary:"",difference:"",distance:"",dns:"",docs:"",domain:"",done:"",double_arrow:"",download:"",downloading:"",draft:"",draw:"",drive_file_move:"",edit:"",edit_document:"",edit_note:"",email:"",enable:"",enterprise:"",equal:"",error:"",event:"",expand:"",expand_less:"",expand_more:"",explicit:"",extension:"",extension_off:"",face:"",feedback:"",fence:"",file_copy:"",files:"",filter:"",find_in_page:"",flag:"",flowchart:"",folder:"",folder_off:"",folder_open:"",folder_zip:"",format_paint:"",forum:"",forward:"",fullscreen:"",function:"",functions:"",gavel:"",gradient:"",group:"",groups:"",height:"",help:"",hexagon:"",highlight:"",history:"",history_edu:"",hourglass:"",html:"",http:"",https:"",hub:"",iframe:"",image:"",image_not_supported:"",inbox:"",info:"",input:"",insert_drive_file:"",javascript:"",join:"",keep:"",key:"",key_off:"",label:"",lan:"",language:"",license:"",light:"",line_end:"",line_start:"",link:"",list:"",lists:"",location_on:"",lock:"",login:"",logout:"",loop:"",lowercase:"",map:"",markdown:"",memory:"",menu:"",merge:"",message:"",monitor_heart:"",monitoring:"",mop:"",more:"",more_vert:"",mouse:"",move:"",movie:"",north_east:"",not_started:"",note:"",notes:"",numbers:"",opacity:"",open_in_new:"",output:"",overview:"",package:"",padding:"",password:"",pattern:"",pause:"",pause_circle:"",pending:"",pentagon:"",percent:"",person:"",person_add:"",pets:"",php:"",picture_as_pdf:"",pill:"",play_arrow:"",play_circle:"",polyline:"",post:"",power_off:"",preview:"",print:"",priority:"",procedure:"",progress_activity:"",public:"",qr_code_2:"",queue:"",radar:"",radio:"",radio_button_unchecked:"",receipt_long:"",rectangle:"",refresh:"",remove:"",repeat:"",reply:"",report:"",resize:"",restart_alt:"",restore:"",route:"",rule:"",save:"",scale:"",scanner:"",schedule:"",schema:"",screenshot:"",script:"",search:"",search_off:"",security:"",select:"",send:"",settings:"",settings_applications:"",shadow:"",shield:"",shift:"",signature:"",slideshow:"",smart_toy:"",sort:"",source:"",spellcheck:"",sql:"󿾕",square:"",stack:"",stadium:"",star:"",start:"",step:"",stop:"",stop_circle:"",storage:"",storefront:"",straight:"",strategy:"",stream:"",style:"",stylus:"",subdirectory_arrow_right:"",subject:"",subscript:"",superscript:"",support:"",switch:"",sync:"",sync_alt:"",tab:"",table:"",table_chart:"",tag:"",target:"",task:"",task_alt:"",terminal:"",text_snippet:"",timeline:"",timer:"",timer_off:"",tips_and_updates:"",title:"",today:"",toggle_off:"",toggle_on:"",token:"",toolbar:"",tooltip:"",transform:"",travel_explore:"",tsv:"",tune:"",undo:"",update:"",upload:"",upload_file:"",uppercase:"",variables:"",verified:"",verified_user:"",video_file:"",view_sidebar:"",visibility:"",visibility_off:"",vpn_key:"",warning:"",web:"",weight:"",width:"",work:"",workflow:"",yard:""};
+window.__iconCP={account_tree:"",ad:"",add:"",ads_click:"",anchor:"",animation:"",architecture:"",archive:"",arrow_back:"",arrow_forward:"",arrow_outward:"",arrow_upward:"",article:"",assignment:"",assistant:"",attach_file:"",audio_file:"",auto_awesome:"",autoplay:"",block:"",bolt:"",box:"",browse:"",bubble:"",build:"",cached:"",cadence:"",call:"",cancel:"",capture:"",cases:"",cast:"",category:"",chat:"",chat_bubble:"",check:"",check_circle:"",checklist:"",chevron_left:"",chevron_right:"",circle:"",class:"",clear:"",close:"",cloud:"",cloud_download:"",code:"",coffee:"",collections:"",colors:"",comment:"",commit:"",compress:"",construction:"",content_copy:"",conversation:"",create:"",create_new_folder:"",css:"",csv:"",cut:"",database:"",delete:"",delete_sweep:"",description:"",desktop_windows:"",details:"",detector:"",diamond:"",dictionary:"",difference:"",distance:"",dns:"",docs:"",domain:"",done:"",double_arrow:"",download:"",downloading:"",draft:"",draw:"",drive_file_move:"",edit:"",edit_document:"",edit_note:"",email:"",enable:"",enterprise:"",equal:"",error:"",event:"",expand:"",expand_less:"",expand_more:"",explicit:"",extension:"",extension_off:"",face:"",feedback:"",fence:"",file_copy:"",files:"",filter:"",find_in_page:"",flag:"",flowchart:"",folder:"",folder_off:"",folder_open:"",folder_zip:"",format_paint:"",forum:"",forward:"",fullscreen:"",function:"",functions:"",gavel:"",gradient:"",group:"",groups:"",height:"",help:"",hexagon:"",highlight:"",history:"",history_edu:"",hourglass:"",html:"",http:"",https:"",hub:"",iframe:"",image:"",image_not_supported:"",inbox:"",info:"",input:"",insert_drive_file:"",javascript:"",join:"",keep:"",key:"",key_off:"",label:"",lan:"",language:"",license:"",light:"",line_end:"",line_start:"",link:"",list:"",lists:"",location_on:"",lock:"",login:"",logout:"",loop:"",lowercase:"",map:"",markdown:"",memory:"",menu:"",merge:"",message:"",monitor_heart:"",monitoring:"",mop:"",more:"",more_vert:"",mouse:"",move:"",movie:"",north_east:"",not_started:"",note:"",notes:"",numbers:"",opacity:"",open_in_new:"",output:"",overview:"",package:"",padding:"",password:"",pattern:"",pause:"",pause_circle:"",pending:"",pentagon:"",percent:"",person:"",person_add:"",pets:"",php:"",picture_as_pdf:"",pill:"",play_arrow:"",play_circle:"",polyline:"",post:"",power_off:"",preview:"",print:"",priority:"",procedure:"",progress_activity:"",public:"",qr_code_2:"",queue:"",radar:"",radio:"",radio_button_unchecked:"",receipt_long:"",rectangle:"",refresh:"",remove:"",repeat:"",reply:"",report:"",resize:"",restart_alt:"",restore:"",route:"",rule:"",save:"",scale:"",scanner:"",schedule:"",schema:"",screenshot:"",script:"",search:"",search_off:"",security:"",select:"",send:"",settings:"",settings_applications:"",shadow:"",shield:"",shift:"",signature:"",slideshow:"",smart_toy:"",sort:"",source:"",spellcheck:"",sql:"󿾕",square:"",stack:"",stadium:"",star:"",start:"",step:"",stop:"",stop_circle:"",storage:"",storefront:"",straight:"",strategy:"",stream:"",style:"",stylus:"",subdirectory_arrow_right:"",subject:"",subscript:"",superscript:"",support:"",switch:"",sync:"",sync_alt:"",tab:"",table:"",table_chart:"",tag:"",target:"",task:"",task_alt:"",terminal:"",text_snippet:"",timeline:"",timer:"",timer_off:"",tips_and_updates:"",title:"",today:"",toggle_off:"",toggle_on:"",token:"",toolbar:"",tooltip:"",transform:"",travel_explore:"",tsv:"",tune:"",undo:"",update:"",upload:"",upload_file:"",uppercase:"",variables:"",verified:"",verified_user:"",video_file:"",view_sidebar:"",visibility:"",visibility_off:"",vpn_key:"",warning:"",web:"",weight:"",width:"",work:"",workflow:"",yard:"",gif:"",hourglass_empty:"",neurology:"",ods:"",odt:"",pages:"",shield_person:""};
 </script>
 <style>.material-symbols-outlined{font-feature-settings:normal!important;-webkit-font-feature-settings:normal!important}</style>
   </head>

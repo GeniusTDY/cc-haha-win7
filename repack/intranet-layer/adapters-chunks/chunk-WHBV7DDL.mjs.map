@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../adapters/node_modules/music-metadata/lib/type.js"],
+  "sourcesContent": ["export { TrackType, TrackTypeValueToKeyMap } from './matroska/types.js';\nexport { LyricsContentType, TimestampFormat } from './id3v2/ID3v2Token.js';\n"],
+  "mappings": ";;;;;;;;;;;;AAAA;",
+  "names": []
+}

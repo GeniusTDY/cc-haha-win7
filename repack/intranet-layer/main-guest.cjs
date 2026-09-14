@@ -5,9 +5,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -25,123 +22,11 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../node_modules/tree-kill/index.js
-var require_tree_kill = __commonJS({
-  "../node_modules/tree-kill/index.js"(exports2, module2) {
-    "use strict";
-    var childProcess = require("child_process");
-    var spawn2 = childProcess.spawn;
-    var exec = childProcess.exec;
-    module2.exports = function(pid, signal, callback) {
-      if (typeof signal === "function" && callback === void 0) {
-        callback = signal;
-        signal = void 0;
-      }
-      pid = parseInt(pid);
-      if (Number.isNaN(pid)) {
-        if (callback) {
-          return callback(new Error("pid must be a number"));
-        } else {
-          throw new Error("pid must be a number");
-        }
-      }
-      var tree = {};
-      var pidsToProcess = {};
-      tree[pid] = [];
-      pidsToProcess[pid] = 1;
-      switch (process.platform) {
-        case "win32":
-          exec("taskkill /pid " + pid + " /T /F", callback);
-          break;
-        case "darwin":
-          buildProcessTree(pid, tree, pidsToProcess, function(parentPid) {
-            return spawn2("pgrep", ["-P", parentPid]);
-          }, function() {
-            killAll(tree, signal, callback);
-          });
-          break;
-        // case 'sunos':
-        //     buildProcessTreeSunOS(pid, tree, pidsToProcess, function () {
-        //         killAll(tree, signal, callback);
-        //     });
-        //     break;
-        default:
-          buildProcessTree(pid, tree, pidsToProcess, function(parentPid) {
-            return spawn2("ps", ["-o", "pid", "--no-headers", "--ppid", parentPid]);
-          }, function() {
-            killAll(tree, signal, callback);
-          });
-          break;
-      }
-    };
-    function killAll(tree, signal, callback) {
-      var killed = {};
-      try {
-        Object.keys(tree).forEach(function(pid) {
-          tree[pid].forEach(function(pidpid) {
-            if (!killed[pidpid]) {
-              killPid(pidpid, signal);
-              killed[pidpid] = 1;
-            }
-          });
-          if (!killed[pid]) {
-            killPid(pid, signal);
-            killed[pid] = 1;
-          }
-        });
-      } catch (err) {
-        if (callback) {
-          return callback(err);
-        } else {
-          throw err;
-        }
-      }
-      if (callback) {
-        return callback();
-      }
-    }
-    function killPid(pid, signal) {
-      try {
-        process.kill(parseInt(pid, 10), signal);
-      } catch (err) {
-        if (err.code !== "ESRCH") throw err;
-      }
-    }
-    function buildProcessTree(parentPid, tree, pidsToProcess, spawnChildProcessesList, cb) {
-      var ps = spawnChildProcessesList(parentPid);
-      var allData = "";
-      ps.stdout.on("data", function(data) {
-        var data = data.toString("ascii");
-        allData += data;
-      });
-      var onClose = function(code) {
-        delete pidsToProcess[parentPid];
-        if (code != 0) {
-          if (Object.keys(pidsToProcess).length == 0) {
-            cb();
-          }
-          return;
-        }
-        allData.match(/\d+/g).forEach(function(pid) {
-          pid = parseInt(pid, 10);
-          tree[parentPid].push(pid);
-          tree[pid] = [];
-          pidsToProcess[pid] = 1;
-          buildProcessTree(pid, tree, pidsToProcess, spawnChildProcessesList, cb);
-        });
-      };
-      ps.on("close", onClose);
-    }
-  }
-});
-
-// electron/main.ts
+// desktop/electron/main.ts
 var import_electron = require("electron");
-var electron = __toESM(require("electron"), 1);
-var import_node_os6 = __toESM(require("node:os"), 1);
-var import_node_path14 = __toESM(require("node:path"), 1);
+var import_node_path15 = __toESM(require("node:path"), 1);
 
-// electron/ipc/channels.ts
+// desktop/electron/ipc/channels.ts
 var ELECTRON_IPC_CHANNELS = {
   appGetVersion: "desktop:app:get-version",
   appGetLocalePreference: "desktop:app:get-locale-preference",
@@ -229,7 +114,7 @@ var ELECTRON_INTERNAL_CHANNELS = {
   previewMessageFromView: "desktop:preview:message-from-view"
 };
 
-// electron/ipc/capabilities.ts
+// desktop/electron/ipc/capabilities.ts
 var isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var noPayload = (value) => value === void 0;
 var optionalRecord = (value) => value === void 0 || isRecord(value);
@@ -398,11 +283,11 @@ function isElectronIpcChannelAllowedForPetWindow(channel) {
   return petWindowChannels.has(channel);
 }
 
-// electron/services/serverRuntime.ts
-var import_node_path3 = __toESM(require("node:path"), 1);
+// desktop/electron/services/serverRuntime.ts
+var import_node_path4 = __toESM(require("node:path"), 1);
 var import_node_crypto3 = require("node:crypto");
 
-// electron/services/sidecarManager.ts
+// desktop/electron/services/sidecarManager.ts
 var import_node_child_process = require("node:child_process");
 var import_node_crypto = require("node:crypto");
 var import_node_fs = require("node:fs");
@@ -411,7 +296,7 @@ var import_node_net = __toESM(require("node:net"), 1);
 var import_node_os = __toESM(require("node:os"), 1);
 var import_node_path = __toESM(require("node:path"), 1);
 
-// src/lib/browserSafePort.ts
+// desktop/src/lib/browserSafePort.ts
 var FETCH_BLOCKED_PORTS = /* @__PURE__ */ new Set([
   0,
   1,
@@ -501,7 +386,7 @@ function isBrowserSafePort(port) {
   return Number.isInteger(port) && port > 0 && port <= 65535 && !FETCH_BLOCKED_PORTS.has(port);
 }
 
-// electron/services/sidecarManager.ts
+// desktop/electron/services/sidecarManager.ts
 var SERVER_BIND_HOST = "0.0.0.0";
 var SERVER_CONTROL_HOST = "127.0.0.1";
 var SERVER_STARTUP_TIMEOUT_MS = 3e4;
@@ -539,13 +424,31 @@ function resolveSidecarExecutable(desktopRoot, triple = resolveHostTriple()) {
   const base = import_node_path.default.join(desktopRoot, "src-tauri", "binaries", `claude-sidecar-${triple}`);
   return process.platform === "win32" ? `${base}.exe` : base;
 }
+function resolveBundledRipgrepExecutable(desktopRoot, triple = resolveHostTriple()) {
+  const extension = triple.includes("windows") ? ".exe" : "";
+  return import_node_path.default.join(desktopRoot, "src-tauri", "binaries", `rg${extension}`);
+}
+function withBundledRipgrepPath(env, desktopRoot) {
+  const bundledRipgrep = resolveBundledRipgrepExecutable(desktopRoot);
+  const explicitRipgrep = env[RIPGREP_PATH_ENV]?.trim();
+  const selectedRipgrep = explicitRipgrep && (0, import_node_fs.existsSync)(explicitRipgrep) ? explicitRipgrep : (0, import_node_fs.existsSync)(bundledRipgrep) ? bundledRipgrep : null;
+  if (!selectedRipgrep) return env;
+  const pathKey = process.platform === "win32" ? Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path" : "PATH";
+  const currentPath = env[pathKey] ?? "";
+  const ripgrepDirectory = import_node_path.default.dirname(selectedRipgrep);
+  const nextPath = currentPath ? `${currentPath}${import_node_path.default.delimiter}${ripgrepDirectory}` : ripgrepDirectory;
+  return {
+    ...env,
+    [pathKey]: nextPath,
+    [RIPGREP_PATH_ENV]: explicitRipgrep || bundledRipgrep
+  };
+}
 var NODE_RUNTIME_EXE_ENV = "CC_HAHA_NODE_EXE";
 var SERVER_MJS_ENV = "CC_HAHA_SERVER_MJS";
 var ADAPTERS_MJS_ENV = "CC_HAHA_ADAPTERS_MJS";
 var warnedMissingNodeRuntimeExe = false;
 function resolveNodeRuntimeExecutable(env = process.env, desktopRoot) {
-  var _a;
-  const explicit = (_a = env[NODE_RUNTIME_EXE_ENV]) == null ? void 0 : _a.trim();
+  const explicit = env[NODE_RUNTIME_EXE_ENV]?.trim();
   if (explicit && (0, import_node_fs.existsSync)(explicit)) return explicit;
   if (explicit && !warnedMissingNodeRuntimeExe) {
     warnedMissingNodeRuntimeExe = true;
@@ -575,6 +478,9 @@ function sqliteFlagArgsForVersion(version) {
   if (major === 23 && minor < 4) return ["--experimental-sqlite"];
   return [];
 }
+function defaultVersionProbe(executable) {
+  return (0, import_node_child_process.execFileSync)(executable, ["--version"], { encoding: "utf8", timeout: 1e4 }).trim();
+}
 var probedNodeRuntimeFlags = null;
 function nodeRuntimeFlags(executable = resolveNodeRuntimeExecutable(), runner = defaultVersionProbe) {
   if (probedNodeRuntimeFlags) return probedNodeRuntimeFlags;
@@ -585,11 +491,8 @@ function nodeRuntimeFlags(executable = resolveNodeRuntimeExecutable(), runner = 
   }
   return probedNodeRuntimeFlags;
 }
-function defaultVersionProbe(executable) {
-  return (0, import_node_child_process.execFileSync)(executable, ["--version"], { encoding: "utf8", timeout: 1e4 }).trim();
-}
 function resolveBundledScript(candidates, explicitEnv) {
-  const explicit = explicitEnv == null ? void 0 : explicitEnv.trim();
+  const explicit = explicitEnv?.trim();
   if (explicit && (0, import_node_fs.existsSync)(explicit)) return explicit;
   for (const candidate of candidates) {
     if ((0, import_node_fs.existsSync)(candidate)) return candidate;
@@ -618,26 +521,6 @@ function resolveAdaptersScript(desktopRoot, env = process.env) {
 }
 function hasCompiledSidecar(desktopRoot) {
   return (0, import_node_fs.existsSync)(resolveSidecarExecutable(desktopRoot));
-}
-function resolveBundledRipgrepExecutable(desktopRoot, triple = resolveHostTriple()) {
-  const extension = triple.includes("windows") ? ".exe" : "";
-  return import_node_path.default.join(desktopRoot, "src-tauri", "binaries", `rg${extension}`);
-}
-function withBundledRipgrepPath(env, desktopRoot) {
-  var _a;
-  const bundledRipgrep = resolveBundledRipgrepExecutable(desktopRoot);
-  const explicitRipgrep = (_a = env[RIPGREP_PATH_ENV]) == null ? void 0 : _a.trim();
-  const selectedRipgrep = explicitRipgrep && (0, import_node_fs.existsSync)(explicitRipgrep) ? explicitRipgrep : (0, import_node_fs.existsSync)(bundledRipgrep) ? bundledRipgrep : null;
-  if (!selectedRipgrep) return env;
-  const pathKey = process.platform === "win32" ? Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path" : "PATH";
-  const currentPath = env[pathKey] ?? "";
-  const ripgrepDirectory = import_node_path.default.dirname(selectedRipgrep);
-  const nextPath = currentPath ? `${currentPath}${import_node_path.default.delimiter}${ripgrepDirectory}` : ripgrepDirectory;
-  return {
-    ...env,
-    [pathKey]: nextPath,
-    [RIPGREP_PATH_ENV]: explicitRipgrep || bundledRipgrep
-  };
 }
 function httpToWebSocketUrl(serverHttpUrl) {
   if (serverHttpUrl.startsWith("http://")) return `ws://${serverHttpUrl.slice("http://".length)}`;
@@ -1032,11 +915,10 @@ function mergeLoopbackNoProxy(existing) {
 }
 var POWERSHELL_PATH_OVERRIDE_ENV = "CLAUDE_CODE_POWERSHELL_PATH";
 function windowsPowerShellOverride(shellPath, platform = process.platform) {
-  var _a;
   if (platform !== "win32") return null;
-  const trimmed = shellPath == null ? void 0 : shellPath.trim();
+  const trimmed = shellPath?.trim();
   if (!trimmed) return null;
-  const base = (_a = trimmed.split(/[\\/]/).pop()) == null ? void 0 : _a.toLowerCase().replace(/\.exe$/, "");
+  const base = trimmed.split(/[\\/]/).pop()?.toLowerCase().replace(/\.exe$/, "");
   return base === "pwsh" || base === "powershell" ? trimmed : null;
 }
 function buildSidecarEnv(baseEnv, h5DistDir) {
@@ -1065,10 +947,11 @@ function createServerPlan({
   if (!hasCompiledSidecar(desktopRoot)) {
     const serverScript = resolveServerScript(desktopRoot, env);
     if (serverScript) {
+      const nodeExecutable = resolveNodeRuntimeExecutable(env, desktopRoot);
       return {
-        command: resolveNodeRuntimeExecutable(env, desktopRoot),
+        command: nodeExecutable,
         args: [
-          ...nodeRuntimeFlags(resolveNodeRuntimeExecutable(env, desktopRoot)),
+          ...nodeRuntimeFlags(nodeExecutable),
           serverScript,
           "server",
           "--app-root",
@@ -1102,10 +985,11 @@ function createAdapterPlan({
   if (!hasCompiledSidecar(desktopRoot)) {
     const adaptersScript = resolveAdaptersScript(desktopRoot, env);
     if (adaptersScript) {
+      const nodeExecutable = resolveNodeRuntimeExecutable(env, desktopRoot);
       return {
-        command: resolveNodeRuntimeExecutable(env, desktopRoot),
+        command: nodeExecutable,
         args: [
-          ...nodeRuntimeFlags(resolveNodeRuntimeExecutable(env, desktopRoot)),
+          ...nodeRuntimeFlags(nodeExecutable),
           adaptersScript,
           "--app-root",
           appRoot2,
@@ -1141,9 +1025,8 @@ function spawnSidecar(plan, deps = {}) {
   });
 }
 function getWindowsEnv(env, name) {
-  var _a;
   const normalizedName = name.toLowerCase();
-  return (_a = Object.entries(env).find(([key, value]) => key.toLowerCase() === normalizedName && value)) == null ? void 0 : _a[1];
+  return Object.entries(env).find(([key, value]) => key.toLowerCase() === normalizedName && value)?.[1];
 }
 function resolveWindowsTaskkillExecutable(env = process.env) {
   const systemRoot = getWindowsEnv(env, "SystemRoot") ?? getWindowsEnv(env, "windir");
@@ -1183,9 +1066,8 @@ function killSidecar(child, sync = false, deps = {}) {
   child.kill();
 }
 
-// electron/services/terminal.ts
+// desktop/electron/services/terminal.ts
 var import_node_child_process2 = require("node:child_process");
-var import_tree_kill = __toESM(require_tree_kill(), 1);
 var import_node_crypto2 = require("node:crypto");
 var import_node_fs2 = __toESM(require("node:fs"), 1);
 var import_node_module = require("node:module");
@@ -1209,8 +1091,7 @@ function sendTerminalEvent(webContents, channel, payload) {
 }
 var preparedNodePtyDirs = /* @__PURE__ */ new Set();
 function terminalConfigPath(app2, env = import_node_process.default.env) {
-  var _a;
-  const portableDir = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
+  const portableDir = env.CLAUDE_CONFIG_DIR?.trim();
   if (portableDir) {
     return import_node_path2.default.join(portableDir, TERMINAL_CONFIG_FILE);
   }
@@ -1218,8 +1099,7 @@ function terminalConfigPath(app2, env = import_node_process.default.env) {
   return import_node_path2.default.join(app2.getPath("home"), ".claude", TERMINAL_CONFIG_FILE);
 }
 function claudeConfigDir2(env = import_node_process.default.env, platform = import_node_process.default.platform) {
-  var _a;
-  const portableDir = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
+  const portableDir = env.CLAUDE_CONFIG_DIR?.trim();
   if (portableDir) return portableDir;
   const home = platform === "win32" ? env.USERPROFILE || import_node_os2.default.homedir() : env.HOME || import_node_os2.default.homedir();
   return home ? import_node_path2.default.join(home, ".claude") : null;
@@ -1322,11 +1202,11 @@ function readDesktopTerminalConfig(env = import_node_process.default.env, platfo
     if (!isRecord2(parsed) || !isRecord2(parsed.desktopTerminal)) return null;
     const startupShell = typeof parsed.desktopTerminal.startupShell === "string" ? parsed.desktopTerminal.startupShell : null;
     const customShellPath = typeof parsed.desktopTerminal.customShellPath === "string" ? parsed.desktopTerminal.customShellPath : null;
-    const normalizedStartupShell = (startupShell == null ? void 0 : startupShell.trim()) ?? "";
+    const normalizedStartupShell = startupShell?.trim() ?? "";
     if (!["", "system", "pwsh", "powershell", "cmd", "custom"].includes(normalizedStartupShell)) {
       return null;
     }
-    if (normalizedStartupShell === "custom" && !(customShellPath == null ? void 0 : customShellPath.trim())) {
+    if (normalizedStartupShell === "custom" && !customShellPath?.trim()) {
       return null;
     }
     return {
@@ -1365,7 +1245,7 @@ function saveTerminalConfig(app2, env, config) {
   import_node_fs2.default.writeFileSync(configPath, JSON.stringify(config, null, 2));
 }
 function resolveTerminalCwd(cwd, env = import_node_process.default.env, currentDirectory = import_node_process.default.cwd) {
-  const trimmed = cwd == null ? void 0 : cwd.trim();
+  const trimmed = cwd?.trim();
   const resolved = trimmed || env.CLAUDE_CONFIG_DIR || env.HOME || env.USERPROFILE || currentDirectory();
   let isDirectory = false;
   try {
@@ -1518,29 +1398,15 @@ function prepareNodePtyRuntime(sourceDir, cacheDir) {
   preparedNodePtyDirs.add(cacheDir);
   return cacheDir;
 }
-async function loadNodePtyFactory(sourceDir, cacheDir) {
-  try {
-    if (sourceDir && cacheDir) {
-      const moduleDir = prepareNodePtyRuntime(sourceDir, cacheDir);
-      const requireFromNodePty = (0, import_node_module.createRequire)(import_node_path2.default.join(moduleDir, "package.json"));
-      return requireFromNodePty(moduleDir);
-    }
-    return await import("node-pty");
-  } catch (error) {
-    if (isLegacyWindows(import_node_process.default.platform)) return createPipePtyFactory();
-    throw error;
-  }
-}
-function isLegacyWindows(platform) {
+function isLegacyWindows(platform = import_node_process.default.platform, release = import_node_os2.default.release()) {
   if (platform !== "win32") return false;
-  const [major = -1] = import_node_os2.default.release().split(".").map(Number);
+  const [major = -1] = release.split(".").map(Number);
   return !Number.isFinite(major) || major < 10;
 }
 var PIPE_PTY_NOTICE = "[terminal] node-pty unavailable on this Windows version - using pipe fallback (no full TTY emulation)\r\n";
 function createPipePtyFactory() {
   return {
     spawn(shell, args, options) {
-      var _a, _b, _c, _d;
       const child = (0, import_node_child_process2.spawn)(shell, args, {
         cwd: options.cwd,
         env: options.env,
@@ -1554,39 +1420,38 @@ function createPipePtyFactory() {
         const data = typeof chunk === "string" ? chunk : chunk.toString("utf8");
         for (const listener of dataListeners) listener(data);
       };
-      (_a = child.stdout) == null ? void 0 : _a.setEncoding("utf8");
-      (_b = child.stdout) == null ? void 0 : _b.on("data", emit);
-      (_c = child.stderr) == null ? void 0 : _c.setEncoding("utf8");
-      (_d = child.stderr) == null ? void 0 : _d.on("data", emit);
+      child.stdout?.setEncoding("utf8");
+      child.stdout?.on("data", emit);
+      child.stderr?.setEncoding("utf8");
+      child.stderr?.on("data", emit);
       child.on("exit", (code, signal) => {
         if (settled) return;
         settled = true;
-        exitHandler == null ? void 0 : exitHandler({ exitCode: code ?? 1, signal });
+        exitHandler?.({ exitCode: code ?? 1, signal });
       });
       child.on("error", () => {
         if (settled) return;
         settled = true;
-        exitHandler == null ? void 0 : exitHandler({ exitCode: 1 });
+        exitHandler?.({ exitCode: 1 });
       });
       queueMicrotask(() => emit(PIPE_PTY_NOTICE));
       return {
         pid: child.pid,
         process: child.spawnfile,
         write(data) {
-          var _a2;
-          (_a2 = child.stdin) == null ? void 0 : _a2.write(data);
+          child.stdin?.write(data);
         },
         resize() {
         },
         kill() {
-          if (child.pid) {
-            (0, import_tree_kill.default)(child.pid, "SIGKILL", () => {
-              try {
-                child.kill();
-              } catch {
-              }
-            });
-            return;
+          if (child.pid && import_node_process.default.platform === "win32") {
+            try {
+              (0, import_node_child_process2.spawn)("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
+                windowsHide: true,
+                stdio: "ignore"
+              });
+            } catch {
+            }
           }
           try {
             child.kill();
@@ -1599,14 +1464,30 @@ function createPipePtyFactory() {
         },
         onExit(handler) {
           exitHandler = handler;
-          return child;
         }
       };
     }
   };
 }
-async function resolvePtyFactory(factory, nodePtySourceDir, nodePtyCacheDir) {
-  if (!factory) return loadNodePtyFactory(nodePtySourceDir, nodePtyCacheDir);
+async function loadNodePtyFactory(sourceDir, cacheDir, platform = import_node_process.default.platform, release = import_node_os2.default.release()) {
+  try {
+    if (sourceDir && cacheDir) {
+      const moduleDir = prepareNodePtyRuntime(sourceDir, cacheDir);
+      const requireFromNodePty = (0, import_node_module.createRequire)(import_node_path2.default.join(moduleDir, "package.json"));
+      return requireFromNodePty(moduleDir);
+    }
+    if (sourceDir) {
+      const requireFromSource = (0, import_node_module.createRequire)(import_node_path2.default.join(sourceDir, "package.json"));
+      return requireFromSource(sourceDir);
+    }
+    return await import("node-pty");
+  } catch (error) {
+    if (isLegacyWindows(platform, release)) return createPipePtyFactory();
+    throw error;
+  }
+}
+async function resolvePtyFactory(factory, nodePtySourceDir, nodePtyCacheDir, platform = import_node_process.default.platform, release = import_node_os2.default.release()) {
+  if (!factory) return loadNodePtyFactory(nodePtySourceDir, nodePtyCacheDir, platform, release);
   if (typeof factory === "function") return factory();
   return factory;
 }
@@ -1614,6 +1495,7 @@ var ElectronTerminalService = class {
   app;
   env;
   platform;
+  osRelease;
   ptyFactory;
   nodePtySourceDir;
   nodePtyCacheDir;
@@ -1626,6 +1508,7 @@ var ElectronTerminalService = class {
     this.app = options.app;
     this.env = options.env ?? import_node_process.default.env;
     this.platform = options.platform ?? import_node_process.default.platform;
+    this.osRelease = options.osRelease ?? import_node_os2.default.release;
     this.ptyFactory = options.ptyFactory;
     this.nodePtySourceDir = options.nodePtySourceDir;
     this.nodePtyCacheDir = options.nodePtyCacheDir;
@@ -1679,7 +1562,7 @@ var ElectronTerminalService = class {
       rendererDestroyed = true;
       if (sessionId === null || !pty) return;
       const active = this.sessions.get(sessionId);
-      if ((active == null ? void 0 : active.pty) !== pty) return;
+      if (active?.pty !== pty) return;
       this.sessions.delete(sessionId);
       this.detachOwnerListener(active);
       disposePty();
@@ -1690,7 +1573,14 @@ var ElectronTerminalService = class {
     webContents.once("destroyed", onOwnerDestroyed);
     webContents.on("did-navigate", onOwnerNavigated);
     try {
-      const ptyFactory = await resolvePtyFactory(this.ptyFactory, this.nodePtySourceDir, this.nodePtyCacheDir);
+      const legacyWindows = isLegacyWindows(this.platform, this.osRelease());
+      const ptyFactory = await resolvePtyFactory(
+        this.ptyFactory,
+        this.nodePtySourceDir,
+        this.nodePtyCacheDir,
+        this.platform,
+        this.osRelease()
+      );
       if (rendererDestroyed || webContents.isDestroyed()) {
         throw new Error("terminal renderer is destroyed");
       }
@@ -1706,16 +1596,13 @@ var ElectronTerminalService = class {
           COLORTERM: "truecolor"
         }
       };
-      if (isLegacyWindows(this.platform)) {
-        // ConPTY is a Win10 1809+ OS feature: force the winpty backend that
-        // node-pty 1.1.0 still ships (prebuilds/win32-x64 winpty-agent.exe +
-        // N-API pty.node) for full TTY emulation on Win7/8.
+      if (legacyWindows) {
         ptySpawnOptions.useConpty = false;
       }
       try {
         pty = ptyFactory.spawn(shell, [], ptySpawnOptions);
       } catch (error) {
-        if (!isLegacyWindows(this.platform)) throw error;
+        if (!legacyWindows) throw error;
         pty = createPipePtyFactory().spawn(shell, [], ptySpawnOptions);
       }
       if (rendererDestroyed || webContents.isDestroyed()) {
@@ -1731,8 +1618,7 @@ var ElectronTerminalService = class {
         onOwnerNavigated
       });
       activePty.onData((data) => {
-        var _a;
-        if (((_a = this.sessions.get(activeSessionId)) == null ? void 0 : _a.pty) !== activePty) return;
+        if (this.sessions.get(activeSessionId)?.pty !== activePty) return;
         sendTerminalEvent(webContents, ELECTRON_EVENT_CHANNELS.terminalOutput, {
           session_id: activeSessionId,
           data
@@ -1815,18 +1701,43 @@ var ElectronTerminalService = class {
   }
 };
 
-// electron/services/systemProxyBridge.ts
+// desktop/electron/services/systemProxyBridge.ts
 var import_node_http2 = __toESM(require("node:http"), 1);
 var import_node_https = __toESM(require("node:https"), 1);
 var import_node_net2 = __toESM(require("node:net"), 1);
 var import_node_tls = __toESM(require("node:tls"), 1);
 var import_promises = require("node:dns/promises");
 var import_promises2 = require("node:stream/promises");
+
+// desktop/electron/services/intranetMode.ts
+var import_node_fs3 = require("node:fs");
+var import_node_os3 = require("node:os");
+var import_node_path3 = __toESM(require("node:path"), 1);
+function intranetModeSettingsPath(env = process.env, homeDir = (0, import_node_os3.homedir)()) {
+  const configDir = env.CLAUDE_CONFIG_DIR || import_node_path3.default.join(homeDir, ".claude");
+  return import_node_path3.default.join(configDir, "settings.json");
+}
+function isIntranetModeEnabled(env = process.env, homeDir = (0, import_node_os3.homedir)()) {
+  let raw;
+  try {
+    raw = (0, import_node_fs3.readFileSync)(intranetModeSettingsPath(env, homeDir), "utf8");
+  } catch {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed?.intranetMode === true;
+  } catch {
+    return false;
+  }
+}
+
+// desktop/electron/services/systemProxyBridge.ts
 var SYSTEM_PROXY_BRIDGE_HOST = "127.0.0.1";
 var CONNECT_TIMEOUT_MS = 1e4;
 var MAX_BUFFERED_REQUEST_BYTES = 32 * 1024 * 1024;
 function parseSystemProxyRules(rules) {
-  if (!(rules == null ? void 0 : rules.trim())) return [{ type: "direct" }];
+  if (!rules?.trim()) return [{ type: "direct" }];
   const parsed = [];
   for (const rawRule of rules.split(";")) {
     const rule = rawRule.trim();
@@ -1880,9 +1791,14 @@ async function __intranetTargetAllowed(hostname) {
   }
 }
 var SystemProxyBridge = class {
-  constructor(resolveSystemProxy) {
+  constructor(resolveSystemProxy, isIntranetMode = isIntranetModeEnabled, resolveHostname = lookupAllAddresses) {
     this.resolveSystemProxy = resolveSystemProxy;
+    this.isIntranetMode = isIntranetMode;
+    this.resolveHostname = resolveHostname;
   }
+  resolveSystemProxy;
+  isIntranetMode;
+  resolveHostname;
   server = null;
   startPromise = null;
   lifecycleGeneration = 0;
@@ -1902,11 +1818,11 @@ var SystemProxyBridge = class {
     this.server = null;
     for (const socket of this.clientSockets) socket.destroy();
     for (const socket of this.outboundSockets) socket.destroy();
-    if (server == null ? void 0 : server.listening) server.closeAllConnections();
-    const closing = (server == null ? void 0 : server.listening) ? new Promise((resolve) => server.close(() => resolve())) : Promise.resolve();
+    if (server?.listening) server.closeAllConnections();
+    const closing = server?.listening ? new Promise((resolve) => server.close(() => resolve())) : Promise.resolve();
     await closing;
-    await (startPromise == null ? void 0 : startPromise.catch(() => {
-    }));
+    await startPromise?.catch(() => {
+    });
   }
   async startOnce(generation) {
     const server = import_node_http2.default.createServer((request, response) => {
@@ -1999,7 +1915,7 @@ var SystemProxyBridge = class {
     const isClientUnavailable = () => clientUnavailable || clientSocket.destroyed || !clientSocket.writable || clientSocket.writableEnded || clientSocket.writableFinished;
     const closeRoute = () => {
       clientUnavailable = true;
-      routeSocket == null ? void 0 : routeSocket.destroy();
+      routeSocket?.destroy();
       clientSocket.destroy();
     };
     clientSocket.on("error", closeRoute);
@@ -2054,6 +1970,10 @@ ${error instanceof Error ? error.message : String(error)}`);
     socket.once("close", () => this.outboundSockets.delete(socket));
   }
 };
+async function lookupAllAddresses(hostname) {
+  const results = await (0, import_promises.lookup)(hostname, { all: true });
+  return results.map((result) => result.address);
+}
 function resolveHttpTarget(request) {
   const rawUrl = request.url ?? "";
   if (/^https?:\/\//i.test(rawUrl)) return new URL(rawUrl);
@@ -2166,7 +2086,7 @@ async function selectReachableRule(rules, target) {
       socket.destroy();
       return rule;
     } catch (error) {
-      socket == null ? void 0 : socket.destroy();
+      socket?.destroy();
       errors.push(`${rule.type}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -2198,6 +2118,7 @@ var SingleSocketAgent = class extends import_node_http2.default.Agent {
     super({ keepAlive: false });
     this.socket = socket;
   }
+  socket;
   claimed = false;
   createConnection() {
     if (this.claimed) throw new Error("System proxy route socket was already claimed");
@@ -2238,7 +2159,6 @@ async function connectTunnelUsingRules(rules, targetHost, targetPortNumber) {
   throw new Error(`No system proxy route succeeded (${errors.join("; ")})`);
 }
 async function establishHttpProxyTunnel(endpoint, secure, targetHost, targetPortNumber) {
-  var _a;
   const socket = await connectProxyEndpoint(endpoint, secure);
   try {
     const authority = formatAuthority(targetHost, targetPortNumber);
@@ -2251,7 +2171,7 @@ Proxy-Connection: keep-alive\r
     );
     const header = await readUntil(socket, Buffer.from("\r\n\r\n"), 64 * 1024);
     const statusLine = header.toString("latin1").split("\r\n", 1)[0] ?? "";
-    const status = Number((_a = statusLine.match(/^HTTP\/\d(?:\.\d)?\s+(\d{3})\b/i)) == null ? void 0 : _a[1]);
+    const status = Number(statusLine.match(/^HTTP\/\d(?:\.\d)?\s+(\d{3})\b/i)?.[1]);
     if (status === 407) {
       throw new ProxyAuthenticationRequiredError("HTTP proxy requires authentication");
     }
@@ -2425,16 +2345,24 @@ function formatAuthority(host, port) {
 var ProxyAuthenticationRequiredError = class extends Error {
 };
 
-// electron/services/serverRuntime.ts
+// desktop/electron/services/serverRuntime.ts
 var DEFAULT_SERVER_RUNTIME_DEPS = {
   appendHostDiagnostic,
+  now: Date.now,
   preferredServerPorts,
   reserveServerPort,
+  sleep: (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)),
   spawnSidecar,
   waitForServer,
   writeLastServerPort,
   createSystemProxyBridge: (resolveSystemProxy) => new SystemProxyBridge(resolveSystemProxy)
 };
+var AUTOMATIC_RESTART_LIMIT = 3;
+var AUTOMATIC_RESTART_STABLE_MS = 6e4;
+var AUTOMATIC_RESTART_COOLDOWN_MS = 6e4;
+var AUTOMATIC_RESTART_BACKOFF_MS = [0, 250, 1e3];
+var SERVER_SHUTDOWN_TIMEOUT_MS = 15e3;
+var SERVER_FORCE_EXIT_TIMEOUT_MS = 500;
 function createServerStartState(child) {
   let failure = null;
   let rejectFailure;
@@ -2472,6 +2400,9 @@ var ElectronServerRuntime = class {
   adapters = [];
   startupError = null;
   restartAfterExit = false;
+  automaticRestartAttempts = 0;
+  restartBlockedUntil = 0;
+  restartNotBefore = 0;
   startPromise = null;
   lifecycleGeneration = 0;
   startingServer = null;
@@ -2479,7 +2410,7 @@ var ElectronServerRuntime = class {
   constructor(options) {
     this.desktopRoot = options.desktopRoot;
     this.appRoot = options.appRoot ?? options.desktopRoot;
-    this.h5DistDir = options.h5DistDir ?? import_node_path3.default.join(options.desktopRoot, "dist");
+    this.h5DistDir = options.h5DistDir ?? import_node_path4.default.join(options.desktopRoot, "dist");
     this.diagnosticsFile = options.diagnosticsFile;
     this.baseEnv = options.env ?? process.env;
     this.deps = { ...DEFAULT_SERVER_RUNTIME_DEPS, ...options.deps };
@@ -2488,9 +2419,11 @@ var ElectronServerRuntime = class {
   async startServer() {
     if (this.server) return this.server.url;
     if (this.startPromise) return this.startPromise;
+    this.assertRestartCircuitAllowsStart();
     this.restartAfterExit = false;
     const generation = this.lifecycleGeneration;
-    this.startPromise = this.startServerOnce(generation);
+    const restartDelayMs = Math.max(0, this.restartNotBefore - this.deps.now());
+    this.startPromise = this.startServerAfterDelay(generation, restartDelayMs);
     try {
       return await this.startPromise;
     } finally {
@@ -2500,6 +2433,7 @@ var ElectronServerRuntime = class {
   async getServerUrl() {
     if (this.server) return this.server.url;
     if (this.startPromise) return await this.startServer();
+    this.assertRestartCircuitAllowsStart();
     if (this.startupError && !this.restartAfterExit) throw new Error(this.startupError);
     return await this.startServer();
   }
@@ -2510,8 +2444,7 @@ var ElectronServerRuntime = class {
     return this.petAccessToken;
   }
   getActiveServerUrl() {
-    var _a;
-    return ((_a = this.server) == null ? void 0 : _a.url) ?? null;
+    return this.server?.url ?? null;
   }
   restartAdaptersSidecars() {
     if (this.adapterRestartPromise) return this.adapterRestartPromise;
@@ -2530,13 +2463,13 @@ var ElectronServerRuntime = class {
     await this.startAdaptersSidecars(serverUrl, void 0, server);
   }
   stopAll(sync = false) {
-    var _a;
     ++this.lifecycleGeneration;
+    this.restartNotBefore = 0;
     const starting = this.startingServer;
     if (starting) {
       this.startingServer = null;
       this.stopAdaptersForStart(starting, sync);
-      if (((_a = this.server) == null ? void 0 : _a.child) === starting.child) this.server = null;
+      if (this.server?.child === starting.child) this.server = null;
       starting.fail(new Error("server startup stopped"));
       if (!starting.childStopped) {
         starting.childStopped = true;
@@ -2550,8 +2483,33 @@ var ElectronServerRuntime = class {
     }
     this.stopSystemProxyBridge();
   }
+  async stopAllAndWait(timeoutMs = SERVER_SHUTDOWN_TIMEOUT_MS) {
+    const serverChildren = /* @__PURE__ */ new Set();
+    if (this.startingServer) serverChildren.add(this.startingServer.child);
+    if (this.server) serverChildren.add(this.server.child);
+    const exitWaits = new Map(
+      [...serverChildren].map((child) => [child, waitForSidecarExit(child, timeoutMs)])
+    );
+    this.stopAll(process.platform === "win32");
+    const results = await Promise.all(
+      [...exitWaits].map(async ([child, exited]) => ({ child, exited: await exited }))
+    );
+    const stillRunning = results.filter((result) => !result.exited).map((result) => result.child);
+    if (stillRunning.length === 0) return;
+    for (const child of stillRunning) {
+      if (process.platform === "win32") killSidecar(child, true);
+      else child.kill("SIGKILL");
+    }
+    await Promise.all(
+      stillRunning.map((child) => waitForSidecarExit(child, SERVER_FORCE_EXIT_TIMEOUT_MS))
+    );
+  }
+  async startServerAfterDelay(generation, delayMs) {
+    if (delayMs > 0) await this.deps.sleep(delayMs);
+    this.assertCurrentGeneration(generation);
+    return await this.startServerOnce(generation);
+  }
   async startServerOnce(generation) {
-    var _a;
     const port = await this.deps.reserveServerPort(
       SERVER_BIND_HOST,
       this.deps.preferredServerPorts(this.baseEnv)
@@ -2583,7 +2541,12 @@ var ElectronServerRuntime = class {
       ]);
       if (startState.failure) throw startState.failure;
       this.deps.writeLastServerPort(port, this.baseEnv);
-      this.server = { url, child, adapterChildren: startState.adapterChildren };
+      this.server = {
+        url,
+        child,
+        adapterChildren: startState.adapterChildren,
+        startedAt: this.deps.now()
+      };
       const activeServer = this.server;
       this.startupError = null;
       this.stopAdaptersSidecars();
@@ -2596,13 +2559,13 @@ var ElectronServerRuntime = class {
     } catch (error) {
       if (startState) {
         this.stopAdaptersForStart(startState);
-        if (((_a = this.server) == null ? void 0 : _a.child) === startState.child) this.server = null;
+        if (this.server?.child === startState.child) this.server = null;
         if (!startState.childStopped) {
           startState.childStopped = true;
           killSidecar(startState.child);
         }
       }
-      if (startState == null ? void 0 : startState.failure) {
+      if (startState?.failure) {
         throw new Error(this.startupError ?? startState.failure.message);
       }
       const message = error instanceof Error ? error.message : String(error);
@@ -2621,18 +2584,21 @@ var ElectronServerRuntime = class {
     const bridgeUrl = baseEnv.CC_HAHA_SYSTEM_PROXY_URL;
     const env = bridgeUrl ? withAdapterProxyBridgeEnv(baseEnv, bridgeUrl) : baseEnv;
     const isCurrentGeneration = () => {
-      if (startState == null ? void 0 : startState.failure) return false;
+      if (startState?.failure) return false;
       if (activeServer && this.server !== activeServer) return false;
       return true;
     };
     if (!isCurrentGeneration()) return;
-    const ownedAdapters = (startState == null ? void 0 : startState.adapterChildren) ?? (activeServer == null ? void 0 : activeServer.adapterChildren);
+    const ownedAdapters = startState?.adapterChildren ?? activeServer?.adapterChildren;
     for (const [label, flag] of [
       ["feishu", "--feishu"],
       ["telegram", "--telegram"],
       ["wechat", "--wechat"],
       ["dingtalk", "--dingtalk"],
-      ["whatsapp", "--whatsapp"]
+      ["whatsapp", "--whatsapp"],
+      ["wecom", "--wecom"],
+      ["qq", "--qq"],
+      ["slack", "--slack"]
     ]) {
       if (!isCurrentGeneration()) break;
       try {
@@ -2650,17 +2616,16 @@ var ElectronServerRuntime = class {
         }
         this.captureLogs(child, `claude-adapters:${label}`);
         this.adapters.push(child);
-        ownedAdapters == null ? void 0 : ownedAdapters.push(child);
+        ownedAdapters?.push(child);
       } catch (error) {
         console.error(`[desktop] failed to start ${label} adapter sidecar`, error);
       }
     }
   }
   stopAdaptersSidecars(sync = false) {
-    var _a, _b;
     const children = this.adapters.splice(0);
-    this.removeOwnedAdapters((_a = this.server) == null ? void 0 : _a.adapterChildren, children);
-    this.removeOwnedAdapters((_b = this.startingServer) == null ? void 0 : _b.adapterChildren, children);
+    this.removeOwnedAdapters(this.server?.adapterChildren, children);
+    this.removeOwnedAdapters(this.startingServer?.adapterChildren, children);
     for (const child of children) {
       killSidecar(child, sync);
     }
@@ -2678,7 +2643,7 @@ var ElectronServerRuntime = class {
     };
   }
   removeOwnedAdapters(owned, removed) {
-    if (!(owned == null ? void 0 : owned.length) || !removed.length) return;
+    if (!owned?.length || !removed.length) return;
     const removedSet = new Set(removed);
     const retained = owned.filter((child) => !removedSet.has(child));
     owned.splice(0, owned.length, ...retained);
@@ -2706,7 +2671,7 @@ var ElectronServerRuntime = class {
       console.log(`[${label}] ${line}`);
       this.deps.appendHostDiagnostic(this.diagnosticsFile, `[${label}] [exit] ${line}`);
       if (startupLogs) pushStartupLog(startupLogs, `[exit] ${line}`);
-      onExit == null ? void 0 : onExit(code, signal);
+      onExit?.(code, signal);
     });
     child.on("error", (error) => {
       const message = error instanceof Error ? error.message : String(error);
@@ -2714,7 +2679,7 @@ var ElectronServerRuntime = class {
       console.error(`[${label}] ${sanitizeHostDiagnostic(line)}`);
       this.deps.appendHostDiagnostic(this.diagnosticsFile, `[${label}] [process-error] ${line}`);
       if (startupLogs) pushStartupLog(startupLogs, `[process-error] ${line}`);
-      onError == null ? void 0 : onError(error instanceof Error ? error : new Error(message));
+      onError?.(error instanceof Error ? error : new Error(message));
     });
   }
   handleServerExit(child, code, signal, logs) {
@@ -2732,10 +2697,10 @@ var ElectronServerRuntime = class {
     );
   }
   handleServerFailure(child, message, logs) {
-    var _a, _b, _c;
-    const active = ((_a = this.server) == null ? void 0 : _a.child) === child;
-    const starting = ((_b = this.startingServer) == null ? void 0 : _b.child) === child;
+    const active = this.server?.child === child;
+    const starting = this.startingServer?.child === child;
     if (!active && !starting) return;
+    const failedServer = active ? this.server : null;
     if (active) {
       const adapterChildren = this.server.adapterChildren;
       this.server = null;
@@ -2743,7 +2708,49 @@ var ElectronServerRuntime = class {
     }
     this.restartAfterExit = true;
     this.startupError = formatStartupError(message, logs);
-    if (starting) (_c = this.startingServer) == null ? void 0 : _c.fail(new Error(message));
+    if (starting) this.startingServer?.fail(new Error(message));
+    if (failedServer && !starting) {
+      const now = this.deps.now();
+      if (now - failedServer.startedAt >= AUTOMATIC_RESTART_STABLE_MS) {
+        this.automaticRestartAttempts = 0;
+      }
+      if (this.automaticRestartAttempts >= AUTOMATIC_RESTART_LIMIT) {
+        this.openAutomaticRestartCircuit(message, logs, now);
+        return;
+      }
+      const attempt = ++this.automaticRestartAttempts;
+      const backoffMs = AUTOMATIC_RESTART_BACKOFF_MS[attempt - 1] ?? 0;
+      this.restartNotBefore = now + backoffMs;
+      const restartGeneration = this.lifecycleGeneration;
+      void this.startServer().catch((error) => {
+        if (this.lifecycleGeneration === restartGeneration) {
+          this.restartAfterExit = true;
+        }
+        const detail = sanitizeHostDiagnostic(error instanceof Error ? error.message : String(error));
+        console.error(`[desktop] failed to restart server sidecar after exit: ${detail}`);
+      });
+    }
+  }
+  openAutomaticRestartCircuit(message, logs, now) {
+    this.restartAfterExit = false;
+    this.restartNotBefore = 0;
+    this.restartBlockedUntil = now + AUTOMATIC_RESTART_COOLDOWN_MS;
+    const circuitMessage = `automatic restart paused after ${AUTOMATIC_RESTART_LIMIT} consecutive crashes; retry in ${AUTOMATIC_RESTART_COOLDOWN_MS / 1e3} seconds`;
+    this.startupError = formatStartupError(`${message}; ${circuitMessage}`, logs);
+    this.deps.appendHostDiagnostic(
+      this.diagnosticsFile,
+      `[claude-server] [restart-circuit-open] ${circuitMessage}`
+    );
+    console.error(`[desktop] ${circuitMessage}`);
+  }
+  assertRestartCircuitAllowsStart() {
+    if (this.restartBlockedUntil === 0) return;
+    if (this.deps.now() < this.restartBlockedUntil) {
+      throw new Error(this.startupError ?? "automatic restart paused");
+    }
+    this.restartBlockedUntil = 0;
+    this.automaticRestartAttempts = 0;
+    this.restartAfterExit = true;
   }
   stopAdapterChildren(children, sync = false) {
     for (const child of children.splice(0)) {
@@ -2799,8 +2806,27 @@ var ElectronServerRuntime = class {
     return env;
   }
 };
+function waitForSidecarExit(child, timeoutMs) {
+  if (child.exitCode != null || child.signalCode != null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (exited) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      child.removeListener("error", onError);
+      resolve(exited);
+    };
+    const onExit = () => finish(true);
+    const onError = () => finish(child.exitCode != null || child.signalCode != null);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    child.once("exit", onExit);
+    child.once("error", onError);
+  });
+}
 
-// electron/services/dialogs.ts
+// desktop/electron/services/dialogs.ts
 function toElectronOpenDialogOptions(options = {}) {
   return {
     properties: [
@@ -2824,7 +2850,7 @@ async function openDialog(parentWindow, options) {
   const dialogOptions = toElectronOpenDialogOptions(options);
   const result = parentWindow ? await dialog2.showOpenDialog(parentWindow, dialogOptions) : await dialog2.showOpenDialog(dialogOptions);
   if (result.canceled) return null;
-  return (options == null ? void 0 : options.multiple) ? result.filePaths : result.filePaths[0] ?? null;
+  return options?.multiple ? result.filePaths : result.filePaths[0] ?? null;
 }
 async function saveDialog(parentWindow, options) {
   const { dialog: dialog2 } = await import("electron");
@@ -2833,10 +2859,10 @@ async function saveDialog(parentWindow, options) {
   return result.canceled ? null : result.filePath ?? null;
 }
 
-// electron/services/shell.ts
-var import_node_fs3 = require("node:fs");
-var import_node_os3 = require("node:os");
-var import_node_path4 = __toESM(require("node:path"), 1);
+// desktop/electron/services/shell.ts
+var import_node_fs4 = require("node:fs");
+var import_node_os4 = require("node:os");
+var import_node_path5 = __toESM(require("node:path"), 1);
 var import_node_url = require("node:url");
 var ALLOWED_EXTERNAL_PROTOCOLS = /* @__PURE__ */ new Set(["http:", "https:", "mailto:"]);
 var ALLOWED_SYSTEM_SETTINGS_URLS = /* @__PURE__ */ new Set([
@@ -2868,7 +2894,7 @@ function normalizeExternalUrl(target) {
 }
 function expandTildePath(target, platform = process.platform) {
   if (target === "~" || target.startsWith("~/") || platform === "win32" && target.startsWith("~\\")) {
-    return (0, import_node_os3.homedir)() + target.slice(1);
+    return (0, import_node_os4.homedir)() + target.slice(1);
   }
   return target;
 }
@@ -2876,11 +2902,11 @@ function normalizeOpenPath(target) {
   const filePath = expandTildePath(
     target.startsWith("file://") ? (0, import_node_url.fileURLToPath)(target) : target
   );
-  if (!import_node_path4.default.isAbsolute(filePath)) {
+  if (!import_node_path5.default.isAbsolute(filePath)) {
     throw new Error("System file paths must be absolute");
   }
-  const realPath = (0, import_node_fs3.realpathSync)(filePath);
-  const stat = (0, import_node_fs3.statSync)(realPath);
+  const realPath = (0, import_node_fs4.realpathSync)(filePath);
+  const stat = (0, import_node_fs4.statSync)(realPath);
   if (!stat.isFile() && !stat.isDirectory()) {
     throw new Error("System file paths must point to a file or directory");
   }
@@ -2890,33 +2916,18 @@ function normalizeOpenPath(target) {
   return realPath;
 }
 function isBlockedExecutablePath(realPath, isDirectory) {
-  const ext = import_node_path4.default.extname(realPath).toLowerCase();
+  const ext = import_node_path5.default.extname(realPath).toLowerCase();
   if (BLOCKED_EXECUTABLE_EXTENSIONS.has(ext)) return true;
   if (isDirectory) return false;
   if (process.platform === "win32") return false;
-  return ((0, import_node_fs3.statSync)(realPath).mode & 73) !== 0;
-}
-// electron/services/intranetMode.ts (patch 013 — uncached policy read)
-function isIntranetModeEnabled(env = process.env, homeDir = import_node_os.default.homedir()) {
-  let raw;
-  try {
-    raw = import_node_fs3.readFileSync(import_node_path4.default.join(claudeConfigDir(env, homeDir), "settings.json"), "utf-8");
-  } catch {
-    return false;
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed?.intranetMode === true;
-  } catch {
-    return false;
-  }
+  return ((0, import_node_fs4.statSync)(realPath).mode & 73) !== 0;
 }
 async function openExternalUrl(target) {
-  const { shell } = await import("electron");
   const url = normalizeExternalUrl(target);
   if (isIntranetModeEnabled() && (url.startsWith("http:") || url.startsWith("https:"))) {
     throw new Error("Intranet mode is enabled: external links are disabled (\u5185\u7F51\u6A21\u5F0F\u5DF2\u7981\u7528\u5916\u94FE)");
   }
+  const { shell } = await import("electron");
   await shell.openExternal(url);
 }
 function normalizeSystemSettingsUrl(target) {
@@ -2936,7 +2947,7 @@ async function openSystemPath(target) {
   if (error) throw new Error(error);
 }
 
-// electron/services/notifications.ts
+// desktop/electron/services/notifications.ts
 var activeNotifications = /* @__PURE__ */ new Set();
 function validateNotificationOptions(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -2978,20 +2989,20 @@ function sendDesktopNotification({
     cleanup();
   });
   notification.on("close", () => {
-    onLifecycle == null ? void 0 : onLifecycle("close");
+    onLifecycle?.("close");
     cleanup();
   });
   notification.on("failed", () => {
-    onLifecycle == null ? void 0 : onLifecycle("failed");
+    onLifecycle?.("failed");
     cleanup();
   });
   notification.show();
   return true;
 }
 
-// electron/services/windows.ts
-var import_node_fs4 = require("node:fs");
-var import_node_path5 = __toESM(require("node:path"), 1);
+// desktop/electron/services/windows.ts
+var import_node_fs5 = require("node:fs");
+var import_node_path6 = __toESM(require("node:path"), 1);
 var WINDOW_STATE_FILE = "window-state.json";
 var DEFAULT_WINDOW_WIDTH = 1280;
 var DEFAULT_WINDOW_HEIGHT = 820;
@@ -3000,7 +3011,7 @@ var MIN_WINDOW_HEIGHT = 640;
 var MIN_VISIBLE_PIXELS = 80;
 var failedWindowStateWritePaths = /* @__PURE__ */ new Set();
 function windowStatePath(app2, env = process.env) {
-  return import_node_path5.default.join(env.CLAUDE_CONFIG_DIR || import_node_path5.default.join(app2.getPath("home"), ".claude"), WINDOW_STATE_FILE);
+  return import_node_path6.default.join(env.CLAUDE_CONFIG_DIR || import_node_path6.default.join(app2.getPath("home"), ".claude"), WINDOW_STATE_FILE);
 }
 function isPersistableWindowState(state) {
   return Number.isFinite(state.x) && Number.isFinite(state.y) && state.width >= MIN_WINDOW_WIDTH && state.height >= MIN_WINDOW_HEIGHT;
@@ -3037,13 +3048,13 @@ function clampWindowStateToVisibleWorkArea(state, displays) {
 }
 function readWindowState(app2, displays, env = process.env, platform = process.platform) {
   let statePath = windowStatePath(app2, env);
-  if (!(0, import_node_fs4.existsSync)(statePath) && !env.CLAUDE_CONFIG_DIR) {
-    const legacyStatePath = import_node_path5.default.join(app2.getPath("userData"), WINDOW_STATE_FILE);
-    if ((0, import_node_fs4.existsSync)(legacyStatePath)) statePath = legacyStatePath;
+  if (!(0, import_node_fs5.existsSync)(statePath) && !env.CLAUDE_CONFIG_DIR) {
+    const legacyStatePath = import_node_path6.default.join(app2.getPath("userData"), WINDOW_STATE_FILE);
+    if ((0, import_node_fs5.existsSync)(legacyStatePath)) statePath = legacyStatePath;
   }
-  if (!(0, import_node_fs4.existsSync)(statePath)) return null;
+  if (!(0, import_node_fs5.existsSync)(statePath)) return null;
   try {
-    const parsed = JSON.parse((0, import_node_fs4.readFileSync)(statePath, "utf-8"));
+    const parsed = JSON.parse((0, import_node_fs5.readFileSync)(statePath, "utf-8"));
     if (!isPersistableWindowState(parsed)) return null;
     if (!isWindowStateVisibleOnAnyDisplay(parsed, displays)) return null;
     return platform === "darwin" ? clampWindowStateToVisibleWorkArea(parsed, displays) : parsed;
@@ -3056,8 +3067,8 @@ function writeWindowState(app2, state, env = process.env) {
   if (!isPersistableWindowState(state)) return;
   const statePath = windowStatePath(app2, env);
   try {
-    (0, import_node_fs4.mkdirSync)(import_node_path5.default.dirname(statePath), { recursive: true });
-    (0, import_node_fs4.writeFileSync)(statePath, `${JSON.stringify(state, null, 2)}
+    (0, import_node_fs5.mkdirSync)(import_node_path6.default.dirname(statePath), { recursive: true });
+    (0, import_node_fs5.writeFileSync)(statePath, `${JSON.stringify(state, null, 2)}
 `);
     failedWindowStateWritePaths.delete(statePath);
   } catch (error) {
@@ -3103,7 +3114,7 @@ function windowChromeOptionsForPlatform(platform = process.platform) {
   };
 }
 function restoreWindowMaximized(window, state) {
-  if (state == null ? void 0 : state.maximized) window.maximize();
+  if (state?.maximized) window.maximize();
 }
 function saveWindowState(app2, window) {
   const state = captureWindowState(window);
@@ -3113,18 +3124,18 @@ function hideWindowSafely(window, afterHide) {
   if (window.isSimpleFullScreen()) {
     window.setSimpleFullScreen(false);
     window.hide();
-    afterHide == null ? void 0 : afterHide();
+    afterHide?.();
     return;
   }
   if (!window.isFullScreen()) {
     window.hide();
-    afterHide == null ? void 0 : afterHide();
+    afterHide?.();
     return;
   }
   window.once("leave-full-screen", () => {
     if (!window.isDestroyed()) {
       window.hide();
-      afterHide == null ? void 0 : afterHide();
+      afterHide?.();
     }
   });
   window.setFullScreen(false);
@@ -3137,9 +3148,8 @@ function toggleWindowFullScreen(window, platform = process.platform) {
   window.setFullScreen(!window.isFullScreen());
 }
 function showMainWindow(window, app2) {
-  var _a;
   if (!window) return;
-  (_a = app2 == null ? void 0 : app2.show) == null ? void 0 : _a.call(app2);
+  app2?.show?.();
   if (!window.isVisible()) window.show();
   if (window.isMinimized()) window.restore();
   window.focus();
@@ -3171,7 +3181,7 @@ function installWindowLifecycle({
   window.on("resize", () => saveWindowState(app2, window));
 }
 
-// electron/services/menu.ts
+// desktop/electron/services/menu.ts
 function buildApplicationMenuTemplate(appName, onNavigate, platform = process.platform, actions = {}) {
   const appMenu = platform === "darwin" ? [{
     label: appName,
@@ -3182,10 +3192,7 @@ function buildApplicationMenuTemplate(appName, onNavigate, platform = process.pl
       { type: "separator" },
       { role: "services" },
       { type: "separator" },
-      { label: `Hide ${appName}`, accelerator: "Command+H", click: () => {
-        var _a;
-        return (_a = actions.hide) == null ? void 0 : _a.call(actions);
-      } },
+      { label: `Hide ${appName}`, accelerator: "Command+H", click: () => actions.hide?.() },
       { role: "hideOthers" },
       { role: "unhide" },
       { type: "separator" },
@@ -3219,10 +3226,7 @@ function buildApplicationMenuTemplate(appName, onNavigate, platform = process.pl
         {
           label: "Toggle Full Screen",
           accelerator: platform === "darwin" ? "Ctrl+Command+F" : "F11",
-          click: () => {
-            var _a;
-            return (_a = actions.toggleFullScreen) == null ? void 0 : _a.call(actions);
-          }
+          click: () => actions.toggleFullScreen?.()
         }
       ]
     },
@@ -3231,10 +3235,7 @@ function buildApplicationMenuTemplate(appName, onNavigate, platform = process.pl
       submenu: [
         { role: "minimize" },
         { role: "zoom" },
-        { label: "Close Window", accelerator: "CmdOrCtrl+W", click: () => {
-          var _a;
-          return (_a = actions.close) == null ? void 0 : _a.call(actions);
-        } }
+        { label: "Close Window", accelerator: "CmdOrCtrl+W", click: () => actions.close?.() }
       ]
     }
   ];
@@ -3272,24 +3273,18 @@ async function installApplicationMenu(app2, getMainWindow, platform = process.pl
     return;
   }
   const template = buildApplicationMenuTemplate(app2.name || "Claude Code Haha", (destination) => {
-    var _a;
-    (_a = getMainWindow()) == null ? void 0 : _a.webContents.send(ELECTRON_EVENT_CHANNELS.nativeMenuNavigate, destination);
+    getMainWindow()?.webContents.send(ELECTRON_EVENT_CHANNELS.nativeMenuNavigate, destination);
   }, platform, {
     hide: () => {
-      var _a;
       const window = getMainWindow();
       if (!window) {
-        (_a = app2.hide) == null ? void 0 : _a.call(app2);
+        app2.hide?.();
         return;
       }
-      hideWindowSafely(window, () => {
-        var _a2;
-        return (_a2 = app2.hide) == null ? void 0 : _a2.call(app2);
-      });
+      hideWindowSafely(window, () => app2.hide?.());
     },
     close: () => {
-      var _a;
-      (_a = getMainWindow()) == null ? void 0 : _a.close();
+      getMainWindow()?.close();
     },
     toggleFullScreen: () => {
       const window = getMainWindow();
@@ -3299,7 +3294,7 @@ async function installApplicationMenu(app2, getMainWindow, platform = process.pl
   Menu2.setApplicationMenu(Menu2.buildFromTemplate(template));
 }
 
-// electron/services/singleInstance.ts
+// desktop/electron/services/singleInstance.ts
 function acquireSingleInstanceLock(app2, getMainWindow, env = process.env) {
   if (env.CC_HAHA_ELECTRON_DISABLE_SINGLE_INSTANCE_LOCK === "1") {
     return true;
@@ -3315,16 +3310,98 @@ function acquireSingleInstanceLock(app2, getMainWindow, env = process.env) {
   return true;
 }
 
-// electron/services/tray.ts
-var import_node_fs5 = require("node:fs");
-var import_node_path6 = __toESM(require("node:path"), 1);
+// desktop/electron/services/tray.ts
+var import_node_fs7 = require("node:fs");
+var import_node_path8 = __toESM(require("node:path"), 1);
+
+// desktop/electron/services/localePreference.ts
+var import_node_crypto4 = require("node:crypto");
+var import_node_fs6 = __toESM(require("node:fs"), 1);
+var import_node_path7 = __toESM(require("node:path"), 1);
+
+// desktop/src/i18n/locale.ts
+var VALID_LOCALES = ["en", "zh", "zh-TW", "jp", "kr"];
+function isLocale(value) {
+  return typeof value === "string" && VALID_LOCALES.includes(value);
+}
+
+// desktop/electron/services/localePreference.ts
+var LOCALE_PREFERENCE_FILE = "locale-preference.json";
+function localePreferencePath(app2) {
+  return import_node_path7.default.join(app2.getPath("userData"), LOCALE_PREFERENCE_FILE);
+}
+function readLocalePreference(app2) {
+  try {
+    const parsed = JSON.parse(import_node_fs6.default.readFileSync(localePreferencePath(app2), "utf8"));
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+    const entries = Object.entries(parsed);
+    if (entries.length !== 1 || entries[0]?.[0] !== "locale") return null;
+    return isLocale(entries[0][1]) ? entries[0][1] : null;
+  } catch {
+    return null;
+  }
+}
+function writeLocalePreference(app2, locale) {
+  if (!isLocale(locale)) {
+    throw new Error(`Unsupported locale preference: ${String(locale)}`);
+  }
+  const target = localePreferencePath(app2);
+  const configDir = import_node_path7.default.dirname(target);
+  const temporary = import_node_path7.default.join(configDir, `.${LOCALE_PREFERENCE_FILE}.${(0, import_node_crypto4.randomUUID)()}.tmp`);
+  const preference = { locale };
+  import_node_fs6.default.mkdirSync(configDir, { recursive: true });
+  try {
+    import_node_fs6.default.writeFileSync(temporary, `${JSON.stringify(preference, null, 2)}
+`, {
+      encoding: "utf8",
+      mode: 384
+    });
+    import_node_fs6.default.renameSync(temporary, target);
+  } finally {
+    import_node_fs6.default.rmSync(temporary, { force: true });
+  }
+}
+
+// desktop/electron/services/tray.ts
+var TRAY_APP_NAME = "Claude Code Haha";
+var TRAY_LABELS = {
+  en: { show: "Show Claude Code Haha", quit: "Quit Claude Code Haha" },
+  zh: { show: "\u663E\u793A Claude Code Haha", quit: "\u9000\u51FA Claude Code Haha" },
+  "zh-TW": { show: "\u986F\u793A Claude Code Haha", quit: "\u7D50\u675F Claude Code Haha" },
+  jp: { show: "Claude Code Haha \u3092\u8868\u793A", quit: "Claude Code Haha \u3092\u7D42\u4E86" },
+  kr: { show: "Claude Code Haha \uD45C\uC2DC", quit: "Claude Code Haha \uC885\uB8CC" }
+};
+function resolveTrayLocale(app2) {
+  const preferred = readLocalePreference(app2);
+  if (preferred) return preferred;
+  let candidates = [];
+  try {
+    const systemLanguages = typeof app2.getPreferredSystemLanguages === "function" ? app2.getPreferredSystemLanguages() : [];
+    candidates = [app2.getLocale(), ...systemLanguages];
+  } catch {
+    candidates = [];
+  }
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || candidate.length === 0) continue;
+    const normalized = candidate.toLowerCase();
+    if (normalized.startsWith("zh")) return /(hant|tw|hk|mo)/.test(normalized) ? "zh-TW" : "zh";
+    if (normalized.startsWith("ja")) return "jp";
+    if (normalized.startsWith("ko")) return "kr";
+    if (normalized.startsWith("en")) return "en";
+  }
+  return "en";
+}
+function trayLabels(locale) {
+  const labels = TRAY_LABELS[locale] ?? TRAY_LABELS.en;
+  return { app: TRAY_APP_NAME, show: labels.show, quit: labels.quit };
+}
 function resolveTrayIconPath(desktopRoot) {
   const candidates = [
-    import_node_path6.default.join(desktopRoot, "src-tauri", "icons", "icon.png"),
-    import_node_path6.default.join(desktopRoot, "public", "app-icon.png"),
-    import_node_path6.default.join(desktopRoot, "dist", "app-icon.png")
+    import_node_path8.default.join(desktopRoot, "src-tauri", "icons", "icon.png"),
+    import_node_path8.default.join(desktopRoot, "public", "app-icon.png"),
+    import_node_path8.default.join(desktopRoot, "dist", "app-icon.png")
   ];
-  const resolved = candidates.find((candidate) => (0, import_node_fs5.existsSync)(candidate));
+  const resolved = candidates.find((candidate) => (0, import_node_fs7.existsSync)(candidate));
   if (!resolved) {
     throw new Error(`Electron tray icon not found under ${desktopRoot}`);
   }
@@ -3364,54 +3441,22 @@ async function installTray({
     }
   };
 }
-function resolveTrayLocale(app2) {
-  const preferred = readLocalePreference(app2);
-  if (preferred) return preferred;
-  let candidates = [];
-  try {
-    const systemLanguages = typeof app2.getPreferredSystemLanguages === "function" ? app2.getPreferredSystemLanguages() : [];
-    candidates = [app2.getLocale(), ...systemLanguages];
-  } catch {
-    candidates = [];
-  }
-  for (const candidate of candidates) {
-    if (typeof candidate !== "string" || candidate.length === 0) continue;
-    const normalized = candidate.toLowerCase();
-    if (normalized.startsWith("zh")) return /(hant|tw|hk|mo)/.test(normalized) ? "zh-TW" : "zh";
-    if (normalized.startsWith("ja")) return "jp";
-    if (normalized.startsWith("ko")) return "kr";
-    if (normalized.startsWith("en")) return "en";
-  }
-  return "en";
-}
-function trayLabels(locale) {
-  const labels = TRAY_LABELS[locale] || TRAY_LABELS.en;
-  return { app: TRAY_APP_NAME, show: labels.show, quit: labels.quit };
-}
-var TRAY_APP_NAME = "Claude Code Haha";
-var TRAY_LABELS = {
-  en: { show: "Show Claude Code Haha", quit: "Quit Claude Code Haha" },
-  zh: { show: "显示 Claude Code Haha", quit: "退出 Claude Code Haha" },
-  "zh-TW": { show: "顯示 Claude Code Haha", quit: "結束 Claude Code Haha" },
-  jp: { show: "Claude Code Haha を表示", quit: "Claude Code Haha を終了" },
-  kr: { show: "Claude Code Haha 표시", quit: "Claude Code Haha 종료" }
-};
 
-// electron/services/updater.ts
-var import_node_fs7 = require("node:fs");
+// desktop/electron/services/updater.ts
+var import_node_fs9 = require("node:fs");
 
-// electron/services/appMode.ts
-var import_node_crypto4 = require("node:crypto");
-var import_node_fs6 = __toESM(require("node:fs"), 1);
-var import_node_path7 = __toESM(require("node:path"), 1);
+// desktop/electron/services/appMode.ts
+var import_node_crypto5 = require("node:crypto");
+var import_node_fs8 = __toESM(require("node:fs"), 1);
+var import_node_path9 = __toESM(require("node:path"), 1);
 var import_node_process2 = __toESM(require("node:process"), 1);
 var APP_MODE_FILE = "app-mode.json";
 function systemClaudeConfigDir(app2) {
-  return import_node_path7.default.join(app2.getPath("home"), ".claude");
+  return import_node_path9.default.join(app2.getPath("home"), ".claude");
 }
 function readAppModeConfig(configDir) {
   try {
-    const parsed = JSON.parse(import_node_fs6.default.readFileSync(import_node_path7.default.join(configDir, APP_MODE_FILE), "utf8"));
+    const parsed = JSON.parse(import_node_fs8.default.readFileSync(import_node_path9.default.join(configDir, APP_MODE_FILE), "utf8"));
     return {
       mode: typeof parsed.mode === "string" ? parsed.mode.toLowerCase() : "default",
       portable_dir: typeof parsed.portable_dir === "string" ? parsed.portable_dir.trim() : null
@@ -3421,53 +3466,53 @@ function readAppModeConfig(configDir) {
   }
 }
 function writeAppModeConfig(configDir, config) {
-  import_node_fs6.default.mkdirSync(configDir, { recursive: true });
-  const target = import_node_path7.default.join(configDir, APP_MODE_FILE);
-  const temporary = import_node_path7.default.join(configDir, `.${APP_MODE_FILE}.${(0, import_node_crypto4.randomUUID)()}.tmp`);
+  import_node_fs8.default.mkdirSync(configDir, { recursive: true });
+  const target = import_node_path9.default.join(configDir, APP_MODE_FILE);
+  const temporary = import_node_path9.default.join(configDir, `.${APP_MODE_FILE}.${(0, import_node_crypto5.randomUUID)()}.tmp`);
   try {
-    import_node_fs6.default.writeFileSync(temporary, JSON.stringify(config, null, 2));
-    import_node_fs6.default.renameSync(temporary, target);
+    import_node_fs8.default.writeFileSync(temporary, JSON.stringify(config, null, 2));
+    import_node_fs8.default.renameSync(temporary, target);
   } finally {
-    import_node_fs6.default.rmSync(temporary, { force: true });
+    import_node_fs8.default.rmSync(temporary, { force: true });
   }
 }
 function assertWritableDataDir(configDir) {
   try {
-    import_node_fs6.default.mkdirSync(configDir, { recursive: true });
-    const probeDir = import_node_fs6.default.mkdtempSync(import_node_path7.default.join(configDir, ".cc-haha-write-test-"));
+    import_node_fs8.default.mkdirSync(configDir, { recursive: true });
+    const probeDir = import_node_fs8.default.mkdtempSync(import_node_path9.default.join(configDir, ".cc-haha-write-test-"));
     try {
-      import_node_fs6.default.writeFileSync(import_node_path7.default.join(probeDir, "probe"), "");
+      import_node_fs8.default.writeFileSync(import_node_path9.default.join(probeDir, "probe"), "");
     } finally {
-      import_node_fs6.default.rmSync(probeDir, { recursive: true, force: true });
+      import_node_fs8.default.rmSync(probeDir, { recursive: true, force: true });
     }
   } catch {
     throw new Error(`Data storage directory is not writable: ${configDir}`);
   }
 }
 function resolveWithExistingAncestor(inputPath) {
-  let existingPath = import_node_path7.default.resolve(inputPath);
+  let existingPath = import_node_path9.default.resolve(inputPath);
   const missingSegments = [];
-  while (!import_node_fs6.default.existsSync(existingPath)) {
-    const parent = import_node_path7.default.dirname(existingPath);
-    if (parent === existingPath) return import_node_path7.default.resolve(inputPath);
-    missingSegments.unshift(import_node_path7.default.basename(existingPath));
+  while (!import_node_fs8.default.existsSync(existingPath)) {
+    const parent = import_node_path9.default.dirname(existingPath);
+    if (parent === existingPath) return import_node_path9.default.resolve(inputPath);
+    missingSegments.unshift(import_node_path9.default.basename(existingPath));
     existingPath = parent;
   }
-  return import_node_path7.default.join(import_node_fs6.default.realpathSync.native(existingPath), ...missingSegments);
+  return import_node_path9.default.join(import_node_fs8.default.realpathSync.native(existingPath), ...missingSegments);
 }
 function isPathAtOrBelow(parentDir, candidateDir) {
-  const relative = import_node_path7.default.relative(
+  const relative = import_node_path9.default.relative(
     resolveWithExistingAncestor(parentDir),
     resolveWithExistingAncestor(candidateDir)
   );
-  return relative === "" || !relative.startsWith(`..${import_node_path7.default.sep}`) && relative !== ".." && !import_node_path7.default.isAbsolute(relative);
+  return relative === "" || !relative.startsWith(`..${import_node_path9.default.sep}`) && relative !== ".." && !import_node_path9.default.isAbsolute(relative);
 }
 function normalizedCustomDir(app2, value) {
-  const selectedDir = value == null ? void 0 : value.trim();
+  const selectedDir = value?.trim();
   if (!selectedDir) throw new Error("Choose an absolute custom data directory");
-  if (!import_node_path7.default.isAbsolute(selectedDir)) throw new Error("Custom data storage must use an absolute path");
-  const normalized = import_node_path7.default.resolve(selectedDir);
-  if (isPathAtOrBelow(import_node_path7.default.dirname(app2.getPath("exe")), normalized)) {
+  if (!import_node_path9.default.isAbsolute(selectedDir)) throw new Error("Custom data storage must use an absolute path");
+  const normalized = import_node_path9.default.resolve(selectedDir);
+  if (isPathAtOrBelow(import_node_path9.default.dirname(app2.getPath("exe")), normalized)) {
     throw new Error("Custom data storage must stay outside the application install directory");
   }
   return normalized;
@@ -3484,7 +3529,7 @@ function clearAppManagedPortableEnv(env = import_node_process2.default.env) {
 function determineStartupPortableDir(app2, env = import_node_process2.default.env) {
   if (env.CLAUDE_CONFIG_DIR) return null;
   const config = readAppModeConfig(app2.getPath("userData"));
-  if ((config == null ? void 0 : config.mode) !== "portable" || !config.portable_dir || !import_node_path7.default.isAbsolute(config.portable_dir)) return null;
+  if (config?.mode !== "portable" || !config.portable_dir || !import_node_path9.default.isAbsolute(config.portable_dir)) return null;
   try {
     return normalizedCustomDir(app2, config.portable_dir);
   } catch {
@@ -3499,8 +3544,8 @@ function applyStartupPortableMode(app2, env = import_node_process2.default.env) 
   }
   const customDir = determineStartupPortableDir(app2, env);
   if (!customDir) return null;
-  const webViewDataDir = import_node_path7.default.join(customDir, "EBWebView");
-  import_node_fs6.default.mkdirSync(webViewDataDir, { recursive: true });
+  const webViewDataDir = import_node_path9.default.join(customDir, "EBWebView");
+  import_node_fs8.default.mkdirSync(webViewDataDir, { recursive: true });
   env.CLAUDE_CONFIG_DIR = customDir;
   env.CC_HAHA_APP_PORTABLE_DIR = "1";
   env.WEBVIEW2_USER_DATA_FOLDER = webViewDataDir;
@@ -3535,7 +3580,7 @@ function setAppMode(app2, input, env = import_node_process2.default.env) {
   }
   if (input.mode !== "portable") throw new Error(`Unsupported app mode: ${String(input.mode)}`);
   const selectedDir = normalizedCustomDir(app2, input.portableDir);
-  if (import_node_fs6.default.existsSync(selectedDir) && !import_node_fs6.default.statSync(selectedDir).isDirectory()) {
+  if (import_node_fs8.default.existsSync(selectedDir) && !import_node_fs8.default.statSync(selectedDir).isDirectory()) {
     throw new Error(`Custom data storage path is not a directory: ${selectedDir}`);
   }
   assertWritableDataDir(selectedDir);
@@ -3545,12 +3590,12 @@ function setAppMode(app2, input, env = import_node_process2.default.env) {
   });
 }
 
-// electron/services/updater.ts
+// desktop/electron/services/updater.ts
 function updaterSessionProxyConfig(proxy) {
   return proxy ? { proxyRules: proxy, proxyBypassRules: "<local>" } : { mode: "system" };
 }
 function normalizeUpdateInfo(info) {
-  if (!(info == null ? void 0 : info.version)) return null;
+  if (!info?.version) return null;
   const releaseNotes = Array.isArray(info.releaseNotes) ? info.releaseNotes.map((note) => note.note).filter(Boolean).join("\n\n") : info.releaseNotes;
   return {
     version: info.version,
@@ -3561,11 +3606,11 @@ function isMissingUpdateMetadataError(error) {
   if (!error) return false;
   const maybeError = typeof error === "object" ? error : {};
   const code = typeof maybeError.code === "string" ? maybeError.code : "";
-  const path14 = typeof maybeError.path === "string" ? maybeError.path : "";
+  const path15 = typeof maybeError.path === "string" ? maybeError.path : "";
   const message = typeof maybeError.message === "string" && maybeError.message ? maybeError.message : String(error);
   const referencesChannelMetadata = /latest(?:-[a-z0-9]+)?(?:-[a-z0-9]+)?\.ya?ml/i.test(message);
   if (code === "ENOENT") {
-    return path14.endsWith("app-update.yml") || message.includes("app-update.yml");
+    return path15.endsWith("app-update.yml") || message.includes("app-update.yml");
   }
   if (code === "ERR_UPDATER_CHANNEL_FILE_NOT_FOUND") {
     return referencesChannelMetadata;
@@ -3588,9 +3633,8 @@ var ElectronUpdaterService = class {
     this.updater.logger = null;
   }
   async applyProxy(options) {
-    var _a;
     if (!this.proxyController) return;
-    const proxy = ((_a = options == null ? void 0 : options.proxy) == null ? void 0 : _a.trim()) || null;
+    const proxy = options?.proxy?.trim() || null;
     const nextProxyKey = proxy ? `manual:${proxy}` : "system";
     if (this.proxyKey === nextProxyKey) return;
     await this.proxyController.apply(proxy);
@@ -3605,7 +3649,7 @@ var ElectronUpdaterService = class {
     let result;
     try {
       await this.applyProxy(options);
-      if (this.updateConfigPath && !(0, import_node_fs7.existsSync)(this.updateConfigPath)) {
+      if (this.updateConfigPath && !(0, import_node_fs9.existsSync)(this.updateConfigPath)) {
         result = null;
       } else {
         result = await this.updater.checkForUpdates();
@@ -3614,7 +3658,7 @@ var ElectronUpdaterService = class {
       if (!isMissingUpdateMetadataError(error)) throw error;
       result = null;
     }
-    this.pendingUpdate = normalizeUpdateInfo(result == null ? void 0 : result.updateInfo);
+    this.pendingUpdate = normalizeUpdateInfo(result?.updateInfo);
     this.downloaded = false;
     return this.pendingUpdate;
   }
@@ -3674,16 +3718,15 @@ var ElectronUpdaterService = class {
   }
 };
 
-// electron/services/updateSmoke.ts
-var import_node_fs8 = require("node:fs");
+// desktop/electron/services/updateSmoke.ts
+var import_node_fs10 = require("node:fs");
 function parsePositiveInteger(value, fallback) {
   if (!value) return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 function parseUpdateSmokeEnv(env) {
-  var _a;
-  const version = (_a = env.CC_HAHA_ELECTRON_UPDATE_SMOKE_VERSION) == null ? void 0 : _a.trim();
+  const version = env.CC_HAHA_ELECTRON_UPDATE_SMOKE_VERSION?.trim();
   if (!version) return null;
   return {
     version,
@@ -3694,7 +3737,7 @@ function parseUpdateSmokeEnv(env) {
 }
 function writeLog(logPath, payload) {
   if (!logPath) return;
-  (0, import_node_fs8.appendFileSync)(logPath, `${JSON.stringify({
+  (0, import_node_fs10.appendFileSync)(logPath, `${JSON.stringify({
     ts: (/* @__PURE__ */ new Date()).toISOString(),
     ...payload
   })}
@@ -3704,6 +3747,7 @@ var UpdateSmokeUpdater = class {
   constructor(config) {
     this.config = config;
   }
+  config;
   autoDownload = true;
   logger = null;
   progressHandler = null;
@@ -3720,14 +3764,13 @@ var UpdateSmokeUpdater = class {
     };
   }
   async downloadUpdate() {
-    var _a, _b;
     writeLog(this.config.logPath, {
       event: "download-start",
       totalBytes: this.config.totalBytes
     });
     const firstChunk = Math.max(1, Math.floor(this.config.totalBytes / 2));
-    (_a = this.progressHandler) == null ? void 0 : _a.call(this, { transferred: firstChunk, total: this.config.totalBytes });
-    (_b = this.progressHandler) == null ? void 0 : _b.call(this, { transferred: this.config.totalBytes, total: this.config.totalBytes });
+    this.progressHandler?.({ transferred: firstChunk, total: this.config.totalBytes });
+    this.progressHandler?.({ transferred: this.config.totalBytes, total: this.config.totalBytes });
     writeLog(this.config.logPath, {
       event: "download-finish",
       totalBytes: this.config.totalBytes
@@ -3757,10 +3800,10 @@ function createUpdateSmokeUpdaterFromEnv(env) {
   return config ? new UpdateSmokeUpdater(config) : null;
 }
 
-// electron/services/preview.ts
-var import_node_fs9 = require("node:fs");
+// desktop/electron/services/preview.ts
+var import_node_fs11 = require("node:fs");
 
-// electron/ipc/previewMessage.ts
+// desktop/electron/ipc/previewMessage.ts
 var MAX_PREVIEW_EVENT_BYTES = 8 * 1024 * 1024;
 var MAX_PREVIEW_TEXT_LENGTH = 32768;
 function byteLength(input) {
@@ -3827,7 +3870,7 @@ function parsePreviewAgentMessage(raw) {
   }
 }
 
-// electron/services/zoom.ts
+// desktop/electron/services/zoom.ts
 var MIN_APP_ZOOM = 0.5;
 var MAX_APP_ZOOM = 2;
 function normalizeZoomFactor(value) {
@@ -3836,26 +3879,9 @@ function normalizeZoomFactor(value) {
   return Math.min(Math.max(numeric, MIN_APP_ZOOM), MAX_APP_ZOOM);
 }
 
-// electron/services/preview.ts
+// desktop/electron/services/preview.ts
 var FULL_CAPTURE_MAX_EDGE = 16384;
 var FULL_CAPTURE_MAX_PIXELS = 32e6;
-function attachPreviewView(parent, view) {
-  var _a;
-  if (parent.contentView) {
-    parent.contentView.addChildView(view);
-  } else {
-    (_a = parent.addBrowserView) == null ? void 0 : _a.call(parent, view);
-  }
-}
-function detachPreviewView(parent, view) {
-  var _a;
-  if (!parent) return;
-  if (parent.contentView) {
-    parent.contentView.removeChildView(view);
-  } else {
-    (_a = parent.removeBrowserView) == null ? void 0 : _a.call(parent, view);
-  }
-}
 function isPlainRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -3907,10 +3933,25 @@ function snapPreviewBoundsToScaleFactor(bounds, scaleFactor) {
   };
 }
 function resolvePreviewScriptPath(previewScriptPath) {
-  if ((0, import_node_fs9.existsSync)(previewScriptPath)) return previewScriptPath;
+  if ((0, import_node_fs11.existsSync)(previewScriptPath)) return previewScriptPath;
   const unpackedPath = previewScriptPath.replace(/\.asar([/\\])/, ".asar.unpacked$1");
-  if (unpackedPath !== previewScriptPath && (0, import_node_fs9.existsSync)(unpackedPath)) return unpackedPath;
+  if (unpackedPath !== previewScriptPath && (0, import_node_fs11.existsSync)(unpackedPath)) return unpackedPath;
   return previewScriptPath;
+}
+function attachPreviewView(parent, view) {
+  if (parent.contentView) {
+    parent.contentView.addChildView(view);
+    return;
+  }
+  parent.addBrowserView?.(view);
+}
+function detachPreviewView(parent, view) {
+  if (!parent) return;
+  if (parent.contentView) {
+    parent.contentView.removeChildView(view);
+    return;
+  }
+  parent.removeBrowserView?.(view);
 }
 var ElectronPreviewService = class {
   createView;
@@ -3946,17 +3987,7 @@ var ElectronPreviewService = class {
     this.applyBounds(this.view);
   }
   setVisible(visible) {
-    var _a;
-    if ((_a = this.view) == null ? void 0 : _a.setVisible) {
-      this.view.setVisible(visible);
-      return;
-    }
-    if (!this.view || !this.parent) return;
-    if (visible) {
-      attachPreviewView(this.parent, this.view);
-    } else {
-      detachPreviewView(this.parent, this.view);
-    }
+    this.view?.setVisible?.(visible);
   }
   setZoomFactor(value) {
     this.zoomFactor = normalizeZoomFactor(value);
@@ -3966,11 +3997,10 @@ var ElectronPreviewService = class {
     this.applyBounds(this.view);
   }
   close() {
-    var _a, _b, _c, _d;
     if (!this.view) return;
     detachPreviewView(this.parent, this.view);
-    if (!((_b = (_a = this.view.webContents).isDestroyed) == null ? void 0 : _b.call(_a))) {
-      (_d = (_c = this.view.webContents).close) == null ? void 0 : _d.call(_c);
+    if (!this.view.webContents.isDestroyed?.()) {
+      this.view.webContents.close?.();
     }
     this.view = null;
     this.parent = null;
@@ -3990,8 +4020,7 @@ var ElectronPreviewService = class {
     await this.requireView().webContents.executeJavaScript(script);
   }
   async sendMessageToRenderer(sender, raw, renderer) {
-    var _a;
-    if (sender !== ((_a = this.view) == null ? void 0 : _a.webContents)) return;
+    if (sender !== this.view?.webContents) return;
     if (typeof raw !== "string") return;
     const message = parsePreviewAgentMessage(raw);
     if (!message) return;
@@ -4002,7 +4031,7 @@ var ElectronPreviewService = class {
       this.pickerArmed = false;
     }
     const event = message.type === "selection" ? await this.withNativeSelectionScreenshot(message) : message;
-    renderer == null ? void 0 : renderer.send(ELECTRON_EVENT_CHANNELS.previewEvent, event);
+    renderer?.send(ELECTRON_EVENT_CHANNELS.previewEvent, event);
   }
   ensureView(parent) {
     if (this.view) return this.view;
@@ -4022,9 +4051,8 @@ var ElectronPreviewService = class {
     return this.view;
   }
   async injectPreviewAgent(view) {
-    var _a, _b;
-    if ((_b = (_a = view.webContents).isDestroyed) == null ? void 0 : _b.call(_a)) return;
-    const script = (0, import_node_fs9.readFileSync)(resolvePreviewScriptPath(this.previewScriptPath), "utf8");
+    if (view.webContents.isDestroyed?.()) return;
+    const script = (0, import_node_fs11.readFileSync)(resolvePreviewScriptPath(this.previewScriptPath), "utf8");
     await view.webContents.executeJavaScript(script);
   }
   async captureNativeDataUrl(kind = "viewport") {
@@ -4035,8 +4063,7 @@ var ElectronPreviewService = class {
     return image.toDataURL();
   }
   async captureFullPageDataUrl(webContents) {
-    var _a;
-    if (((_a = this.fullCapture) == null ? void 0 : _a.webContents) === webContents) {
+    if (this.fullCapture?.webContents === webContents) {
       return await this.fullCapture.promise;
     }
     const promise = this.captureFullPageDataUrlOnce(webContents);
@@ -4089,13 +4116,11 @@ var ElectronPreviewService = class {
     }
   }
   applyZoomFactor(view) {
-    var _a, _b;
-    (_b = view == null ? void 0 : (_a = view.webContents).setZoomFactor) == null ? void 0 : _b.call(_a, this.zoomFactor);
+    view?.webContents.setZoomFactor?.(this.zoomFactor);
   }
   applyBounds(view) {
-    var _a;
     if (!view || !this.parent || !this.requestedBounds) return;
-    const scaleFactor = ((_a = this.resolveScaleFactor) == null ? void 0 : _a.call(this, this.parent)) ?? 1;
+    const scaleFactor = this.resolveScaleFactor?.(this.parent) ?? 1;
     view.setBounds(snapPreviewBoundsToScaleFactor(this.requestedBounds, scaleFactor));
   }
   async captureScreenshotToRenderer(kind, renderer) {
@@ -4136,9 +4161,8 @@ var ElectronPreviewService = class {
     }
   }
   async clearSelectionOverlay() {
-    var _a, _b;
-    const webContents = (_a = this.view) == null ? void 0 : _a.webContents;
-    if (!webContents || ((_b = webContents.isDestroyed) == null ? void 0 : _b.call(webContents))) return;
+    const webContents = this.view?.webContents;
+    if (!webContents || webContents.isDestroyed?.()) return;
     try {
       await webContents.executeJavaScript("globalThis.__PREVIEW_AGENT_CLEAR_SELECTION_OVERLAY__?.()");
     } catch {
@@ -4146,11 +4170,11 @@ var ElectronPreviewService = class {
   }
 };
 
-// electron/services/previewSession.ts
-var import_node_crypto5 = require("node:crypto");
+// desktop/electron/services/previewSession.ts
+var import_node_crypto6 = require("node:crypto");
 var PREVIEW_SESSION_PARTITION_PREFIX = "cc-haha-preview-";
 function createPreviewSessionPartition() {
-  return `${PREVIEW_SESSION_PARTITION_PREFIX}${(0, import_node_crypto5.randomUUID)()}`;
+  return `${PREVIEW_SESSION_PARTITION_PREFIX}${(0, import_node_crypto6.randomUUID)()}`;
 }
 var MAIN_RENDERER_MEDIA_PATHS = [
   "/api/desktop-ui/preferences/profile/avatar",
@@ -4168,9 +4192,8 @@ function sameOrigin(left, right) {
   }
 }
 function isAllowlistedMainRendererMediaRequest(details, mainRendererWebContentsId) {
-  var _a;
   if (details.webContentsId !== mainRendererWebContentsId) return false;
-  const method = (_a = details.method) == null ? void 0 : _a.toUpperCase();
+  const method = details.method?.toUpperCase();
   if (method !== "GET" && method !== "HEAD") return false;
   if (details.resourceType !== "image" && details.resourceType !== "media") {
     return false;
@@ -4205,14 +4228,29 @@ function configurePreviewSessionPermissions(session2) {
   });
 }
 
-// electron/services/keychain.ts
+// desktop/electron/services/keychain.ts
 function installMacOsChromiumKeychainPromptGuard(app2, platform = process.platform) {
   if (platform !== "darwin") return false;
   app2.commandLine.appendSwitch("use-mock-keychain");
   return true;
 }
 
-// electron/services/stdioGuards.ts
+// desktop/electron/services/intranetNetworkGuard.ts
+var INTRANET_SPELLCHECK_DICTIONARY_SINK_URL = "http://127.0.0.1/dictionaries/";
+function installIntranetChromiumNetworkGuard(app2, getDefaultSession, isIntranetMode = isIntranetModeEnabled) {
+  if (!isIntranetMode()) return false;
+  app2.commandLine.appendSwitch("disable-component-update");
+  app2.commandLine.appendSwitch("disable-background-networking");
+  const disableSpellChecker = (ses) => {
+    ses.setSpellCheckerEnabled(false);
+    ses.setSpellCheckerDictionaryDownloadURL(INTRANET_SPELLCHECK_DICTIONARY_SINK_URL);
+  };
+  app2.on("session-created", disableSpellChecker);
+  void Promise.resolve(app2.whenReady()).then(() => disableSpellChecker(getDefaultSession()));
+  return true;
+}
+
+// desktop/electron/services/stdioGuards.ts
 var guarded = /* @__PURE__ */ new WeakSet();
 function installStdioWriteFailureGuards(streams = [process.stdout, process.stderr]) {
   let installed = 0;
@@ -4226,7 +4264,7 @@ function installStdioWriteFailureGuards(streams = [process.stdout, process.stder
   return installed;
 }
 
-// electron/services/appIdentity.ts
+// desktop/electron/services/appIdentity.ts
 var WINDOWS_APP_USER_MODEL_ID = "com.claude-code-haha.desktop";
 function applyWindowsAppUserModelId(app2, platform = process.platform, appUserModelId = WINDOWS_APP_USER_MODEL_ID) {
   if (platform !== "win32") return false;
@@ -4234,7 +4272,7 @@ function applyWindowsAppUserModelId(app2, platform = process.platform, appUserMo
   return true;
 }
 
-// electron/services/navigationGuards.ts
+// desktop/electron/services/navigationGuards.ts
 function isLoopbackHostname2(hostname) {
   const normalized = hostname.trim().replace(/^\[/, "").replace(/\]$/, "").toLowerCase();
   if (normalized === "localhost" || normalized === "::1") return true;
@@ -4282,7 +4320,7 @@ function installPreviewNavigationGuards(webContents, { openExternal }) {
   });
 }
 
-// electron/services/previewLifecycle.ts
+// desktop/electron/services/previewLifecycle.ts
 function isMainFrameNavigation(details, deprecatedIsMainFrame) {
   return details.isMainFrame ?? deprecatedIsMainFrame === true;
 }
@@ -4297,9 +4335,9 @@ function installPreviewCleanupOnRendererNavigation(webContents, closePreview) {
   });
 }
 
-// electron/services/notificationSmoke.ts
-var import_node_fs10 = require("node:fs");
-var import_node_path8 = require("node:path");
+// desktop/electron/services/notificationSmoke.ts
+var import_node_fs12 = require("node:fs");
+var import_node_path10 = require("node:path");
 var DEFAULT_DELAY_MS = 2500;
 var MAX_DELAY_MS = 6e4;
 function parseNotificationSmokeDelay(value) {
@@ -4309,16 +4347,15 @@ function parseNotificationSmokeDelay(value) {
   return Math.min(Math.max(Math.round(parsed), 0), MAX_DELAY_MS);
 }
 function shouldTriggerSyntheticAction(value) {
-  return value === "1" || (value == null ? void 0 : value.toLowerCase()) === "true";
+  return value === "1" || value?.toLowerCase() === "true";
 }
 function appendNotificationSmokeLog(logPath, event) {
-  (0, import_node_fs10.mkdirSync)((0, import_node_path8.dirname)(logPath), { recursive: true });
-  (0, import_node_fs10.appendFileSync)(logPath, `${JSON.stringify(event)}
+  (0, import_node_fs12.mkdirSync)((0, import_node_path10.dirname)(logPath), { recursive: true });
+  (0, import_node_fs12.appendFileSync)(logPath, `${JSON.stringify(event)}
 `);
 }
 function logNotificationSmokeRendererAck(env, payload) {
-  var _a;
-  const logPath = (_a = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG) == null ? void 0 : _a.trim();
+  const logPath = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG?.trim();
   if (!logPath) return false;
   appendNotificationSmokeLog(logPath, {
     event: "renderer_ack",
@@ -4334,14 +4371,13 @@ function scheduleNotificationSmoke({
   setTimer = setTimeout,
   writeLog: writeLog2
 }) {
-  var _a, _b, _c, _d;
-  const sessionId = (_a = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_SESSION_ID) == null ? void 0 : _a.trim();
+  const sessionId = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_SESSION_ID?.trim();
   if (!sessionId) return false;
-  const title = ((_b = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_TITLE) == null ? void 0 : _b.trim()) || "Claude Code Haha notification smoke";
-  const body = ((_c = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_BODY) == null ? void 0 : _c.trim()) || "Click to return to the target session.";
+  const title = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_TITLE?.trim() || "Claude Code Haha notification smoke";
+  const body = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_BODY?.trim() || "Click to return to the target session.";
   const delayMs = parseNotificationSmokeDelay(env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_DELAY_MS);
   const triggerSyntheticAction = shouldTriggerSyntheticAction(env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_TRIGGER_ACTION);
-  const logPath = (_d = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG) == null ? void 0 : _d.trim();
+  const logPath = env.CC_HAHA_ELECTRON_NOTIFICATION_SMOKE_LOG?.trim();
   const log = (event) => {
     if (writeLog2) {
       writeLog2(event);
@@ -4394,17 +4430,17 @@ function scheduleNotificationSmoke({
   return true;
 }
 
-// electron/services/nativeAppearance.ts
-var import_node_fs11 = require("node:fs");
-var import_node_path9 = __toESM(require("node:path"), 1);
+// desktop/electron/services/nativeAppearance.ts
+var import_node_fs13 = require("node:fs");
+var import_node_path11 = __toESM(require("node:path"), 1);
 var APPEARANCE_STATE_FILE = "appearance-state.json";
 var LIGHT_WINDOW_BACKGROUND = "#FFFFFF";
 var DARK_WINDOW_BACKGROUND = "#201D17";
 var HEX_COLOR2 = /^#[0-9a-fA-F]{6}$/;
 var failedAppearanceWritePaths = /* @__PURE__ */ new Set();
 function appearanceStatePath(app2, env = process.env) {
-  return import_node_path9.default.join(
-    env.CLAUDE_CONFIG_DIR || import_node_path9.default.join(app2.getPath("home"), ".claude"),
+  return import_node_path11.default.join(
+    env.CLAUDE_CONFIG_DIR || import_node_path11.default.join(app2.getPath("home"), ".claude"),
     APPEARANCE_STATE_FILE
   );
 }
@@ -4415,9 +4451,9 @@ function isAppliedAppearance(value) {
 }
 function readAppearanceState(app2, env = process.env) {
   const statePath = appearanceStatePath(app2, env);
-  if (!(0, import_node_fs11.existsSync)(statePath)) return null;
+  if (!(0, import_node_fs13.existsSync)(statePath)) return null;
   try {
-    const parsed = JSON.parse((0, import_node_fs11.readFileSync)(statePath, "utf-8"));
+    const parsed = JSON.parse((0, import_node_fs13.readFileSync)(statePath, "utf-8"));
     return isAppliedAppearance(parsed) ? parsed : null;
   } catch (error) {
     console.error(`[desktop] failed to read appearance state ${statePath}:`, error);
@@ -4428,8 +4464,8 @@ function writeAppearanceState(app2, state, env = process.env) {
   if (!isAppliedAppearance(state)) return;
   const statePath = appearanceStatePath(app2, env);
   try {
-    (0, import_node_fs11.mkdirSync)(import_node_path9.default.dirname(statePath), { recursive: true });
-    (0, import_node_fs11.writeFileSync)(statePath, `${JSON.stringify(state, null, 2)}
+    (0, import_node_fs13.mkdirSync)(import_node_path11.default.dirname(statePath), { recursive: true });
+    (0, import_node_fs13.writeFileSync)(statePath, `${JSON.stringify(state, null, 2)}
 `);
     failedAppearanceWritePaths.delete(statePath);
   } catch (error) {
@@ -4453,8 +4489,8 @@ function applyAppliedAppearance(state, { app: app2, windows, env = process.env }
   writeAppearanceState(app2, state, env);
 }
 
-// electron/services/rendererEntry.ts
-var import_node_path10 = __toESM(require("node:path"), 1);
+// desktop/electron/services/rendererEntry.ts
+var import_node_path12 = __toESM(require("node:path"), 1);
 function isAllowedDevRendererUrl(input) {
   try {
     const parsed = new URL(input);
@@ -4465,18 +4501,17 @@ function isAllowedDevRendererUrl(input) {
   }
 }
 function resolveRendererEntry(options) {
-  var _a, _b;
-  const devUrl = (_b = (_a = options.env) == null ? void 0 : _a.ELECTRON_RENDERER_URL) == null ? void 0 : _b.trim();
+  const devUrl = options.env?.ELECTRON_RENDERER_URL?.trim();
   if (!options.isPackaged && devUrl) {
     if (!isAllowedDevRendererUrl(devUrl)) {
       throw new Error(`Refusing non-local Electron renderer URL: ${devUrl}`);
     }
     return devUrl;
   }
-  return import_node_path10.default.join(options.appRoot, "dist", "index.html");
+  return import_node_path12.default.join(options.appRoot, "dist", "index.html");
 }
 
-// electron/services/rendererLifecycle.ts
+// desktop/electron/services/rendererLifecycle.ts
 var DEFAULT_RENDERER_UNRESPONSIVE_RECOVERY_DELAY_MS = 1e4;
 function installRendererLifecycle({
   window,
@@ -4586,7 +4621,7 @@ function installRendererLifecycle({
     const detail = recordDiagnostic(
       `[process-gone] reason=${details.reason} exitCode=${details.exitCode}`
     );
-    onRendererProcessGone == null ? void 0 : onRendererProcessGone(detail);
+    onRendererProcessGone?.(detail);
     writeSnapshot(`render-process-gone:${details.reason}:${details.exitCode}`);
     recoverRenderer(`process-gone:${details.reason}`);
   });
@@ -4610,10 +4645,9 @@ function installRendererLifecycle({
   });
 }
 
-// electron/services/windowSmoke.ts
-var import_node_fs12 = require("node:fs");
+// desktop/electron/services/windowSmoke.ts
+var import_node_fs14 = require("node:fs");
 function writeWindowSmokeSnapshot(window, reason, env = process.env) {
-  var _a, _b;
   const logPath = env.CC_HAHA_ELECTRON_WINDOW_SMOKE_LOG;
   if (!logPath) return;
   const payload = window ? {
@@ -4626,20 +4660,20 @@ function writeWindowSmokeSnapshot(window, reason, env = process.env) {
     maximized: window.isMaximized(),
     fullScreen: window.isFullScreen(),
     bounds: window.getBounds(),
-    url: ((_a = window.webContents) == null ? void 0 : _a.getURL()) ?? null,
-    loading: ((_b = window.webContents) == null ? void 0 : _b.isLoading()) ?? null
+    url: window.webContents?.getURL() ?? null,
+    loading: window.webContents?.isLoading() ?? null
   } : {
     reason,
     missingWindow: true
   };
-  (0, import_node_fs12.appendFileSync)(logPath, `${JSON.stringify({
+  (0, import_node_fs14.appendFileSync)(logPath, `${JSON.stringify({
     ts: (/* @__PURE__ */ new Date()).toISOString(),
     ...payload
   })}
 `);
 }
 
-// electron/services/windowStartup.ts
+// desktop/electron/services/windowStartup.ts
 async function loadAndRevealMainWindow({
   load,
   beforeReveal,
@@ -4663,10 +4697,10 @@ async function loadAndRevealMainWindow({
   return { loaded: true };
 }
 
-// electron/services/petWindow.ts
-var import_node_fs13 = require("node:fs");
-var import_node_os4 = __toESM(require("node:os"), 1);
-var import_node_path11 = __toESM(require("node:path"), 1);
+// desktop/electron/services/petWindow.ts
+var import_node_fs15 = require("node:fs");
+var import_node_os5 = __toESM(require("node:os"), 1);
+var import_node_path13 = __toESM(require("node:path"), 1);
 var PET_WINDOW_WIDTH = 384;
 var PET_WINDOW_HEIGHT = 400;
 var PET_WINDOW_MARGIN = 24;
@@ -4718,23 +4752,22 @@ function petWindowAnchor(state) {
 }
 function resolveHomePath(input, homeDir) {
   if (input === "~") return homeDir;
-  if (input.startsWith(`~${import_node_path11.default.sep}`) || input.startsWith("~/") || input.startsWith("~\\")) {
-    return import_node_path11.default.join(homeDir, input.slice(2));
+  if (input.startsWith(`~${import_node_path13.default.sep}`) || input.startsWith("~/") || input.startsWith("~\\")) {
+    return import_node_path13.default.join(homeDir, input.slice(2));
   }
   return input;
 }
-function petWindowStatePath(env = process.env, homeDir = import_node_os4.default.homedir()) {
-  var _a;
-  const normalizedHome = import_node_path11.default.resolve(homeDir);
-  const configuredRoot = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
-  const configRoot = configuredRoot ? import_node_path11.default.resolve(resolveHomePath(configuredRoot, normalizedHome)) : import_node_path11.default.join(normalizedHome, ".claude");
-  return import_node_path11.default.join(configRoot, "cc-haha", PET_WINDOW_STATE_FILE);
+function petWindowStatePath(env = process.env, homeDir = import_node_os5.default.homedir()) {
+  const normalizedHome = import_node_path13.default.resolve(homeDir);
+  const configuredRoot = env.CLAUDE_CONFIG_DIR?.trim();
+  const configRoot = configuredRoot ? import_node_path13.default.resolve(resolveHomePath(configuredRoot, normalizedHome)) : import_node_path13.default.join(normalizedHome, ".claude");
+  return import_node_path13.default.join(configRoot, "cc-haha", PET_WINDOW_STATE_FILE);
 }
-function readPetWindowPosition(env = process.env, homeDir = import_node_os4.default.homedir()) {
+function readPetWindowPosition(env = process.env, homeDir = import_node_os5.default.homedir()) {
   const statePath = petWindowStatePath(env, homeDir);
-  if (!(0, import_node_fs13.existsSync)(statePath)) return null;
+  if (!(0, import_node_fs15.existsSync)(statePath)) return null;
   try {
-    const parsed = JSON.parse((0, import_node_fs13.readFileSync)(statePath, "utf8"));
+    const parsed = JSON.parse((0, import_node_fs15.readFileSync)(statePath, "utf8"));
     if (!isPetWindowPosition(parsed)) return null;
     const region = parsed.region;
     return {
@@ -4747,22 +4780,22 @@ function readPetWindowPosition(env = process.env, homeDir = import_node_os4.defa
     return null;
   }
 }
-function writePetWindowPosition(state, env = process.env, homeDir = import_node_os4.default.homedir()) {
+function writePetWindowPosition(state, env = process.env, homeDir = import_node_os5.default.homedir()) {
   if (!isPetWindowPosition(state)) return;
   const statePath = petWindowStatePath(env, homeDir);
   const temporaryPath = `${statePath}.${process.pid}.tmp`;
   try {
-    (0, import_node_fs13.mkdirSync)(import_node_path11.default.dirname(statePath), { recursive: true, mode: 448 });
-    (0, import_node_fs13.writeFileSync)(temporaryPath, `${JSON.stringify({
+    (0, import_node_fs15.mkdirSync)(import_node_path13.default.dirname(statePath), { recursive: true, mode: 448 });
+    (0, import_node_fs15.writeFileSync)(temporaryPath, `${JSON.stringify({
       x: Math.round(state.x),
       y: Math.round(state.y),
       ...isPetWindowRegion(state.region) ? { region: roundPetWindowRegion(state.region) } : {}
     }, null, 2)}
 `, { mode: 384 });
-    (0, import_node_fs13.renameSync)(temporaryPath, statePath);
+    (0, import_node_fs15.renameSync)(temporaryPath, statePath);
     failedPetWindowStateWritePaths.delete(statePath);
   } catch (error) {
-    (0, import_node_fs13.rmSync)(temporaryPath, { force: true });
+    (0, import_node_fs15.rmSync)(temporaryPath, { force: true });
     if (!failedPetWindowStateWritePaths.has(statePath)) {
       failedPetWindowStateWritePaths.add(statePath);
       console.error(`[desktop] failed to write pet window state ${statePath}:`, error);
@@ -4830,11 +4863,10 @@ function resolvePetPanelPlacement({
   return { vertical, horizontal };
 }
 function isPositiveExtent(extent) {
-  return typeof (extent == null ? void 0 : extent.width) === "number" && extent.width > 0 && typeof (extent == null ? void 0 : extent.height) === "number" && extent.height > 0;
+  return typeof extent?.width === "number" && extent.width > 0 && typeof extent?.height === "number" && extent.height > 0;
 }
 function petWindowContentExtent(window) {
-  var _a;
-  const candidates = [(_a = window.getContentBounds) == null ? void 0 : _a.call(window), window.getBounds()];
+  const candidates = [window.getContentBounds?.(), window.getBounds()];
   const measured = candidates.find(isPositiveExtent);
   return {
     width: measured ? Math.round(measured.width) : PET_WINDOW_WIDTH,
@@ -4950,11 +4982,10 @@ var PetWindowController = class {
     this.options = options;
   }
   async create() {
-    var _a, _b, _c, _d;
-    const restoredPosition = ((_b = (_a = this.options).readPosition) == null ? void 0 : _b.call(_a)) ?? null;
+    const restoredPosition = this.options.readPosition?.() ?? null;
     this.resetPanelState();
     this.pendingRestoredPosition = restoredPosition;
-    if (restoredPosition == null ? void 0 : restoredPosition.region) {
+    if (restoredPosition?.region) {
       this.pendingMascotAnchorScreen = {
         x: restoredPosition.x + restoredPosition.region.x,
         y: restoredPosition.y + restoredPosition.region.y
@@ -4977,7 +5008,7 @@ var PetWindowController = class {
     });
     try {
       configurePetWindow(window, this.options.platform ?? process.platform);
-      (_d = (_c = this.options).onCreated) == null ? void 0 : _d.call(_c, window);
+      this.options.onCreated?.(window);
       await this.options.load(window);
       return window;
     } catch (error) {
@@ -5045,7 +5076,6 @@ var PetWindowController = class {
     window.setIgnoreMouseEvents(ignore, ignore ? { forward: true } : void 0);
   }
   setInteractiveRegions(window, regions) {
-    var _a, _b;
     if (!this.owns(window)) {
       throw new Error("Pet window IPC sender does not own the companion window");
     }
@@ -5062,7 +5092,7 @@ var PetWindowController = class {
       this.pendingRestoredPosition = null;
       const requestedPosition = this.holdMascotAnchor(dragRegion, restoredPosition ?? bounds);
       const anchor = petWindowAnchor({ ...requestedPosition, region: dragRegion });
-      const workArea = ((_b = (_a = this.options).getWorkAreaForPoint) == null ? void 0 : _b.call(_a, anchor)) ?? this.options.getCurrentWorkArea();
+      const workArea = this.options.getWorkAreaForPoint?.(anchor) ?? this.options.getCurrentWorkArea();
       const nextPosition = clampPetWindowPosition(requestedPosition, workArea, dragRegion);
       if (nextPosition.x !== bounds.x || nextPosition.y !== bounds.y) {
         movePetWindow(window, nextPosition);
@@ -5104,7 +5134,6 @@ var PetWindowController = class {
     return compensated;
   }
   updatePanelPlacement(window, windowPosition, workArea, mascot) {
-    var _a, _b;
     const previous = this.panelPlacement;
     const next = resolvePetPanelPlacement({
       windowPosition,
@@ -5119,10 +5148,9 @@ var PetWindowController = class {
       y: windowPosition.y + mascot.y
     };
     this.panelPlacement = next;
-    (_b = (_a = this.options).onPanelPlacementChanged) == null ? void 0 : _b.call(_a, window, next);
+    this.options.onPanelPlacementChanged?.(window, next);
   }
   dragWindow(window, payload) {
-    var _a, _b;
     if (!this.owns(window)) {
       throw new Error("Pet window IPC sender does not own the companion window");
     }
@@ -5132,7 +5160,7 @@ var PetWindowController = class {
     if (payload.phase === "start") {
       this.finishDrag();
       const bounds = window.getBounds();
-      const sampledPointer = (_b = (_a = this.options).getCursorScreenPoint) == null ? void 0 : _b.call(_a);
+      const sampledPointer = this.options.getCursorScreenPoint?.();
       const pointerStart = sampledPointer && isPetWindowPosition(sampledPointer) ? sampledPointer : payload;
       this.drag = {
         window,
@@ -5158,26 +5186,24 @@ var PetWindowController = class {
     return this.panelPlacement;
   }
   readCursorScreenPoint() {
-    var _a, _b;
-    const point = (_b = (_a = this.options).getCursorScreenPoint) == null ? void 0 : _b.call(_a);
+    const point = this.options.getCursorScreenPoint?.();
     return point && isPetWindowPosition(point) ? { x: point.x, y: point.y } : null;
   }
   sampleDragPosition() {
     const drag = this.drag;
     if (!drag || drag.window.isDestroyed()) {
-      this.finishDrag(drag == null ? void 0 : drag.window);
+      this.finishDrag(drag?.window);
       return;
     }
     const point = this.readCursorScreenPoint();
     if (point) this.updateDragPosition(drag, point);
   }
   updateDragPosition(drag, pointer) {
-    var _a, _b;
     const requestedPosition = {
       x: drag.windowStart.x + pointer.x - drag.pointerStart.x,
       y: drag.windowStart.y + pointer.y - drag.pointerStart.y
     };
-    const workArea = ((_b = (_a = this.options).getWorkAreaForPoint) == null ? void 0 : _b.call(_a, pointer)) ?? this.options.getCurrentWorkArea();
+    const workArea = this.options.getWorkAreaForPoint?.(pointer) ?? this.options.getCurrentWorkArea();
     const nextPosition = clampPetWindowPosition(
       requestedPosition,
       workArea,
@@ -5191,7 +5217,6 @@ var PetWindowController = class {
     }
   }
   finishDrag(window) {
-    var _a, _b;
     const drag = this.drag;
     if (window && drag && drag.window !== window) return;
     if (this.dragTimer) {
@@ -5200,7 +5225,7 @@ var PetWindowController = class {
     }
     if (!drag) return;
     this.drag = null;
-    (_b = (_a = this.options).writePosition) == null ? void 0 : _b.call(_a, {
+    this.options.writePosition?.({
       ...drag.lastPosition,
       ...this.visibleDragRegion ? { region: this.visibleDragRegion } : {}
     });
@@ -5233,60 +5258,11 @@ var PetWindowController = class {
   }
 };
 
-// electron/services/localePreference.ts
-var import_node_crypto6 = require("node:crypto");
-var import_node_fs14 = __toESM(require("node:fs"), 1);
-var import_node_path12 = __toESM(require("node:path"), 1);
-
-// src/i18n/locale.ts
-var VALID_LOCALES = ["en", "zh", "zh-TW", "jp", "kr"];
-function isLocale(value) {
-  return typeof value === "string" && VALID_LOCALES.includes(value);
-}
-
-// electron/services/localePreference.ts
-var LOCALE_PREFERENCE_FILE = "locale-preference.json";
-function localePreferencePath(app2) {
-  return import_node_path12.default.join(app2.getPath("userData"), LOCALE_PREFERENCE_FILE);
-}
-function readLocalePreference(app2) {
-  var _a;
-  try {
-    const parsed = JSON.parse(import_node_fs14.default.readFileSync(localePreferencePath(app2), "utf8"));
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-    const entries = Object.entries(parsed);
-    if (entries.length !== 1 || ((_a = entries[0]) == null ? void 0 : _a[0]) !== "locale") return null;
-    return isLocale(entries[0][1]) ? entries[0][1] : null;
-  } catch {
-    return null;
-  }
-}
-function writeLocalePreference(app2, locale) {
-  if (!isLocale(locale)) {
-    throw new Error(`Unsupported locale preference: ${String(locale)}`);
-  }
-  const target = localePreferencePath(app2);
-  const configDir = import_node_path12.default.dirname(target);
-  const temporary = import_node_path12.default.join(configDir, `.${LOCALE_PREFERENCE_FILE}.${(0, import_node_crypto6.randomUUID)()}.tmp`);
-  const preference = { locale };
-  import_node_fs14.default.mkdirSync(configDir, { recursive: true });
-  try {
-    import_node_fs14.default.writeFileSync(temporary, `${JSON.stringify(preference, null, 2)}
-`, {
-      encoding: "utf8",
-      mode: 384
-    });
-    import_node_fs14.default.renameSync(temporary, target);
-  } finally {
-    import_node_fs14.default.rmSync(temporary, { force: true });
-  }
-}
-
-// electron/services/pets.ts
-var import_node_fs15 = require("node:fs");
+// desktop/electron/services/pets.ts
+var import_node_fs16 = require("node:fs");
 var import_promises3 = require("node:fs/promises");
-var import_node_os5 = __toESM(require("node:os"), 1);
-var import_node_path13 = __toESM(require("node:path"), 1);
+var import_node_os6 = __toESM(require("node:os"), 1);
+var import_node_path14 = __toESM(require("node:path"), 1);
 var CUSTOM_PET_SPRITESHEET_WIDTH = 1536;
 var CUSTOM_PET_SPRITESHEET_HEIGHT = 2288;
 var CUSTOM_PET_SPRITESHEET_PIXELS = CUSTOM_PET_SPRITESHEET_WIDTH * CUSTOM_PET_SPRITESHEET_HEIGHT;
@@ -5349,19 +5325,18 @@ function normalizeLimit(value, fallback) {
 }
 function resolveHomePath2(input, homeDir) {
   if (input === "~") return homeDir;
-  if (input.startsWith(`~${import_node_path13.default.sep}`) || input.startsWith("~/") || input.startsWith("~\\")) {
-    return import_node_path13.default.join(homeDir, input.slice(2));
+  if (input.startsWith(`~${import_node_path14.default.sep}`) || input.startsWith("~/") || input.startsWith("~\\")) {
+    return import_node_path14.default.join(homeDir, input.slice(2));
   }
   return input;
 }
 function resolveCustomPetsRoot(options = {}) {
-  var _a;
-  if (options.root) return import_node_path13.default.resolve(options.root);
+  if (options.root) return import_node_path14.default.resolve(options.root);
   const env = options.env ?? process.env;
-  const homeDir = import_node_path13.default.resolve(options.homeDir ?? import_node_os5.default.homedir());
-  const configuredRoot = (_a = env.CLAUDE_CONFIG_DIR) == null ? void 0 : _a.trim();
-  const claudeConfigDir3 = configuredRoot ? import_node_path13.default.resolve(resolveHomePath2(configuredRoot, homeDir)) : import_node_path13.default.join(homeDir, ".claude");
-  return import_node_path13.default.join(claudeConfigDir3, "cc-haha", "pets");
+  const homeDir = import_node_path14.default.resolve(options.homeDir ?? import_node_os6.default.homedir());
+  const configuredRoot = env.CLAUDE_CONFIG_DIR?.trim();
+  const claudeConfigDir3 = configuredRoot ? import_node_path14.default.resolve(resolveHomePath2(configuredRoot, homeDir)) : import_node_path14.default.join(homeDir, ".claude");
+  return import_node_path14.default.join(claudeConfigDir3, "cc-haha", "pets");
 }
 async function ensureCustomPetsRoot(options = {}) {
   const root = resolveCustomPetsRoot(options);
@@ -5411,7 +5386,7 @@ async function captureDirectoryIdentity(directoryPath, options) {
   return {
     ...options,
     directoryPath,
-    realPath: import_node_path13.default.resolve(resolvedPath),
+    realPath: import_node_path14.default.resolve(resolvedPath),
     dev: afterStat.dev,
     ino: afterStat.ino
   };
@@ -5428,7 +5403,7 @@ async function assertDirectoryIdentities(identities) {
   }
 }
 function assertDirectRealChild(parent, child) {
-  if (import_node_path13.default.dirname(child.realPath) !== parent.realPath) {
+  if (import_node_path14.default.dirname(child.realPath) !== parent.realPath) {
     throw new PetPackageError(
       child.changedCode,
       child.changedMessage
@@ -5483,8 +5458,7 @@ async function readDirectEntries(root, maxEntries, validateRoot) {
   };
 }
 async function readBoundedRegularFile(options) {
-  var _a, _b, _c, _d, _e;
-  await ((_a = options.validatePathContext) == null ? void 0 : _a.call(options));
+  await options.validatePathContext?.();
   let pathStat;
   try {
     pathStat = await (0, import_promises3.lstat)(options.filePath);
@@ -5503,11 +5477,11 @@ async function readBoundedRegularFile(options) {
   if (pathStat.size > options.maxBytes) {
     throw new PetPackageError(options.tooLargeCode, options.tooLargeMessage);
   }
-  await ((_b = options.validatePathContext) == null ? void 0 : _b.call(options));
-  const noFollow = import_node_fs15.constants.O_NOFOLLOW ?? 0;
+  await options.validatePathContext?.();
+  const noFollow = import_node_fs16.constants.O_NOFOLLOW ?? 0;
   let file;
   try {
-    file = await (0, import_promises3.open)(options.filePath, import_node_fs15.constants.O_RDONLY | noFollow);
+    file = await (0, import_promises3.open)(options.filePath, import_node_fs16.constants.O_RDONLY | noFollow);
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") {
       throw new PetPackageError(options.missingCode, options.missingMessage);
@@ -5525,7 +5499,7 @@ async function readBoundedRegularFile(options) {
     if (openedStat.size > options.maxBytes) {
       throw new PetPackageError(options.tooLargeCode, options.tooLargeMessage);
     }
-    await ((_c = options.validatePathContext) == null ? void 0 : _c.call(options));
+    await options.validatePathContext?.();
     const chunks = [];
     let totalBytes = 0;
     while (totalBytes < openedStat.size) {
@@ -5533,7 +5507,7 @@ async function readBoundedRegularFile(options) {
       const { bytesRead } = await file.read(chunk, 0, chunk.byteLength, null);
       if (bytesRead === 0) break;
       totalBytes += bytesRead;
-      (_d = options.onBytesRead) == null ? void 0 : _d.call(options, bytesRead);
+      options.onBytesRead?.(bytesRead);
       chunks.push(chunk.subarray(0, bytesRead));
     }
     const afterReadStat = await file.stat();
@@ -5543,7 +5517,7 @@ async function readBoundedRegularFile(options) {
       }
       throw new PetPackageError(options.invalidCode, options.invalidMessage);
     }
-    await ((_e = options.validatePathContext) == null ? void 0 : _e.call(options));
+    await options.validatePathContext?.();
     return Buffer.concat(chunks, totalBytes);
   } finally {
     await file.close();
@@ -5587,23 +5561,23 @@ function resolvePortableRelativePath(packageDir, value, options) {
   if (value.length > MAX_IMAGE_PATH_LENGTH || CONTROL_CHARACTER_PATTERN.test(value)) {
     throw new PetPackageError(options.code, `${options.fieldName} is invalid.`);
   }
-  if (import_node_path13.default.posix.isAbsolute(value) || import_node_path13.default.win32.isAbsolute(value)) {
+  if (import_node_path14.default.posix.isAbsolute(value) || import_node_path14.default.win32.isAbsolute(value)) {
     throw new PetPackageError(options.code, `${options.fieldName} must be relative.`);
   }
   const portablePath = value.replaceAll("\\", "/");
   const segments = portablePath.split("/");
-  if (segments.some((segment) => !segment || segment === "." || segment === ".." || segment.includes(":")) || import_node_path13.default.posix.normalize(portablePath) !== portablePath) {
+  if (segments.some((segment) => !segment || segment === "." || segment === ".." || segment.includes(":")) || import_node_path14.default.posix.normalize(portablePath) !== portablePath) {
     throw new PetPackageError(options.code, `${options.fieldName} cannot traverse the package.`);
   }
-  const absolutePath = import_node_path13.default.resolve(packageDir, ...segments);
-  const relativeToPackage = import_node_path13.default.relative(packageDir, absolutePath);
-  if (!relativeToPackage || relativeToPackage.startsWith("..") || import_node_path13.default.isAbsolute(relativeToPackage)) {
+  const absolutePath = import_node_path14.default.resolve(packageDir, ...segments);
+  const relativeToPackage = import_node_path14.default.relative(packageDir, absolutePath);
+  if (!relativeToPackage || relativeToPackage.startsWith("..") || import_node_path14.default.isAbsolute(relativeToPackage)) {
     throw new PetPackageError(options.code, `${options.fieldName} must stay inside the package.`);
   }
   return { relativePath: segments.join("/"), absolutePath };
 }
 function mimeTypeForPath(imagePath, fieldName) {
-  const extension = import_node_path13.default.posix.extname(imagePath).toLowerCase();
+  const extension = import_node_path14.default.posix.extname(imagePath).toLowerCase();
   if (extension === ".png") return "image/png";
   if (extension === ".webp") return "image/webp";
   throw new PetPackageError(
@@ -5613,12 +5587,12 @@ function mimeTypeForPath(imagePath, fieldName) {
 }
 async function captureImageDirectoryIdentities(packageIdentity, imagePath) {
   const identities = [packageIdentity];
-  const relativePath = import_node_path13.default.relative(packageIdentity.directoryPath, imagePath);
-  const segments = relativePath.split(import_node_path13.default.sep);
+  const relativePath = import_node_path14.default.relative(packageIdentity.directoryPath, imagePath);
+  const segments = relativePath.split(import_node_path14.default.sep);
   let current = packageIdentity.directoryPath;
   let parentIdentity = packageIdentity;
   for (const segment of segments.slice(0, -1)) {
-    current = import_node_path13.default.join(current, segment);
+    current = import_node_path14.default.join(current, segment);
     const componentIdentity = await captureDirectoryIdentity(current, IMAGE_DIRECTORY_OPTIONS);
     assertDirectRealChild(parentIdentity, componentIdentity);
     identities.push(componentIdentity);
@@ -5804,7 +5778,7 @@ function parseManifestRenderer(packageDir, entry, manifest, displayName, descrip
   };
 }
 async function readManifestCandidate(root, rootIdentity, entry, maxManifestBytes) {
-  const packageDir = import_node_path13.default.join(root, entry.name);
+  const packageDir = import_node_path14.default.join(root, entry.name);
   if (entry.isSymbolicLink()) {
     throw new PetPackageError("symlink-entry", "Custom pet package symlinks are not allowed.");
   }
@@ -5820,7 +5794,7 @@ async function readManifestCandidate(root, rootIdentity, entry, maxManifestBytes
   assertDirectRealChild(rootIdentity, packageIdentity);
   const manifestDirectoryIdentities = [rootIdentity, packageIdentity];
   const manifestData = await readBoundedRegularFile({
-    filePath: import_node_path13.default.join(packageDir, "pet.json"),
+    filePath: import_node_path14.default.join(packageDir, "pet.json"),
     maxBytes: maxManifestBytes,
     validatePathContext: () => assertDirectoryIdentities(manifestDirectoryIdentities),
     missingCode: "missing-manifest",
@@ -5944,7 +5918,7 @@ async function assertCustomPetTargetAvailable(targetPath) {
   throw new PetPackageError("duplicate-id", "A custom pet with this ID already exists.");
 }
 async function readCustomPetSourceImage(imagePath) {
-  const resolved = import_node_path13.default.resolve(imagePath);
+  const resolved = import_node_path14.default.resolve(imagePath);
   const mimeType = mimeTypeForPath(resolved, "imagePath");
   const data = await readBoundedRegularFile({
     filePath: resolved,
@@ -5990,7 +5964,7 @@ function validatedCustomPetIdentity(input) {
 }
 async function createCustomPetFromAtlas(input, options = {}) {
   const { slug, displayName, description } = validatedCustomPetIdentity(input);
-  const atlasPath = import_node_path13.default.resolve(input.atlasPath);
+  const atlasPath = import_node_path14.default.resolve(input.atlasPath);
   const mimeType = mimeTypeForPath(atlasPath, "spritesheetPath");
   const atlasData = await readBoundedRegularFile({
     filePath: atlasPath,
@@ -6035,15 +6009,15 @@ async function installCustomAtlasPet(request, options) {
   const spritesheetPath = `spritesheet.${extension}`;
   const root = await ensureCustomPetsRoot(options);
   const rootIdentity = await captureDirectoryIdentity(root, ROOT_DIRECTORY_OPTIONS);
-  const targetPath = import_node_path13.default.join(root, slug);
+  const targetPath = import_node_path14.default.join(root, slug);
   await assertCustomPetTargetAvailable(targetPath);
-  const stagingRoot = await (0, import_promises3.mkdtemp)(import_node_path13.default.join(import_node_path13.default.dirname(root), ".pet-install-"));
-  const packagePath = import_node_path13.default.join(stagingRoot, slug);
+  const stagingRoot = await (0, import_promises3.mkdtemp)(import_node_path14.default.join(import_node_path14.default.dirname(root), ".pet-install-"));
+  const packagePath = import_node_path14.default.join(stagingRoot, slug);
   try {
     await (0, import_promises3.mkdir)(packagePath, { mode: 448 });
-    await (0, import_promises3.writeFile)(import_node_path13.default.join(packagePath, spritesheetPath), atlasData, { flag: "wx", mode: 384 });
+    await (0, import_promises3.writeFile)(import_node_path14.default.join(packagePath, spritesheetPath), atlasData, { flag: "wx", mode: 384 });
     await (0, import_promises3.writeFile)(
-      import_node_path13.default.join(packagePath, "pet.json"),
+      import_node_path14.default.join(packagePath, "pet.json"),
       `${JSON.stringify({
         id: slug,
         displayName,
@@ -6063,8 +6037,8 @@ async function installCustomAtlasPet(request, options) {
     const validationError = validation.errors[0];
     if (!pet || pet.spriteVersionNumber !== 2 || validationError) {
       throw new PetPackageError(
-        (validationError == null ? void 0 : validationError.code) ?? "invalid-image",
-        (validationError == null ? void 0 : validationError.message) ?? "The custom pet package could not be validated."
+        validationError?.code ?? "invalid-image",
+        validationError?.message ?? "The custom pet package could not be validated."
       );
     }
     await assertDirectoryIdentity(rootIdentity);
@@ -6104,7 +6078,7 @@ async function createCustomPetFromImage(input, options = {}) {
   if (motionProfile !== CUSTOM_PET_SINGLE_IMAGE_MOTION_PROFILE) {
     throw new PetPackageError("invalid-renderer", "The single-image motion profile is unsupported.");
   }
-  const sourcePath = import_node_path13.default.resolve(input.imagePath);
+  const sourcePath = import_node_path14.default.resolve(input.imagePath);
   const mimeType = mimeTypeForPath(sourcePath, "imagePath");
   const extension = mimeType === "image/png" ? "png" : "webp";
   const imagePath = `pet.${extension}`;
@@ -6122,15 +6096,15 @@ async function createCustomPetFromImage(input, options = {}) {
   });
   const root = await ensureCustomPetsRoot(options);
   const rootIdentity = await captureDirectoryIdentity(root, ROOT_DIRECTORY_OPTIONS);
-  const targetPath = import_node_path13.default.join(root, slug);
+  const targetPath = import_node_path14.default.join(root, slug);
   await assertCustomPetTargetAvailable(targetPath);
-  const stagingRoot = await (0, import_promises3.mkdtemp)(import_node_path13.default.join(import_node_path13.default.dirname(root), ".pet-install-"));
-  const packagePath = import_node_path13.default.join(stagingRoot, slug);
+  const stagingRoot = await (0, import_promises3.mkdtemp)(import_node_path14.default.join(import_node_path14.default.dirname(root), ".pet-install-"));
+  const packagePath = import_node_path14.default.join(stagingRoot, slug);
   try {
     await (0, import_promises3.mkdir)(packagePath, { mode: 448 });
-    await (0, import_promises3.writeFile)(import_node_path13.default.join(packagePath, imagePath), imageData, { flag: "wx", mode: 384 });
+    await (0, import_promises3.writeFile)(import_node_path14.default.join(packagePath, imagePath), imageData, { flag: "wx", mode: 384 });
     await (0, import_promises3.writeFile)(
-      import_node_path13.default.join(packagePath, "pet.json"),
+      import_node_path14.default.join(packagePath, "pet.json"),
       `${JSON.stringify({
         id: slug,
         displayName,
@@ -6155,8 +6129,8 @@ async function createCustomPetFromImage(input, options = {}) {
     const validationError = validation.errors[0];
     if (!pet || pet.spriteVersionNumber !== 1 || validationError) {
       throw new PetPackageError(
-        (validationError == null ? void 0 : validationError.code) ?? "invalid-image",
-        (validationError == null ? void 0 : validationError.message) ?? "The custom pet package could not be validated."
+        validationError?.code ?? "invalid-image",
+        validationError?.message ?? "The custom pet package could not be validated."
       );
     }
     await assertDirectoryIdentity(rootIdentity);
@@ -6332,7 +6306,7 @@ async function loadCustomPets(options = {}) {
   return { root, pets, errors };
 }
 
-// electron/main.ts
+// desktop/electron/main.ts
 var mainWindow = null;
 var serverRuntime = null;
 var updaterService = null;
@@ -6341,63 +6315,12 @@ var previewService = null;
 var petWindowController = null;
 var traceWindows = /* @__PURE__ */ new Map();
 var isQuitting = false;
+var quitCleanupStarted = false;
+var quitCleanupFinished = false;
 var trayController = null;
 installStdioWriteFailureGuards();
 installMacOsChromiumKeychainPromptGuard(import_electron.app);
-try {
-  const __im = isIntranetModeEnabled();
-  try { import_node_fs3.writeFileSync("C:\\cc-haha\\guard-marker.txt", "intranet=" + __im + " pid=" + process.pid + "\n"); } catch {}
-  if (__im) {
-    import_electron.app.commandLine.appendSwitch("disable-component-update");
-    import_electron.app.commandLine.appendSwitch("disable-background-networking");
-    try { import_node_fs3.appendFileSync("C:\\cc-haha\\guard-marker.txt", "switches-appended\n"); } catch {}
-    // Chromium spellcheck downloads hunspell dictionaries from Google CDN
-    // (redirector.gvt1.com) when the .bdic file is missing locally, and keeps
-    // retrying every ~5 minutes. --disable-component-update does not cover it.
-    const __disableSpellcheck = (ses) => {
-      try {
-        ses.setSpellCheckerEnabled(false);
-        try { ses.setSpellCheckerDictionaryDownloadURL("http://127.0.0.1:60927/dictionaries/"); } catch {}
-        import_node_fs3.appendFileSync("C:\\cc-haha\\guard-marker.txt", "spellcheck-disabled session=" + (ses && ses.getUserAgent ? "ok" : "?") + "\n");
-      } catch (e2) { try { import_node_fs3.appendFileSync("C:\\cc-haha\\guard-marker.txt", "spellcheck-disable-error=" + e2 + "\n"); } catch {} }
-    };
-    import_electron.app.on("session-created", __disableSpellcheck);
-    import_electron.app.whenReady().then(() => {
-      __disableSpellcheck(import_electron.session.defaultSession);
-    });
-  }
-} catch (e) {
-  try { import_node_fs3.writeFileSync("C:\\cc-haha\\guard-marker.txt", "guard-error=" + e + "\n"); } catch {}
-}
-var lazyAutoUpdater;
-function createAutoUpdaterStub() {
-  const stub = {
-    autoDownload: false,
-    disableDifferentialDownload: true,
-    logger: null,
-    netSession: { setProxy: async () => void 0 },
-    setFeedURL: () => void 0,
-    checkForUpdates: () => Promise.resolve(null),
-    downloadUpdate: () => Promise.reject(new Error("electron-updater is not installed")),
-    quitAndInstall: () => void 0,
-    on: () => stub,
-    once: () => stub,
-    off: () => stub,
-    removeAllListeners: () => stub
-  };
-  return stub;
-}
-function loadAutoUpdater() {
-  if (lazyAutoUpdater) return lazyAutoUpdater;
-  try {
-    const updaterModule = require("electron-updater");
-    lazyAutoUpdater = updaterModule.autoUpdater ?? createAutoUpdaterStub();
-  } catch {
-    console.warn("[updater] electron-updater is not installed; automatic updates are disabled");
-    lazyAutoUpdater = createAutoUpdaterStub();
-  }
-  return lazyAutoUpdater;
-}
+installIntranetChromiumNetworkGuard(import_electron.app, () => import_electron.session.defaultSession);
 function appRoot() {
   return import_electron.app.isPackaged ? import_electron.app.getAppPath() : process.cwd();
 }
@@ -6406,16 +6329,16 @@ function unpackedRoot() {
   return import_electron.app.isPackaged ? root.replace(/\.asar$/, ".asar.unpacked") : root;
 }
 function preloadPath() {
-  return import_node_path14.default.join(appRoot(), "electron-dist", "preload.cjs");
+  return import_node_path15.default.join(appRoot(), "electron-dist", "preload.cjs");
 }
 function previewPreloadPath() {
-  return import_node_path14.default.join(appRoot(), "electron-dist", "preview-preload.cjs");
+  return import_node_path15.default.join(appRoot(), "electron-dist", "preview-preload.cjs");
 }
 function petPreloadPath() {
-  return import_node_path14.default.join(appRoot(), "electron-dist", "pet-preload.cjs");
+  return import_node_path15.default.join(appRoot(), "electron-dist", "pet-preload.cjs");
 }
 function previewAgentPath() {
-  return import_node_path14.default.join(appRoot(), "src-tauri", "resources", "preview-agent.js");
+  return import_node_path15.default.join(appRoot(), "src-tauri", "resources", "preview-agent.js");
 }
 function rendererEntry() {
   return resolveRendererEntry({
@@ -6568,7 +6491,7 @@ function getServerRuntime() {
   serverRuntime ??= new ElectronServerRuntime({
     desktopRoot: unpackedRoot(),
     appRoot: appRoot(),
-    h5DistDir: import_node_path14.default.join(unpackedRoot(), "dist"),
+    h5DistDir: import_node_path15.default.join(unpackedRoot(), "dist"),
     diagnosticsFile: electronHostDiagnosticsFile(process.env),
     resolveSystemProxy: (url) => import_electron.session.defaultSession.resolveProxy(url)
   });
@@ -6584,6 +6507,36 @@ function resolveMainRendererServerAccess() {
   const serverUrl = runtime.getActiveServerUrl();
   return serverUrl ? { serverUrl, token: runtime.getLocalAccessToken() } : null;
 }
+var previewViewConstructor = import_electron.WebContentsView ?? import_electron.BrowserView;
+var lazyAutoUpdater = null;
+function createAutoUpdaterStub() {
+  const stub = {
+    autoDownload: false,
+    disableDifferentialDownload: true,
+    logger: null,
+    netSession: { setProxy: async () => void 0 },
+    setFeedURL: () => void 0,
+    checkForUpdates: () => Promise.resolve(null),
+    downloadUpdate: () => Promise.reject(new Error("electron-updater is not installed")),
+    quitAndInstall: () => void 0,
+    on: () => stub,
+    once: () => stub,
+    off: () => stub,
+    removeAllListeners: () => stub
+  };
+  return stub;
+}
+function loadAutoUpdater() {
+  if (lazyAutoUpdater) return lazyAutoUpdater;
+  try {
+    const updaterModule = require("electron-updater");
+    lazyAutoUpdater = updaterModule.autoUpdater ?? createAutoUpdaterStub();
+  } catch {
+    console.warn("[updater] electron-updater is not installed; automatic updates are disabled");
+    lazyAutoUpdater = createAutoUpdaterStub();
+  }
+  return lazyAutoUpdater;
+}
 function getUpdaterService() {
   const smokeUpdater = createUpdateSmokeUpdaterFromEnv(process.env);
   updaterService ??= new ElectronUpdaterService(smokeUpdater ?? loadAutoUpdater(), {
@@ -6591,29 +6544,27 @@ function getUpdaterService() {
       await loadAutoUpdater().netSession.setProxy(updaterSessionProxyConfig(proxy));
     }
   }, {
-    updateConfigPath: !smokeUpdater && import_electron.app.isPackaged ? import_node_path14.default.join(process.resourcesPath, "app-update.yml") : void 0
+    updateConfigPath: !smokeUpdater && import_electron.app.isPackaged ? import_node_path15.default.join(process.resourcesPath, "app-update.yml") : void 0
   });
   return updaterService;
 }
 function nodePtyRuntimeCacheDir() {
   if (!import_electron.app.isPackaged || process.platform !== "darwin") return void 0;
-  return import_node_path14.default.join(import_electron.app.getPath("userData"), "native", `node-pty-${process.platform}-${process.arch}-${import_electron.app.getVersion()}`);
+  return import_node_path15.default.join(import_electron.app.getPath("userData"), "native", `node-pty-${process.platform}-${process.arch}-${import_electron.app.getVersion()}`);
 }
 function getTerminalService() {
   terminalService ??= new ElectronTerminalService({
     app: import_electron.app,
-    nodePtySourceDir: import_electron.app.isPackaged ? import_node_path14.default.join(unpackedRoot(), "node_modules", "node-pty") : void 0,
+    nodePtySourceDir: import_electron.app.isPackaged ? import_node_path15.default.join(unpackedRoot(), "node_modules", "node-pty") : void 0,
     nodePtyCacheDir: nodePtyRuntimeCacheDir()
   });
   return terminalService;
 }
-var previewViewConstructor = electron.WebContentsView ?? electron.BrowserView;
 function getPreviewService() {
   previewService ??= new ElectronPreviewService({
     previewScriptPath: previewAgentPath(),
     resolveScaleFactor: (parent) => {
-      var _a;
-      const bounds = (_a = parent.getBounds) == null ? void 0 : _a.call(parent);
+      const bounds = parent.getBounds?.();
       return bounds ? import_electron.screen.getDisplayMatching(bounds).scaleFactor : 1;
     },
     createView: () => {
@@ -6673,7 +6624,7 @@ async function listCustomPets() {
 }
 function focusPetSession(sessionId) {
   showMainWindow(mainWindow, import_electron.app);
-  mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.petNavigateSession, sessionId);
+  mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.petNavigateSession, sessionId);
 }
 function currentWindow(event) {
   const window = import_electron.BrowserWindow.fromWebContents(event.sender);
@@ -6686,7 +6637,7 @@ function registerHandler(channel, handler) {
       throw new Error(`Invalid Electron IPC payload for ${channel}`);
     }
     const senderWindow = import_electron.BrowserWindow.fromWebContents(event.sender);
-    if ((petWindowController == null ? void 0 : petWindowController.owns(senderWindow)) && !isElectronIpcChannelAllowedForPetWindow(channel)) {
+    if (petWindowController?.owns(senderWindow) && !isElectronIpcChannelAllowedForPetWindow(channel)) {
       throw new Error(`Electron IPC channel ${channel} is not available to the pet window`);
     }
     return handler(event, payload);
@@ -6697,7 +6648,7 @@ function unsupported(name) {
 }
 function emitNotificationAction(payload) {
   showMainWindow(mainWindow, import_electron.app);
-  mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.notificationAction, payload);
+  mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.notificationAction, payload);
 }
 function broadcastLocaleChanged(locale) {
   for (const window of import_electron.BrowserWindow.getAllWindows()) {
@@ -6731,7 +6682,7 @@ async function handleCommandInvoke(payload) {
 }
 function registerIpcHandlers() {
   import_electron.ipcMain.on(ELECTRON_INTERNAL_CHANNELS.previewMessageFromView, (event, raw) => {
-    void getPreviewService().sendMessageToRenderer(event.sender, raw, mainWindow == null ? void 0 : mainWindow.webContents);
+    void getPreviewService().sendMessageToRenderer(event.sender, raw, mainWindow?.webContents);
   });
   registerHandler(ELECTRON_IPC_CHANNELS.appGetVersion, () => import_electron.app.getVersion());
   registerHandler(
@@ -6851,11 +6802,11 @@ function registerIpcHandlers() {
   });
   registerHandler(ELECTRON_IPC_CHANNELS.petsShow, async () => {
     await getPetWindowController().show();
-    mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, true);
+    mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, true);
   });
   registerHandler(ELECTRON_IPC_CHANNELS.petsHide, () => {
     getPetWindowController().hide();
-    mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, false);
+    mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.petVisibilityChanged, false);
   });
   registerHandler(ELECTRON_IPC_CHANNELS.petsShowContextMenu, (event, payload) => {
     const { closeLabel } = payload;
@@ -6887,7 +6838,7 @@ function registerIpcHandlers() {
   registerHandler(ELECTRON_IPC_CHANNELS.dialogSave, (event, payload) => saveDialog(currentWindow(event), payload));
   registerHandler(ELECTRON_IPC_CHANNELS.updateCheck, (_event, payload) => getUpdaterService().checkForUpdates(payload));
   registerHandler(ELECTRON_IPC_CHANNELS.updateDownload, () => getUpdaterService().downloadUpdate((event) => {
-    mainWindow == null ? void 0 : mainWindow.webContents.send(ELECTRON_EVENT_CHANNELS.updateDownloadEvent, event);
+    mainWindow?.webContents.send(ELECTRON_EVENT_CHANNELS.updateDownloadEvent, event);
   }));
   registerHandler(ELECTRON_IPC_CHANNELS.updateInstall, () => getUpdaterService().stageDownloadedUpdate());
   registerHandler(ELECTRON_IPC_CHANNELS.updatePrepareInstall, () => getServerRuntime().stopAll());
@@ -6995,7 +6946,7 @@ async function createMainWindow() {
   installMainWindowNavigationGuards(mainWindow.webContents, { openExternal: openExternalUrl });
   await installRendererContextMenu(mainWindow);
   installPreviewCleanupOnRendererNavigation(mainWindow.webContents, () => {
-    previewService == null ? void 0 : previewService.close();
+    previewService?.close();
   });
   installWindowLifecycle({
     app: import_electron.app,
@@ -7066,7 +7017,7 @@ import_electron.app.whenReady().then(async () => {
   installDesktopShortcutIconSync();
   import_electron.screen.on("display-metrics-changed", (_event, _display, changedMetrics) => {
     if (changedMetrics.includes("scaleFactor") || changedMetrics.includes("bounds")) {
-      previewService == null ? void 0 : previewService.refreshBounds();
+      previewService?.refreshBounds();
     }
   });
   await getServerRuntime().startServer().catch((error) => {
@@ -7104,14 +7055,46 @@ import_electron.app.whenReady().then(async () => {
 import_electron.app.on("window-all-closed", () => {
   if (isQuitting && process.platform !== "darwin") import_electron.app.quit();
 });
-import_electron.app.on("before-quit", () => {
+import_electron.app.on("before-quit", (event) => {
   isQuitting = true;
-  if (mainWindow) saveWindowState(import_electron.app, mainWindow);
-  trayController == null ? void 0 : trayController.dispose();
+  if (quitCleanupFinished) return;
+  event.preventDefault();
+  if (quitCleanupStarted) return;
+  quitCleanupStarted = true;
+  const cleanupSteps = {
+    window: () => {
+      if (mainWindow) saveWindowState(import_electron.app, mainWindow);
+    },
+    tray: () => {
+      trayController?.dispose();
+    },
+    terminal: () => {
+      terminalService?.killAll();
+    },
+    preview: () => {
+      previewService?.close();
+    },
+    pet: () => {
+      petWindowController?.dispose();
+    }
+  };
+  for (const [resource, cleanup] of Object.entries(cleanupSteps)) {
+    try {
+      cleanup();
+    } catch (error) {
+      console.error(`[desktop] ${resource} cleanup failed during quit`, error);
+    }
+  }
   trayController = null;
-  terminalService == null ? void 0 : terminalService.killAll();
-  previewService == null ? void 0 : previewService.close();
-  petWindowController == null ? void 0 : petWindowController.dispose();
   petWindowController = null;
-  getServerRuntime().stopAll(true);
+  void (async () => {
+    try {
+      await getServerRuntime().stopAllAndWait();
+    } catch (error) {
+      console.error("[desktop] graceful server shutdown failed", error);
+    } finally {
+      quitCleanupFinished = true;
+      import_electron.app.quit();
+    }
+  })();
 });

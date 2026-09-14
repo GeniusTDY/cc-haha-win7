@@ -2,7 +2,7 @@
 
 [English](Technical-Support.md) | **简体中文**
 
-> **上游**：[NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.5.4（Bun + Electron 42 + Tauri sidecar 架构，`d52bbec7`）
+> **上游**：[NanmiCoder/cc-haha](https://github.com/NanmiCoder/cc-haha) v0.6.2（Bun + Electron 42 + Tauri sidecar 架构，`85e7f3a20`）
 > **目标**：Windows 7 SP1 x64，安装与使用全程离线
 > **定位**：本文档只描述 Win7 移植的技术方案本身。项目简介与使用教程见 [README](README.zh-CN.md)。
 
@@ -111,12 +111,12 @@ VxKex 1.2.x **不存在** `KexDll64.dll`，旧版"IFEO 手写 VerifierDlls"方�
 
 ### 4.2 esbuild 构建链（替代全部 `bun build`）
 
-- **esbuild 已内置**：0.28.2 本体 + `@esbuild/linux-x64`、`@esbuild/win32-x64` 双平台二进制提交于 `port-src/vendor/node_modules/`（约 23MB）。三个构建脚本（build.mjs / build-electron.mjs / build-preview-agent.mjs）优先加载内置副本，仓库 node_modules 内的 esbuild 仅作回退——**esbuild 本身零注册表访问**；但上游源码自身的 67 个 dependencies（axios、lodash-es、react 等）仍需先在上游根目录安装，否则构建报约两千个 unresolved（`port-src/vendor/` 只内置 esbuild，desktop 依赖树另在 `vendor/desktop-node-modules-0.5.4/`，均不含上游根依赖）。
-- **产物**：`build.mjs` → `dist/{cli,server,recovery-cli,adapters}.mjs` + `adapters-chunks/`（五个 IM 适配器按需分块：feishu 3.6MB / whatsapp 4.4MB / telegram 967KB / dingtalk 221KB / wechat 30KB，另含 7 个共享 chunk（`chunk-*.mjs`，被适配器分块静态导入，缺一即 `ERR_MODULE_NOT_FOUND`）；入口分发器 `port-src/adapters/index.ts` 由构建脚本自动叠加到 `<root>/adapters/index.ts`；构建后自动剥离第三方 SDK 残留的中文 JSDoc 注释——`port-src/scripts/node-port/strip-cjk-comments.mjs` 只删注释不碰代码，经 esbuild 规范化输出字节级等价验证）。
+- **esbuild 已内置**：0.28.2 本体 + `@esbuild/linux-x64`、`@esbuild/win32-x64` 双平台二进制提交于 `port-src/vendor/node_modules/`（约 23MB）。三个构建脚本（build.mjs / build-electron.mjs / build-preview-agent.mjs）优先加载内置副本，仓库 node_modules 内的 esbuild 仅作回退——**esbuild 本身零注册表访问**；但上游源码自身的 68 个 dependencies（axios、lodash-es、react 等）仍需先在上游根目录安装，否则构建报约两千个 unresolved（`port-src/vendor/` 只内置 esbuild，desktop 依赖树另在 `vendor/desktop-node-modules-0.5.4/`，均不含上游根依赖）。
+- **产物**：`build.mjs` → `dist/{cli,server,recovery-cli,adapters}.mjs` + `adapters-chunks/`（八个 IM 适配器按需分块：feishu 3.6MB / whatsapp 4.6MB / telegram 997KB / dingtalk 240KB / qq 114KB / wecom 51KB / wechat 32KB / slack 18KB，另含 22 个共享 chunk（`chunk-*.mjs`）与 14 个 parser/lib 分块，被适配器分块静态导入，缺一即 `ERR_MODULE_NOT_FOUND`）；入口分发器 `port-src/adapters/index.ts` 由构建脚本自动叠加到 `<root>/adapters/index.ts`；构建后自动剥离第三方 SDK 残留的中文 JSDoc 注释——`port-src/scripts/node-port/strip-cjk-comments.mjs` 只删注释不碰代码，经 esbuild 规范化输出字节级等价验证）。
 - **adapters 依赖优雅降级**：`adapters/node_modules` 未安装时跳过 adapters.mjs 并输出提示，核心三产物照常生成；`cd adapters && npm install` 后重跑可全量构建。Stage B 始终使用 `runtime/node-fallback/` 内的预构建分块，与本步无关。
 - **桌面产物**：`build-electron.mjs` → 4 个 CJS 产物（external：electron / node-pty / electron-updater）。
 - **banner 统一注入**：ESM 兼容 `__dirname` / `__filename`（adapters chunk 内 CJS 依赖必需）、`CLAUDE_CODE_LOCAL_SKIP_REMOTE_PREFETCH ??= "1"`、cli / recovery 的 `process.chdir(CALLER_DIR)`（复刻原 bunfig preload 副作用；server / adapters 不注入，对齐原编译 sidecar 行为）。
-- **补丁清单与应用顺序**：见 [patches/README.md](README.zh-CN.md)——001 Electron 22 固定 / 002 CSS shim / 003 终端 winpty / 004 Bash 解析链 / 005 CU 离线 / 006 NSIS 免 wine。main.cjs 回退层不是编号补丁：以编译产物 `port-src/desktop-electron/main.cjs` 随 `port-src` 叠加交付（§6）；dist 的 Bun 调用点改写与 compat/ entrypoints 落位同样未随补丁入仓（patches/README「源码叠加缺口」）。
+- **补丁清单与应用顺序**：见 [patches/README.zh-CN.md](patches/README.zh-CN.md)——001 Electron 22 固定 / 002 CSS 垫片 / 003 终端 winpty / 004 Bash 解析链 / 005 CU 离线（历史）/ 006 NSIS 免 wine / 007 会话标题本地化 / 008 仓库身份与 fork 礼仪 / 009 应用内更新日志弹窗 / 010 providers_changed 刷新 / 011 H5 输入框容器查询 / 012 CJK 按钮不换行 / 013 内网模式桌面端 UI 与闸门 / 014 内网模式服务端网络策略 / 015 渲染进程崩溃恢复加固（构件级，不应用于上游）/ 016 活动页资料标题宽度。main.cjs 回退层不是编号补丁：以编译产物 `port-src/desktop-electron/main.cjs` 随 `port-src` 叠加交付（§6）；dist 的 Bun 调用点改写与 compat/ entrypoints 落位同样未随补丁入仓（patches/README「源码叠加缺口」）。
 
 ### 4.3 node:sqlite 旗标
 
@@ -194,6 +194,8 @@ createServerPlan():
 ```
 
 NSIS 原厂安装器在安装后期会异步重建 sidecar，因此删除动作并入重打包 payload（Stage B），不依赖装后脚本。发行包必须附带 node-port bundle（server.mjs / adapters.mjs / cli.mjs / recovery-cli.mjs / adapters-chunks\，由 Stage B 从仓库 `runtime/node-fallback/` 部署至安装布局 `resources\app.asar.unpacked\dist\`）。
+
+由于 v0.6.2 的 Stage A 载荷已完全不携带 `src-tauri\` 目录树（`app.asar.unpacked\` 下只剩 `dist\`、`electron-dist\` 与 `node_modules\`），Stage B 步骤 5 还会重建 `resources\app.asar.unpacked\src-tauri\binaries\`，从仓库 `runtime/ripgrep-15.1.0-win32-x64/` 部署锁定的 ripgrep 15.1.0 `rg.exe`（连同 `ripgrep-licenses\` 与 `ripgrep-manifest.json`），并在同一步删除损坏的 sidecar。`rg.exe` 必须位于该确切路径：`installer.nsi`（VxKex 注册，§3）与 `withBundledRipgrepPath`（§4.4）都依赖它；sidecar 特意保持缺失，从而让 `hasCompiledSidecar()` 继续走上述 node 回退。
 
 安装器文案（MUI 页面、VxKex/node 对话框、完成页运行复选框、detail-log 行）置于 NSIS LangString 表——简体中文 + 英文双表；makensis 编译期嵌入两张语言表，运行期由 NSIS 按 OS 界面语言自动选取，英文系统不会看到中文安装文案（2026-08-21，Stage B `installer.nsi`）。
 

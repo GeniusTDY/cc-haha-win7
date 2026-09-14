@@ -59,10 +59,12 @@ resources/runtime/
 
 ## In-git payload provenance & checksums
 
-The committed node-v22.17.0 / python-3.8.10 / vxkex-1.2.1.2229 trees were
-extracted from the released `Claude-Code-Haha-0.5.4-Win7-x64-Offline.exe`
-(sha256 `3221d5e9…a025b40`), so the fixed `python38._pth` and
-the 16 wheels are already applied — no post-clone fixup needed.
+The committed node-v22.17.0 / python-3.8.10 / vxkex-1.2.1.2229 trees
+were extracted from the released Win7 offline installer (the v0.5.4
+build, sha256 `3221d5e9…a025b40`). They are version-independent runtime
+payloads carried unchanged into the v0.6.2 installer, so the fixed
+`python38._pth` and the 16 wheels are already applied — no post-clone
+fixup needed.
 
 | payload | key file | sha256 |
 |---|---|---|
@@ -102,7 +104,7 @@ ready-made installer — the newest build:
 
 | attachment | purpose | sha256 |
 |---|---|---|
-| `Claude-Code-Haha-0.5.4-win7-x64-setup.exe` | **2026-08-21 session-spawn fix rebuild (252,398,598 bytes)** — carries the full 2026-08-20 feature set (full-TTY winpty terminal + bundled PortableGit Bash shell + fully-offline Computer Use + guaranteed node-pty payload + `app-update.yml` repointed at this repo), the restored win32 CLI spawn chain + `node:sqlite` flag injection in `server.mjs`, the VT-input gate in `cli.mjs`, the version-stamped runtime layout, and the restored 6 shared adapter chunks (CJK comments stripped) **plus** the session/cron runtime fix: the last 5 reachable `Bun.spawn` call sites in `server.mjs` (conversation sessions, cron scheduler, `openLogDir` x3) rewritten to `nodeBunSpawn`, `shouldStripInheritedProviderEnv` no longer strips `ANTHROPIC_*` for `providerId=null` (env-only setups keep their inherited auth), and the cron CLI resolution no longer uses the Bun-only `import.meta.dir`. Earlier assets were regressed builds and were removed; the version number stays 0.5.4, so electron-updater offers nothing — users of earlier builds must re-download manually. Paired with `latest.yml` for electron-updater | `c6727145…c8946c1` |
+| `Claude-Code-Haha-0.6.2-win7-x64-setup.exe` | **2026-09-13 v0.6.2 Win7 rebuild (265,758,324 bytes)** — the upstream v0.6.2 sources re-adapted to the Win7 port: patch series 008/009/010/013 + the compiled port overlay rebuilt for v0.6.2, the intranet layer (013/014 gates + final-series renderer) re-cut, the node-fallback bundle re-derived (server/CLI/recovery + the full 44-module `adapters-chunks/` import closure for the eight v0.6.2 adapter flags), the versioned `resources/runtime/` payload (node 22.17.0 / Python 3.8.10 / VxKex 1.2.1.2229 / PortableGit 2.45.2 + node-pty) overlaid, and the pinned ripgrep 15.1.0 `rg.exe` re-staged under `app.asar.unpacked/src-tauri/binaries/` (the broken compiled sidecar stays removed so `hasCompiledSidecar()` drives the node fallback). `app-update.yml` keeps pointing at this repo. Paired with `latest.yml` for electron-updater. Supersedes the 0.5.4 build (`c6727145…c8946c1`), whose node/python/vxkex trees are the version-independent payloads committed in this dir | `218d3899…291ee9` |
 
 ## node-pty-1.1.0-win32-x64/ (in git, ~1 MB)
 
@@ -115,17 +117,45 @@ payload is missing or pruned that module, so the desktop terminal keeps
 full TTY emulation (winpty works natively on Win7 — no VxKex registration
 needed for the agent).
 
+## ripgrep-15.1.0-win32-x64/ (in git, ~4 MB)
+
+Vendored ripgrep 15.1.0 win-x64 binary (`rg.exe`) plus its
+`ripgrep-licenses/` (COPYING / LICENSE-MIT / UNLICENSE) and
+`ripgrep-manifest.json` — exactly the payload upstream's
+`desktop/scripts/prepare-ripgrep.ts` stages into `src-tauri/binaries/`.
+The v0.6.2 Stage A payload ships no `src-tauri/` tree at all (only
+`dist/`, `electron-dist/` and `node_modules/` under
+`app.asar.unpacked/`), so `repack/build-repack.sh` step 5/9 creates
+`resources/app.asar.unpacked/src-tauri/binaries/`, drops the broken
+compiled sidecar and copies this payload in. `rg.exe` must live there
+for two reasons: `installer.nsi` registers it with VxKex
+(`WaitOnAddress` shim — see the matrix above) and `main-guest.cjs`
+resolves it via `withBundledRipgrepPath()`. The sidecar stays absent on
+purpose — `hasCompiledSidecar()` then drives the built-in node
+fallback.
+
+Binary provenance: `rg.exe` is byte-identical to the copy shipped in
+the v0.5.4 release (re-extracted offline from
+`Claude-Code-Haha-0.5.4-Win7-x64-Setup.exe`), sha256
+`decdd4992f3f1b9a5ef9898f1b40ab16886d579d6516b4efd3d5eaa19364e408`
+(4,266,496 bytes); the pinned upstream archive
+`ripgrep-15.1.0-x86_64-pc-windows-msvc.zip` has sha256
+`124510b94b6baa3380d051fdf4650eaa80a302c876d611e9dba0b2e18d87493a`.
+
 ## node-fallback/
 
 The Node-port server/CLI bundle deployed to
 `resources/app.asar.unpacked/dist/` (server.mjs + adapters.mjs +
 cli.mjs + recovery-cli.mjs + adapters-chunks/). The files committed
 here are already fully patched; the repack build script deploys them
-as-is. `adapters-chunks/` must keep its full 12-file import closure —
-5 adapter chunks + 7 shared `chunk-*.mjs` — the adapter chunks import
-the shared ones statically, so dropping any of them breaks every
-`--feishu/--telegram/--wechat/--whatsapp/--dingtalk` load with
-ERR_MODULE_NOT_FOUND. The feishu/dingtalk adapter chunks are stored
+as-is. `adapters-chunks/` must keep its full 44-module import closure —
+8 adapter chunks (feishu / whatsapp / telegram / dingtalk / qq / wecom /
+wechat / slack) + 22 shared `chunk-*.mjs` (incl. the `chunk-57T55QIK.mjs`
+macro-init chunk that `adapters.mjs` imports) + 14 parser/lib chunks —
+the adapter chunks import the shared ones statically, so dropping any of
+them breaks every `--feishu/--telegram/--wechat/--dingtalk/--whatsapp/
+--wecom/--qq/--slack` load with ERR_MODULE_NOT_FOUND. The feishu/dingtalk
+adapter chunks are stored
 without the third-party SDKs' Chinese JSDoc comments (stripped via
 `port-src/scripts/node-port/strip-cjk-comments.mjs`, which also runs
 at build time; code verified byte-equivalent through esbuild

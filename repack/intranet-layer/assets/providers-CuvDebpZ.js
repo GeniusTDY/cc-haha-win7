@@ -1,1 +1,0 @@
-import{n as e}from"./App-CCYxxLqm.js";export{e as providersApi};

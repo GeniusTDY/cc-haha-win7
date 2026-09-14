@@ -89,10 +89,10 @@ any Stage A build.
 The series originally targeted v0.5.4. Re-targeting it at `85e7f3a20`
 ("release: v0.6.2") kept 001/002/003/007/011/012 and cli/004, cli/014
 byte-identical and regenerated the four patches whose hunks upstream had
-moved underneath: **008, 009, 010, 013**. Verified by applying the 12
-numbered patches in the order below to a pristine `85e7f3a20` checkout
-and comparing the resulting tree to the canonical replay (zero conflict
-markers):
+moved underneath: **008, 009, 010, 013**. Verified by applying the
+series as it then stood (12 numbered patches) in the order below to a
+pristine `85e7f3a20` checkout and comparing the resulting tree to the
+canonical replay (zero conflict markers):
 
 ```
 series tree: 9d06be08fa401dbc7665b7cc1e22653bd06c61d4

@@ -59,7 +59,7 @@ export function nodeServe<Data = unknown>(
     ? new WebSocketServer({ noServer: true, perMessageDeflate: false })
     : null
 
-  let boundPort = 0
+  let boundPort = options.port ?? 0
   let listeningResolve: (() => void) | null = null
   const listening = new Promise<void>(resolve => {
     listeningResolve = resolve
@@ -229,7 +229,12 @@ export function nodeServe<Data = unknown>(
 
     const nodeBody = Readable.fromWeb(response.body as import('node:stream/web').ReadableStream)
     nodeBody.on('data', chunk => {
-      res.write(chunk)
+      if (!res.write(chunk)) {
+        nodeBody.pause()
+        res.once('drain', () => {
+          nodeBody.resume()
+        })
+      }
     })
     nodeBody.on('end', () => {
       res.end()
